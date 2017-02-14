@@ -16,6 +16,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>agroal-api</module>
+        <module>agroal-pool</module>
     </modules>
     <licenses>
         <license>

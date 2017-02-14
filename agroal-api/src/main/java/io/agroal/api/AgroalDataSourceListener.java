@@ -10,9 +10,9 @@ import java.sql.Connection;
  */
 public interface AgroalDataSourceListener {
 
-    default void beforeConnectionCreate() {}
+    default void beforeConnectionCreation() {}
 
-    default void onConnectionCreate(Connection connection) {}
+    default void onConnectionCreation(Connection connection) {}
 
     default void beforeConnectionAcquire() {}
 

@@ -28,8 +28,8 @@ public interface AgroalDataSourceConfiguration {
 
     enum DataSourceImplementation {
 
-        AGROAL( "io.agroal.pool.AgroalPooledDataSource" ),
-        HIKARI( "io.agroal.hikari.HikariUnderTheCoversDataSource" );
+        AGROAL( "io.agroal.pool.DataSource" ),
+        HIKARI( "io.agroal.hikari.HikariUnderTheCovers" );
 
         private String className;
 

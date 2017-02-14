@@ -60,6 +60,10 @@ public interface AgroalDataSourceMetrics {
         return 0;
     }
 
+    default long acquireCount() {
+        return 0;
+    }
+
     default Duration averageBlockingTime() {
         return Duration.ZERO;
     }
