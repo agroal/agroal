@@ -16,6 +16,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>agroal-api</module>
+        <module>agroal-narayana</module>
         <module>agroal-pool</module>
     </modules>
     <licenses>
@@ -30,4 +31,9 @@
         <developerConnection>scm:git://github.com/agroal/agroal.git</developerConnection>
         <url>https://github.com/agroal/agroal</url>
     </scm>
+    <properties>
+        <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
+        <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
+        <version.org.jboss.jboss-transaction-spi>7.3.1.Final</version.org.jboss.jboss-transaction-spi>
+    </properties>
 </project>
