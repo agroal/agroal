@@ -3,6 +3,7 @@
 
 package io.agroal.pool.util;
 
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
@@ -18,7 +19,7 @@ public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
     private static final AtomicLong THREAD_COUNT = new AtomicLong();
 
-    private Queue<RunnableFuture<?>> highPriorityTasks = new ConcurrentLinkedQueue<>();
+    private Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
 
     public PriorityScheduledExecutor(int executorSize, String threadPrefix) {
         super( executorSize, r -> {
@@ -30,7 +31,7 @@ public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
     public Future<?> executeNow(Runnable priorityTask) {
         RunnableFuture<?> priorityFuture = new FutureTask<>( priorityTask, null );
-        highPriorityTasks.add( priorityFuture );
+        priorityTasks.add( priorityFuture );
         submit( () -> {} );
         return priorityFuture;
     }
@@ -39,9 +40,23 @@ public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
     protected void beforeExecute(Thread thread, Runnable lowPriorityTask) {
         // Run all high priority tasks in queue first, then low priority
         RunnableFuture<?> priorityTask;
-        while ( ( priorityTask = highPriorityTasks.poll() ) != null ) {
+        while ( ( priorityTask = priorityTasks.poll() ) != null ) {
             priorityTask.run();
         }
         super.beforeExecute( thread, lowPriorityTask );
+    }
+
+    @Override
+    public void shutdown() {
+        submit( () -> {
+        } );
+        super.shutdown();
+    }
+
+    @Override
+    public List<Runnable> shutdownNow() {
+        priorityTasks.forEach( runnableFuture -> runnableFuture.cancel( true ) );
+        priorityTasks.clear();
+        return super.shutdownNow();
     }
 }

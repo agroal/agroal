@@ -10,6 +10,7 @@ import io.agroal.api.security.SimplePassword;
 import java.security.Principal;
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
@@ -35,13 +36,18 @@ public class ConnectionFactory {
             driver = driverClass.newInstance();
             setupSecurity( configuration );
         } catch ( IllegalAccessException | InstantiationException | ClassNotFoundException e ) {
-            throw new RuntimeException( "Unable to load driver class" );
+            try {
+                // Fallback to load the Driver through the DriverManager
+                driver = DriverManager.getDriver( configuration.jdbcUrl() );
+            } catch ( SQLException ig ) {
+                throw new RuntimeException( "Unable to load driver class", e );
+            }
         }
     }
 
     private void setupSecurity(AgroalConnectionFactoryConfiguration configuration) {
         Principal principal = configuration.principal();
-        
+
         if ( principal == null ) {
             // skip!
         } else if ( principal instanceof NamePrincipal ) {
@@ -67,10 +73,12 @@ public class ConnectionFactory {
         }
     }
 
-    public ConnectionHandler createHandler() throws SQLException {
+    public Connection createConnection() throws SQLException {
         Connection connection = driver.connect( configuration.jdbcUrl(), jdbcProperties );
         connection.setAutoCommit( configuration.autoCommit() );
-        connection.createStatement().execute( configuration.initialSql() );
-        return new ConnectionHandler( connection );
+        if ( configuration.initialSql() != null && !configuration.initialSql().isEmpty() ) {
+            connection.createStatement().execute( configuration.initialSql() );
+        }
+        return connection;
     }
 }

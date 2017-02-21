@@ -9,8 +9,9 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
-import static java.lang.String.format;
 import static java.lang.System.nanoTime;
+import static java.text.MessageFormat.format;
+import static java.time.Duration.ZERO;
 import static java.time.Duration.ofNanos;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater;
@@ -32,6 +33,9 @@ public interface DataSourceMetricsRepository extends AgroalDataSourceMetrics {
     }
 
     default void afterConnectionAcquire(long timestamp) {
+    }
+
+    default void afterConnectionReturn() {
     }
 
     default void afterLeakDetection() {
@@ -69,6 +73,7 @@ public interface DataSourceMetricsRepository extends AgroalDataSourceMetrics {
         private final LongAdder creationCount = new LongAdder();
         private final LongAdder creationTotalTime = new LongAdder();
         private final LongAdder acquireCount = new LongAdder();
+        private final LongAdder returnCount = new LongAdder();
         private final LongAdder acquireTotalTime = new LongAdder();
         private final LongAdder leakDetectionCount = new LongAdder();
         private final LongAdder invalidCount = new LongAdder();
@@ -117,6 +122,11 @@ public interface DataSourceMetricsRepository extends AgroalDataSourceMetrics {
         }
 
         @Override
+        public void afterConnectionReturn() {
+            returnCount.increment();
+        }
+
+        @Override
         public void afterLeakDetection() {
             leakDetectionCount.increment();
         }
@@ -150,6 +160,9 @@ public interface DataSourceMetricsRepository extends AgroalDataSourceMetrics {
 
         @Override
         public Duration averageCreationTime() {
+            if ( creationCount.longValue() == 0 ) {
+                return ZERO;
+            }
             return ofNanos( creationTotalTime.longValue() / creationCount.longValue() );
         }
 
@@ -210,6 +223,9 @@ public interface DataSourceMetricsRepository extends AgroalDataSourceMetrics {
 
         @Override
         public Duration averageBlockingTime() {
+            if ( acquireCount.longValue() == 0 ) {
+                return ZERO;
+            }
             return ofNanos( acquireTotalTime.longValue() / acquireCount.longValue() );
         }
 
@@ -251,12 +267,14 @@ public interface DataSourceMetricsRepository extends AgroalDataSourceMetrics {
             double avgCreationMs = (double) averageCreationTime().toNanos() / MILLISECONDS.toNanos( 1 );
             double avgBlockingMs = (double) averageBlockingTime().toNanos() / MILLISECONDS.toNanos( 1 );
 
-            String s1 = format( "Connections: %s created / %s acquired / %s destroyed / %s invalid / %s reap %n", creationCount, acquireCount, destroyCount, invalidCount, reapCount );
-            String s2 = format( "Pool: %d available / %d active / %d max %n", availableCount(), activeCount(), maxUsedCount() );
-            String s3 = format( "Created duration: %3.3fms average / %dms max / %dms total %n", avgCreationMs, maxCreationTime().toMillis(), totalCreationTime().toMillis() );
-            String s4 = format( "Acquire duration: %3.3fms average / %dms max / %dms total %n", avgBlockingMs, maxBlockingTime().toMillis(), totalBlockingTime().toMillis() );
-            String s5 = format( "Threads awaiting: %d %n", awaitingCount() );
-            return s1 + s2 + s3 + s4 + s5;
+            String s1 = format( "Connections: {0} created / {1} invalid / {2} reap / {3} flush / {4} destroyed", creationCount, invalidCount, reapCount, flushCount, destroyCount );
+            String s2 = format( "Pool: {0} available / {1} active / {2} max / {3} acquired / {4} returned", availableCount(), activeCount(), maxUsedCount(), acquireCount, returnCount );
+            String s3 = format( "Created duration: {0,number,000.000}ms average / {1}ms max / {2}ms total", avgCreationMs, maxCreationTime().toMillis(), totalCreationTime().toMillis() );
+            String s4 = format( "Acquire duration: {0,number,000.000}ms average / {1}ms max / {2}ms total", avgBlockingMs, maxBlockingTime().toMillis(), totalBlockingTime().toMillis() );
+            String s5 = format( "Threads awaiting: {0}", awaitingCount() );
+
+            String nl = System.lineSeparator();
+            return nl + "===" + nl + s1 + nl + s2 + nl + s3 + nl + s4 + nl + s5 + nl + "===";
         }
     }
 }

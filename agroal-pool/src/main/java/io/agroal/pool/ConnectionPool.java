@@ -18,7 +18,9 @@ import java.util.concurrent.Future;
 
 import static io.agroal.pool.ConnectionHandler.State.*;
 import static io.agroal.pool.util.AgroalDataSourceListenerHelper.*;
+import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
+import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 /**
@@ -50,7 +52,7 @@ public class ConnectionPool implements AutoCloseable {
 
         localCache = ThreadLocal.withInitial( () -> new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class ) );
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration() );
-        housekeepingExecutor = new PriorityScheduledExecutor( 1, "Housekeeping of " + this );
+        housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal@" + identityHashCode( this ) + "_" );
 
         interruptProtection = configuration.connectionFactoryConfiguration().interruptProtection();
         transactionIntegration = configuration.transactionIntegration();
@@ -107,7 +109,7 @@ public class ConnectionPool implements AutoCloseable {
             long metricsStamp = dataSource.metricsRepository().beforeConnectionCreation();
 
             try {
-                ConnectionHandler handler = connectionFactory.createHandler();
+                ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection() );
                 handler.setConnectionPool( this );
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
@@ -149,7 +151,7 @@ public class ConnectionPool implements AutoCloseable {
             checkedOutHandler.setLastAccess( nanoTime() );
         }
         if ( leakEnabled ) {
-            checkedOutHandler.setHoldingThread( Thread.currentThread() );
+            checkedOutHandler.setHoldingThread( currentThread() );
         }
 
         if ( connectionWrapper == null ) {
@@ -220,6 +222,7 @@ public class ConnectionPool implements AutoCloseable {
             localCache.get().add( handler );
             handler.setState( CHECKED_IN );
             synchronizer.releaseConditional();
+            dataSource.metricsRepository().afterConnectionReturn();
             fireOnConnectionReturn( dataSource, handler );
         }
     }
@@ -305,9 +308,7 @@ public class ConnectionPool implements AutoCloseable {
 
         @Override
         public void run() {
-            for ( ConnectionHandler handler : allConnections.getUnderlyingArray() ) {
-                housekeepingExecutor.submit( new ValidateConnectionTask( handler ) );
-            }
+            allConnections.forEach( hadler -> housekeepingExecutor.submit( new ValidateConnectionTask( hadler ) ) );
             housekeepingExecutor.schedule( this, configuration.validationTimeout().toNanos(), NANOSECONDS );
         }
 
@@ -328,6 +329,7 @@ public class ConnectionPool implements AutoCloseable {
                         fireOnConnectionValid( dataSource, handler );
                     } else {
                         handler.setState( FLUSH );
+                        allConnections.remove( handler );
                         dataSource.metricsRepository().afterConnectionInvalid();
                         fireOnConnectionInvalid( dataSource, handler );
                         housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
@@ -346,9 +348,7 @@ public class ConnectionPool implements AutoCloseable {
             // TODO Clear thread-local connection cache
             // localCache = ThreadLocal.withInitial( () -> new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class ) ) );
 
-            for ( ConnectionHandler handler : allConnections ) {
-                housekeepingExecutor.submit( new ReapConnectionTask( handler ) );
-            }
+            allConnections.forEach( hadler -> housekeepingExecutor.submit( new ReapConnectionTask( hadler ) ) );
             housekeepingExecutor.schedule( this, configuration.reapTimeout().toNanos(), NANOSECONDS );
         }
 
@@ -365,6 +365,7 @@ public class ConnectionPool implements AutoCloseable {
                 fireBeforeConnectionReap( dataSource, handler );
                 if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
                     if ( nanoTime() - handler.getLastAccess() > configuration.reapTimeout().toNanos() ) {
+                        allConnections.remove( handler );
                         dataSource.metricsRepository().afterConnectionReap();
                         fireOnConnectionReap( dataSource, handler );
                         housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
@@ -392,7 +393,6 @@ public class ConnectionPool implements AutoCloseable {
             fireBeforeConnectionDestroy( dataSource, handler );
             closeConnectionSafely( handler );
             handler.setState( DESTROYED );
-            allConnections.remove( handler );
             fireOnConnectionDestroy( dataSource, handler );
         }
     }

@@ -32,10 +32,11 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
     public DataSource(AgroalDataSourceConfiguration configuration) {
         this.configuration = configuration;
         this.configuration.registerMetricsEnabledListener( this );
-        onMetricsEnabled( configuration.metricsEnabled() );
 
         listenerList = new StampedCopyOnWriteArrayList<>( AgroalDataSourceListener.class );
         connectionPool = new ConnectionPool( configuration.connectionPoolConfiguration(), this );
+        onMetricsEnabled( configuration.metricsEnabled() );
+
         connectionPool.init();
     }
 

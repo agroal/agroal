@@ -288,7 +288,9 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
 
     @Override
     public void forEach(Consumer<? super T> action) {
-        throw new UnsupportedOperationException();
+        for ( T element : this ) {
+            action.accept( element );
+        }
     }
 
     @Override

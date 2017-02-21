@@ -14,9 +14,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.MAX;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.NONE;
 import static io.agroal.api.configuration.ConnectionValidator.emptyValidator;
 import static io.agroal.api.transaction.TransactionIntegration.none;
+import static java.lang.Integer.MAX_VALUE;
 import static java.time.Duration.ZERO;
 
 /**
@@ -26,11 +28,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     private volatile boolean lock;
 
-    private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration;
+    private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = new AgroalConnectionFactoryConfigurationSupplier().get();
     private PreFillMode preFillMode = NONE;
     private TransactionIntegration transactionIntegration = none();
     private volatile int minSize = 0;
-    private volatile int maxSize = 0;
+    private volatile int maxSize = MAX_VALUE;
     private ConnectionValidator connectionValidator = emptyValidator();
     private Duration leakTimeout = ZERO;
     private Duration validationTimeout = ZERO;
@@ -122,8 +124,14 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( minSize < 0 ) {
             throw new IllegalArgumentException( "Invalid min size" );
         }
+        if ( maxSize <= 0 ) {
+            throw new IllegalArgumentException( "A Positive max size is required" );
+        }
         if ( minSize > maxSize ) {
             throw new IllegalArgumentException( "Wrong size of min / max size" );
+        }
+        if ( maxSize == MAX_VALUE && MAX.equals( preFillMode ) ) {
+            throw new IllegalArgumentException( "Invalid pre-fill mode MAX without specifying max size" );
         }
         if ( connectionFactoryConfiguration == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );

@@ -42,7 +42,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
         } else if ( "isValid".equals( methodName ) ) {
             return Boolean.FALSE;
         } else if ( "toString".equals( methodName ) ) {
-            return ConnectionWrapper.class.getCanonicalName() + ".CLOSED_CONNECTION";
+            return ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
         }
         throw new SQLException( "Connection is closed" );
     };
@@ -108,7 +108,9 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void close() throws SQLException {
         wrappedConnection = CLOSED_CONNECTION;
-        handler.returnConnection();
+        if ( !inTransaction ) {
+            handler.returnConnection();
+        }
     }
 
     @Override
@@ -390,5 +392,10 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public boolean isWrapperFor(Class<?> target) throws SQLException {
         return wrappedConnection.isWrapperFor( target );
+    }
+
+    @Override
+    public String toString() {
+        return "wrapped[" + wrappedConnection + ( inTransaction ? "]<<enrolled" : "]" );
     }
 }

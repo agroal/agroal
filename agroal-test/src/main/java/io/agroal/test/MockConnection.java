@@ -1,0 +1,295 @@
+// Copyright (C) 2017 Red Hat, Inc. and individual contributors as indicated by the @author tags.
+// You may not use this file except in compliance with the Apache License, Version 2.0.
+
+package io.agroal.test;
+
+import java.sql.Array;
+import java.sql.Blob;
+import java.sql.CallableStatement;
+import java.sql.Clob;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.NClob;
+import java.sql.PreparedStatement;
+import java.sql.SQLClientInfoException;
+import java.sql.SQLException;
+import java.sql.SQLWarning;
+import java.sql.SQLXML;
+import java.sql.Savepoint;
+import java.sql.Statement;
+import java.sql.Struct;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.Executor;
+
+import static java.lang.System.identityHashCode;
+
+/**
+ * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
+ */
+public interface MockConnection extends Connection {
+
+    class Empty implements MockConnection{
+
+        @Override
+        public String toString() {
+            return "MockConnection@" + identityHashCode( this );
+        }
+    }
+
+    // --- //
+
+    @Override
+    default Statement createStatement() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default PreparedStatement prepareStatement(String sql) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default CallableStatement prepareCall(String sql) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default String nativeSQL(String sql) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default boolean getAutoCommit() throws SQLException {
+        return false;
+    }
+
+    @Override
+    default void setAutoCommit(boolean autoCommit) throws SQLException {
+    }
+
+    @Override
+    default void commit() throws SQLException {
+
+    }
+
+    @Override
+    default void rollback() throws SQLException {
+    }
+
+    @Override
+    default void close() throws SQLException {
+    }
+
+    @Override
+    default boolean isClosed() throws SQLException {
+        return false;
+    }
+
+    @Override
+    default DatabaseMetaData getMetaData() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default boolean isReadOnly() throws SQLException {
+        return false;
+    }
+
+    @Override
+    default void setReadOnly(boolean readOnly) throws SQLException {
+    }
+
+    @Override
+    default String getCatalog() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default void setCatalog(String catalog) throws SQLException {
+    }
+
+    @Override
+    default int getTransactionIsolation() throws SQLException {
+        return TRANSACTION_NONE;
+    }
+
+    @Override
+    default void setTransactionIsolation(int level) throws SQLException {
+    }
+
+    @Override
+    default SQLWarning getWarnings() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default void clearWarnings() throws SQLException {
+    }
+
+    @Override
+    default Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default Map<String, Class<?>> getTypeMap() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default void setTypeMap(Map<String, Class<?>> map) throws SQLException {
+    }
+
+    @Override
+    default int getHoldability() throws SQLException {
+        return 0;
+    }
+
+    @Override
+    default void setHoldability(int holdability) throws SQLException {
+    }
+
+    @Override
+    default Savepoint setSavepoint() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default Savepoint setSavepoint(String name) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default void rollback(Savepoint savepoint) throws SQLException {
+    }
+
+    @Override
+    default void releaseSavepoint(Savepoint savepoint) throws SQLException {
+    }
+
+    @Override
+    default Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default Clob createClob() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default Blob createBlob() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default NClob createNClob() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default SQLXML createSQLXML() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default boolean isValid(int timeout) throws SQLException {
+        return false;
+    }
+
+    @Override
+    default void setClientInfo(String name, String value) throws SQLClientInfoException {
+    }
+
+    @Override
+    default String getClientInfo(String name) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default Properties getClientInfo() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default void setClientInfo(Properties properties) throws SQLClientInfoException {
+    }
+
+    @Override
+    default Array createArrayOf(String typeName, Object[] elements) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default Struct createStruct(String typeName, Object[] attributes) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default String getSchema() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default void setSchema(String schema) throws SQLException {
+    }
+
+    @Override
+    default void abort(Executor executor) throws SQLException {
+    }
+
+    @Override
+    default void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
+    }
+
+    @Override
+    default int getNetworkTimeout() throws SQLException {
+        return 0;
+    }
+
+    @Override
+    default <T> T unwrap(Class<T> iface) throws SQLException {
+        return null;
+    }
+
+    @Override
+    default boolean isWrapperFor(Class<?> iface) throws SQLException {
+        return false;
+    }
+}

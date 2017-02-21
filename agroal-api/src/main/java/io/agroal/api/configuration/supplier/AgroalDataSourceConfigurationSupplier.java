@@ -20,7 +20,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     private volatile boolean lock;
 
     private String jndiName = "";
-    private AgroalConnectionPoolConfiguration connectionPoolConfiguration;
+    private AgroalConnectionPoolConfiguration connectionPoolConfiguration = new AgroalConnectionPoolConfigurationSupplier().get();
     private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
     private boolean xa;
 

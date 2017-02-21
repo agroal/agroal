@@ -117,17 +117,6 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
 
     // --- //
 
-    private void validateJdbcProperty(String key) {
-        if ( USERNAME_PROPERTY_NAME.equalsIgnoreCase( key ) ) {
-            throw new IllegalArgumentException( "Invalid property '" + key + "': use principal instead." );
-        }
-        if ( PASSWORD_PROPERTY_NAME.equalsIgnoreCase( key ) ) {
-            throw new IllegalArgumentException( "Invalid property '" + key + "': use credential instead." );
-        }
-    }
-
-    // --- //
-
     private void validate() {
         if ( jdbcProperties.containsKey( USERNAME_PROPERTY_NAME ) ) {
             throw new IllegalArgumentException( "Invalid JDBC property '" + USERNAME_PROPERTY_NAME + "': use principal instead." );
