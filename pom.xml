@@ -33,8 +33,8 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git://github.com/agroal/agroal.git</connection>
-        <developerConnection>scm:git://github.com/agroal/agroal.git</developerConnection>
+        <connection>scm:git:git://github.com/agroal/agroal.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/agroal/agroal.git</developerConnection>
         <url>https://github.com/agroal/agroal</url>
     </scm>
     <developers>
