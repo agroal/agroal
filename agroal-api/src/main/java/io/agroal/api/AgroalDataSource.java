@@ -12,8 +12,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
-import static java.lang.Thread.currentThread;
-
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
@@ -25,7 +23,7 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
 
     static AgroalDataSource from(AgroalDataSourceConfiguration configuration) throws SQLException {
         try {
-            ClassLoader classLoader = currentThread().getContextClassLoader();
+            ClassLoader classLoader = AgroalDataSource.class.getClassLoader();
             Class<?> dataSourceClass = classLoader.loadClass( configuration.dataSourceImplementation().className() );
             Constructor<?> dataSourceConstructor = dataSourceClass.getConstructor( AgroalDataSourceConfiguration.class );
             return (AgroalDataSource) dataSourceConstructor.newInstance( configuration );
