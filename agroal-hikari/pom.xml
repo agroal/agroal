@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (C) 2017 Red Hat, Inc. and individual contributors as indicated by the @author tags -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.agroal</groupId>
+        <artifactId>agroal-parent</artifactId>
+        <version>0.2-SNAPSHOT</version>
+    </parent>
+    <artifactId>agroal-hikari</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <name>Agroal Connection Pool wrapping HikariCP</name>
+    <dependencies>
+        <dependency>
+            <groupId>io.agroal</groupId>
+            <artifactId>agroal-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${version.com.zaxxer}</version>
+        </dependency>
+    </dependencies>
+</project>

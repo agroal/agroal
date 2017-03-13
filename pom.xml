@@ -20,6 +20,7 @@
     </issueManagement>
     <modules>
         <module>agroal-api</module>
+        <module>agroal-hikari</module>
         <module>agroal-narayana</module>
         <module>agroal-pool</module>
         <module>agroal-test</module>
@@ -47,11 +48,13 @@
     <properties>
         <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
+        <version.com.zaxxer>2.6.0</version.com.zaxxer>
         <version.org.jboss.jboss-transaction-spi>7.5.0.Final</version.org.jboss.jboss-transaction-spi>
         <version.org.jboss.logging>3.3.0.Final</version.org.jboss.logging>
         <version.org.jboss.narayana>5.3.3.Final</version.org.jboss.narayana>
         <version.org.junit.jupiter>5.0.0-M3</version.org.junit.jupiter>
         <version.org.junit.platform>1.0.0-M3</version.org.junit.platform>
+        <version.org.slf4j>1.7.24</version.org.slf4j>
     </properties>
     <build>
         <plugins>
