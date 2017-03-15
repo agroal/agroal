@@ -2,6 +2,7 @@
 
 The natural database connection pool
 
+[![Build Status](https://travis-ci.org/agroal/agroal.svg?branch=master)](https://travis-ci.org/agroal/agroal)
 
 ## License
 
