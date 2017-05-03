@@ -16,6 +16,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -29,11 +30,12 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
     private final ConnectionPool connectionPool;
     private DataSourceMetricsRepository dataSourceMetrics;
 
-    public DataSource(AgroalDataSourceConfiguration configuration) {
+    public DataSource(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
         this.configuration.registerMetricsEnabledListener( this );
 
         listenerList = new StampedCopyOnWriteArrayList<>( AgroalDataSourceListener.class );
+        listenerList.addAll( Arrays.asList( listeners ) );
         connectionPool = new ConnectionPool( configuration.connectionPoolConfiguration(), this );
         onMetricsEnabled( configuration.metricsEnabled() );
 

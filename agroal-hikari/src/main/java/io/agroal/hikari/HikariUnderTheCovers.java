@@ -35,7 +35,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
 
     private final HikariDataSource hikari;
 
-    public HikariUnderTheCovers(AgroalDataSourceConfiguration configuration) {
+    public HikariUnderTheCovers(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
         this.poolConfiguration = configuration.connectionPoolConfiguration();
         this.factoryConfiguration = poolConfiguration.connectionFactoryConfiguration();

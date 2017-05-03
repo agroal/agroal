@@ -209,6 +209,21 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
         };
     }
 
+    @Override
+    public boolean addAll(Collection<? extends T> c) {
+        long stamp = lock.writeLock();
+        try {
+            int oldSize = data.length;
+            data = copyOf( data, oldSize + c.size() );
+            for ( T element : c ) {
+                data[oldSize++] = element;
+            }
+            return true;
+        } finally {
+            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+        }
+    }
+
     // --- //
 
     @Override
@@ -223,11 +238,6 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean addAll(Collection<? extends T> c) {
         throw new UnsupportedOperationException();
     }
 

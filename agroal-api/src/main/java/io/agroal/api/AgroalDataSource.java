@@ -17,16 +17,16 @@ import java.util.function.Supplier;
  */
 public interface AgroalDataSource extends AutoCloseable, DataSource, Serializable {
 
-    static AgroalDataSource from(Supplier<AgroalDataSourceConfiguration> configurationSupplier) throws SQLException {
-        return from( configurationSupplier.get() );
+    static AgroalDataSource from(Supplier<AgroalDataSourceConfiguration> configurationSupplier, AgroalDataSourceListener ... listeners) throws SQLException {
+        return from( configurationSupplier.get(), listeners );
     }
 
-    static AgroalDataSource from(AgroalDataSourceConfiguration configuration) throws SQLException {
+    static AgroalDataSource from(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener ... listeners) throws SQLException {
         try {
             ClassLoader classLoader = AgroalDataSource.class.getClassLoader();
-            Class<?> dataSourceClass = classLoader.loadClass( configuration.dataSourceImplementation().className() );
-            Constructor<?> dataSourceConstructor = dataSourceClass.getConstructor( AgroalDataSourceConfiguration.class );
-            return (AgroalDataSource) dataSourceConstructor.newInstance( configuration );
+            Class<? extends AgroalDataSource> dataSourceClass = classLoader.loadClass( configuration.dataSourceImplementation().className() ).asSubclass( AgroalDataSource.class );
+            Constructor<? extends AgroalDataSource> dataSourceConstructor = dataSourceClass.getConstructor( AgroalDataSourceConfiguration.class, AgroalDataSourceListener[].class );
+            return dataSourceConstructor.newInstance( configuration, listeners );
         } catch ( ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e ) {
             throw new SQLException( "Could not load Data Source class", e );
         }
