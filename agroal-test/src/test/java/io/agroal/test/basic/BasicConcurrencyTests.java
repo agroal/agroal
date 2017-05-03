@@ -6,7 +6,6 @@ package io.agroal.test.basic;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
-import io.agroal.test.AgroalTestGroup;
 import io.agroal.test.AgroalTestHelper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,7 +20,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
-import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.MAX;
 import static io.agroal.test.AgroalTestGroup.CONCURRENCY;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
@@ -67,7 +65,7 @@ public class BasicConcurrencyTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
-                        .preFillMode( MAX )
+                        .initialSize( MAX_POOL_SIZE )
                         .maxSize( MAX_POOL_SIZE )
                 );
 

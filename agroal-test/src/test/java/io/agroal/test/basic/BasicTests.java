@@ -6,7 +6,6 @@ package io.agroal.test.basic;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
-import io.agroal.test.AgroalTestGroup;
 import io.agroal.test.MockConnection;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,7 +19,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
-import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.MAX;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
@@ -133,24 +131,22 @@ public class BasicTests {
                         .maxSize( MAX_POOL_SIZE )
                         .leakTimeout( ofMillis( LEAK_DETECTION_MS ) )
                 );
+        CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
-            CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void onConnectionLeak(Connection connection, Thread thread) {
+                assertEquals( leakingThread, thread, "Wrong thread reported" );
+                latch.countDown();
+            }
+        };
 
-            dataSource.addListener( new AgroalDataSourceListener() {
-                @Override
-                public void onConnectionLeak(Connection connection, Thread thread) {
-                    assertEquals( leakingThread, thread, "Wrong thread reported" );
-                    latch.countDown();
-                }
-            } );
-
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
                 Connection connection = dataSource.getConnection();
                 assertNotNull( connection.getSchema(), "Expected non null value" );
                 //connection.close();
             }
-
             try {
                 logger.info( format( "Holding all {0} connections from the pool and waiting for leak notifications", MAX_POOL_SIZE ) );
                 if ( !latch.await( 2 * LEAK_DETECTION_MS, MILLISECONDS ) ) {
@@ -169,27 +165,25 @@ public class BasicTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MAX_POOL_SIZE )
                         .maxSize( MAX_POOL_SIZE )
-                        .preFillMode( MAX )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
                 );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
-            CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
+        CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void beforeConnectionValidation(Connection connection) {
+                latch.countDown();
+            }
+        };
 
-            dataSource.addListener( new AgroalDataSourceListener() {
-                @Override
-                public void beforeConnectionValidation(Connection connection) {
-                    latch.countDown();
-                }
-            } );
-
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < CAllS; i++ ) {
                 Connection connection = dataSource.getConnection();
                 assertNotNull( connection.getSchema(), "Expected non null value" );
                 connection.close();
             }
-
             try {
                 logger.info( format( "Awaiting for validation of all the {0} connections on the pool", MAX_POOL_SIZE ) );
                 if ( !latch.await( 2 * VALIDATION_MS, MILLISECONDS ) ) {
@@ -208,41 +202,40 @@ public class BasicTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MAX_POOL_SIZE )
                         .minSize( MIN_POOL_SIZE )
                         .maxSize( MAX_POOL_SIZE )
-                        .preFillMode( MAX )
                         .reapTimeout( ofMillis( REAP_TIMEOUT_MS ) )
                 );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
-            CountDownLatch allLatch = new CountDownLatch( MAX_POOL_SIZE );
-            CountDownLatch destroyLatch = new CountDownLatch( MAX_POOL_SIZE - MIN_POOL_SIZE );
-            LongAdder reapCount = new LongAdder();
+        CountDownLatch allLatch = new CountDownLatch( MAX_POOL_SIZE );
+        CountDownLatch destroyLatch = new CountDownLatch( MAX_POOL_SIZE - MIN_POOL_SIZE );
+        LongAdder reapCount = new LongAdder();
 
-            dataSource.addListener( new AgroalDataSourceListener() {
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
 
-                @Override
-                public void beforeConnectionReap(Connection connection) {
-                    allLatch.countDown();
-                }
+            @Override
+            public void beforeConnectionReap(Connection connection) {
+                allLatch.countDown();
+            }
 
-                @Override
-                public void onConnectionReap(Connection connection) {
-                    reapCount.increment();
-                }
+            @Override
+            public void onConnectionReap(Connection connection) {
+                reapCount.increment();
+            }
 
-                @Override
-                public void beforeConnectionDestroy(Connection connection) {
-                    destroyLatch.countDown();
-                }
-            } );
+            @Override
+            public void beforeConnectionDestroy(Connection connection) {
+                destroyLatch.countDown();
+            }
+        };
 
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < CAllS; i++ ) {
                 Connection connection = dataSource.getConnection();
                 assertNotNull( connection.getSchema(), "Expected non null value" );
                 connection.close();
             }
-
             try {
                 logger.info( format( "Awaiting test of all the {0} connections on the pool", MAX_POOL_SIZE ) );
                 if ( !allLatch.await( 2 * REAP_TIMEOUT_MS, MILLISECONDS ) ) {

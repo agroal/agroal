@@ -74,6 +74,7 @@ public class ConnectionPool implements AutoCloseable {
                 fill( configuration.maxSize() );
                 break;
         }
+        fill( configuration.initialSize() );
 
         if ( leakEnabled ) {
             housekeepingExecutor.schedule( new LeakTask(), configuration.leakTimeout().toNanos(), NANOSECONDS );

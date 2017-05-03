@@ -29,8 +29,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private volatile boolean lock;
 
     private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = new AgroalConnectionFactoryConfigurationSupplier().get();
+
+    @Deprecated
     private PreFillMode preFillMode = NONE;
     private TransactionIntegration transactionIntegration = none();
+    private int initialSize = 0;
     private volatile int minSize = 0;
     private volatile int maxSize = MAX_VALUE;
     private ConnectionValidator connectionValidator = emptyValidator();
@@ -51,6 +54,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         this.connectionFactoryConfiguration = existingConfiguration.connectionFactoryConfiguration();
         this.preFillMode = existingConfiguration.preFillMode();
         this.transactionIntegration = existingConfiguration.transactionIntegration();
+        this.initialSize = existingConfiguration.initialSize();
         this.minSize = existingConfiguration.minSize();
         this.maxSize = existingConfiguration.maxSize();
         this.connectionValidator = existingConfiguration.connectionValidator();
@@ -86,8 +90,13 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         return applySetting( c -> c.transactionIntegration = integration );
     }
 
+    @Deprecated
     public AgroalConnectionPoolConfigurationSupplier preFillMode(PreFillMode mode) {
         return applySetting( c -> c.preFillMode = mode );
+    }
+
+    public AgroalConnectionPoolConfigurationSupplier initialSize(int size) {
+        return applySetting( c -> c.initialSize = size );
     }
 
     public AgroalConnectionPoolConfigurationSupplier minSize(int size) {
@@ -130,6 +139,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( minSize > maxSize ) {
             throw new IllegalArgumentException( "Wrong size of min / max size" );
         }
+        if ( initialSize < minSize || initialSize > maxSize ) {
+            throw new IllegalArgumentException( "Invalid value for initial size. Must be between min and max." );
+        }
         if ( maxSize == MAX_VALUE && MAX.equals( preFillMode ) ) {
             throw new IllegalArgumentException( "Invalid pre-fill mode MAX without specifying max size" );
         }
@@ -158,6 +170,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public PreFillMode preFillMode() {
                 return preFillMode;
+            }
+
+            @Override
+            public int initialSize() {
+                return initialSize;
             }
 
             @Override

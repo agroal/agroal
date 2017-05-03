@@ -12,6 +12,7 @@ import java.time.Duration;
  */
 public interface AgroalConnectionPoolConfiguration {
 
+    @Deprecated
     PreFillMode preFillMode();
 
     AgroalConnectionFactoryConfiguration connectionFactoryConfiguration();
@@ -25,6 +26,8 @@ public interface AgroalConnectionPoolConfiguration {
     Duration validationTimeout();
 
     Duration reapTimeout();
+
+    int initialSize();
 
     // --- Mutable attributes //
 
@@ -42,6 +45,7 @@ public interface AgroalConnectionPoolConfiguration {
 
     // --- //
 
+    @Deprecated( )
     enum PreFillMode {
         NONE, MIN, MAX
     }
