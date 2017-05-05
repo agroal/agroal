@@ -4,6 +4,8 @@
 package io.agroal.pool;
 
 import io.agroal.api.configuration.InterruptProtection;
+import io.agroal.api.configuration.InterruptProtection.SQLCallable;
+import io.agroal.api.configuration.InterruptProtection.SQLRunnable;
 import io.agroal.api.transaction.TransactionAware;
 
 import java.lang.reflect.InvocationHandler;
@@ -34,15 +36,15 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 public class ConnectionWrapper implements Connection, TransactionAware {
 
     private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        String methodName = method.getName();
-        if ( "abort".equals( methodName ) ) {
-            return Void.TYPE;
-        } else if ( "isClosed".equals( methodName ) ) {
-            return Boolean.TRUE;
-        } else if ( "isValid".equals( methodName ) ) {
-            return Boolean.FALSE;
-        } else if ( "toString".equals( methodName ) ) {
-            return ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
+        switch ( method.getName() ) {
+            case "abort":
+                return Void.TYPE;
+            case "isClosed":
+                return Boolean.TRUE;
+            case "isValid":
+                return Boolean.FALSE;
+            case "toString":
+                return ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
         }
         throw new SQLException( "Connection is closed" );
     };
@@ -78,8 +80,6 @@ public class ConnectionWrapper implements Connection, TransactionAware {
         protect( () -> wrappedConnection.commit() );
     }
 
-    // --- //
-
     @Override
     public void transactionRollback() throws SQLException {
         protect( () -> wrappedConnection.rollback() );
@@ -93,13 +93,15 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     // --- //
 
-    private <T> T protect(InterruptProtection.SQLCallable<T> callable) throws SQLException {
+    private <T> T protect(SQLCallable<T> callable) throws SQLException {
         return interruptProtection.protect( callable );
     }
 
-    private void protect(InterruptProtection.SQLRunnable runnable) throws SQLException {
-        interruptProtection.protect( runnable );
+    private void protect(SQLRunnable runnable) throws SQLException {
+        interruptProtection.protect( () -> runnable );
     }
+
+    // --- //
 
     public ConnectionHandler getHandler() {
         return handler;
