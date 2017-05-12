@@ -3,16 +3,17 @@
 
 package io.agroal.api.security;
 
+import java.io.Serializable;
 import java.security.Principal;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class NamePrincipal implements Principal {
+public class NamePrincipal implements Serializable, Principal {
 
-    private static final long serialVersionUID = 1;
+    private static final long serialVersionUID = 6943668105633565329L;
 
-    private String name;
+    private final String name;
 
     public NamePrincipal(String name) {
         this.name = name;

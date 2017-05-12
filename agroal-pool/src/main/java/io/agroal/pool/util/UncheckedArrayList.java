@@ -27,13 +27,12 @@ public class UncheckedArrayList<T> implements List<T> {
     private T[] data;
     private int size;
 
-    @SuppressWarnings( "unchecked" )
     public UncheckedArrayList(Class<?> clazz) {
         this( clazz, 4 );
     }
 
     @SuppressWarnings( "unchecked" )
-    public UncheckedArrayList(Class<?> clazz, int capacity) {
+    private UncheckedArrayList(Class<?> clazz, int capacity) {
         this.data = (T[]) newInstance( clazz, capacity );
         this.size = 0;
     }

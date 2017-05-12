@@ -12,6 +12,7 @@ import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 
 /**
@@ -77,7 +78,9 @@ public class ConnectionFactory {
         Connection connection = driver.connect( configuration.jdbcUrl(), jdbcProperties );
         connection.setAutoCommit( configuration.autoCommit() );
         if ( configuration.initialSql() != null && !configuration.initialSql().isEmpty() ) {
-            connection.createStatement().execute( configuration.initialSql() );
+            try ( Statement statement = connection.createStatement() ) {
+                statement.execute( configuration.initialSql() );
+            }
         }
         return connection;
     }

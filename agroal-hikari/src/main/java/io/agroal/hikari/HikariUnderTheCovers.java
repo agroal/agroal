@@ -29,6 +29,8 @@ import java.util.logging.Logger;
  */
 public class HikariUnderTheCovers implements AgroalDataSource {
 
+    private static final long serialVersionUID = -1655894113120947776L;
+
     private final AgroalDataSourceConfiguration configuration;
     private final AgroalConnectionPoolConfiguration poolConfiguration;
     private final AgroalConnectionFactoryConfiguration factoryConfiguration;

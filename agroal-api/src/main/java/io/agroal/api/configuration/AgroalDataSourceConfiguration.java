@@ -31,7 +31,7 @@ public interface AgroalDataSourceConfiguration {
         AGROAL( "io.agroal.pool.DataSource" ),
         HIKARI( "io.agroal.hikari.HikariUnderTheCovers" );
 
-        private String className;
+        private final String className;
 
         DataSourceImplementation(String className) {
             this.className = className;

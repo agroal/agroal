@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
@@ -24,15 +25,15 @@ import static java.util.Arrays.copyOf;
  */
 public class StampedCopyOnWriteArrayList<T> implements List<T> {
 
-    private static final Iterator EMPTY_ITERATOR = new Iterator() {
+    private final Iterator<T> EMPTY_ITERATOR = new Iterator<T>() {
         @Override
         public boolean hasNext() {
             return false;
         }
 
         @Override
-        public Object next() {
-            throw new IndexOutOfBoundsException();
+        public T next() {
+            throw new NoSuchElementException();
         }
     };
     private final StampedLock lock;
@@ -116,7 +117,6 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     @Override
-    @SuppressWarnings( "unchecked" )
     public boolean remove(Object element) {
         long stamp = lock.readLock();
         try {
@@ -154,7 +154,6 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     @Override
-    @SuppressWarnings( "unchecked" )
     public T remove(int index) {
         long stamp = lock.writeLock();
         try {
@@ -171,7 +170,6 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     @Override
-    @SuppressWarnings( "unchecked" )
     public void clear() {
         long stamp = lock.writeLock();
         try {
@@ -187,7 +185,6 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     @Override
-    @SuppressWarnings( "unchecked" )
     public Iterator<T> iterator() {
         T[] array = getUnderlyingArray();
 
@@ -195,7 +192,7 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
 
             private int index;
 
-            private T[] cache = getUnderlyingArray();
+            private final T[] cache = getUnderlyingArray();
 
             @Override
             public boolean hasNext() {
@@ -204,6 +201,9 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
 
             @Override
             public T next() {
+                if ( index >= cache.length ) {
+                    throw new NoSuchElementException();
+                }
                 return cache[index++];
             }
         };

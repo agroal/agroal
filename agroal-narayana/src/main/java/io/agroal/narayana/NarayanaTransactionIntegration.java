@@ -47,19 +47,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         try {
             if ( transactionRunning() ) {
                 transactionSynchronizationRegistry.putResource( key, connection );
-                transactionSynchronizationRegistry.registerInterposedSynchronization( new Synchronization() {
-                    @Override
-                    public void beforeCompletion() {
-                    }
-
-                    @Override
-                    public void afterCompletion(int status) {
-                        try { // Return connection to the pool
-                            connection.close();
-                        } catch ( SQLException ignore ) {
-                        }
-                    }
-                } );
+                transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( connection ) );
                 transactionManager.getTransaction().enlistResource( new LocalXAResource( (TransactionAware) connection ) );
             } else {
                 throw new SQLException( "Obtaining a connection outside the scope of an active transaction is not supported" );
@@ -83,6 +71,29 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
             return transaction != null && ( transaction.getStatus() == STATUS_ACTIVE || transaction.getStatus() == STATUS_MARKED_ROLLBACK );
         } catch ( Exception e ) {
             throw new SQLException( "Exception in retrieving existing transaction", e );
+        }
+    }
+
+    // --- //
+
+    private static class InterposedSynchronization implements Synchronization {
+
+        private final Connection connection;
+
+        private InterposedSynchronization(Connection connection) {
+            this.connection = connection;
+        }
+
+        @Override
+        public void beforeCompletion() {
+        }
+
+        @Override
+        public void afterCompletion(int status) {
+            try { // Return connection to the pool
+                connection.close();
+            } catch ( SQLException ignore ) {
+            }
         }
     }
 

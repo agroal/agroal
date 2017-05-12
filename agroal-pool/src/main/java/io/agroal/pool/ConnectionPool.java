@@ -17,7 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static io.agroal.pool.ConnectionHandler.State.*;
-import static io.agroal.pool.util.AgroalDataSourceListenerHelper.*;
+import static io.agroal.pool.ListenerHelper.*;
 import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
@@ -278,14 +278,14 @@ public class ConnectionPool implements AutoCloseable {
         @Override
         public void run() {
             for ( ConnectionHandler handler : allConnections.getUnderlyingArray() ) {
-                housekeepingExecutor.submit( new LeakConnectionTask( handler ) );
+                housekeepingExecutor.execute( new LeakConnectionTask( handler ) );
             }
             housekeepingExecutor.schedule( this, configuration.leakTimeout().toNanos(), NANOSECONDS );
         }
 
         private class LeakConnectionTask implements Runnable {
 
-            private ConnectionHandler handler;
+            private final ConnectionHandler handler;
 
             public LeakConnectionTask(ConnectionHandler handler) {
                 this.handler = handler;
@@ -315,7 +315,7 @@ public class ConnectionPool implements AutoCloseable {
 
         private class ValidateConnectionTask implements Runnable {
 
-            private ConnectionHandler handler;
+            private final ConnectionHandler handler;
 
             public ValidateConnectionTask(ConnectionHandler handler) {
                 this.handler = handler;
@@ -355,7 +355,7 @@ public class ConnectionPool implements AutoCloseable {
 
         private class ReapConnectionTask implements Runnable {
 
-            private ConnectionHandler handler;
+            private final ConnectionHandler handler;
 
             public ReapConnectionTask(ConnectionHandler handler) {
                 this.handler = handler;
@@ -383,7 +383,7 @@ public class ConnectionPool implements AutoCloseable {
 
     private class DestroyConnectionTask implements Runnable {
 
-        private ConnectionHandler handler;
+        private final ConnectionHandler handler;
 
         public DestroyConnectionTask(ConnectionHandler handler) {
             this.handler = handler;

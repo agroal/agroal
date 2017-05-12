@@ -8,8 +8,7 @@ import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
-import io.agroal.pool.DataSourceMetricsRepository.DefaultMetricsRepository;
-import io.agroal.pool.DataSourceMetricsRepository.EmptyMetricsRepository;
+import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 
 import java.io.PrintWriter;
@@ -25,10 +24,12 @@ import java.util.logging.Logger;
  */
 public class DataSource implements AgroalDataSource, MetricsEnabledListener {
 
+    private static final long serialVersionUID = 6485903416474487024L;
+
     private final AgroalDataSourceConfiguration configuration;
     private final List<AgroalDataSourceListener> listenerList;
     private final ConnectionPool connectionPool;
-    private DataSourceMetricsRepository dataSourceMetrics;
+    private MetricsRepository dataSourceMetrics;
 
     public DataSource(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
@@ -46,7 +47,7 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
         return listenerList;
     }
 
-    public DataSourceMetricsRepository metricsRepository() {
+    public MetricsRepository metricsRepository() {
         return dataSourceMetrics;
     }
 

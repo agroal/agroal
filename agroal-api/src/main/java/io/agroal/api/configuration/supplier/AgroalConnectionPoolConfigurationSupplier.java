@@ -72,7 +72,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         return this;
     }
 
-    public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(AgroalConnectionFactoryConfiguration configuration) {
+    private AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(AgroalConnectionFactoryConfiguration configuration) {
         return applySetting( c -> c.connectionFactoryConfiguration = configuration );
     }
 

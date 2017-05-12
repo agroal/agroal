@@ -25,31 +25,31 @@ import java.util.function.Supplier;
  */
 public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfiguration> {
 
-    public static final String IMPLEMENTATION = "implementation";
-    public static final String JNDI_NAME = "jndiName";
-    public static final String METRICS_ENABLED = "metricsEnabled";
-    public static final String XA = "xa";
+    private static final String IMPLEMENTATION = "implementation";
+    private static final String JNDI_NAME = "jndiName";
+    private static final String METRICS_ENABLED = "metricsEnabled";
+    private static final String XA = "xa";
 
     // --- //
 
-    public static final String MIN_SIZE = "minSize";
-    public static final String MAX_SIZE = "maxSize";
-    public static final String PRE_FILL_MODE = "preFillMode";
-    public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
-    public static final String VALIDATION_TIMEOUT = "validationTimeout";
-    public static final String LEAK_TIMEOUT = "leakTimeout";
-    public static final String REAP_TIMEOUT = "reapTimeout";
+    private static final String MIN_SIZE = "minSize";
+    private static final String MAX_SIZE = "maxSize";
+    private static final String PRE_FILL_MODE = "preFillMode";
+    private static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
+    private static final String VALIDATION_TIMEOUT = "validationTimeout";
+    private static final String LEAK_TIMEOUT = "leakTimeout";
+    private static final String REAP_TIMEOUT = "reapTimeout";
 
     // --- //
 
-    public static final String JDBC_URL = "jdbcUrl";
-    public static final String AUTO_COMMIT = "autoCommit";
-    public static final String INITIAL_SQL = "initialSQL";
-    public static final String DRIVER_CLASS_NAME = "driverClassName";
-    public static final String TRANSACTION_ISOLATION = "jdbcTransactionIsolation";
-    public static final String PRINCIPAL = "principal";
-    public static final String CREDENTIAL = "credential";
-    public static final String JDBC_PROPERTIES = "jdbcProperties";
+    private static final String JDBC_URL = "jdbcUrl";
+    private static final String AUTO_COMMIT = "autoCommit";
+    private static final String INITIAL_SQL = "initialSQL";
+    private static final String DRIVER_CLASS_NAME = "driverClassName";
+    private static final String TRANSACTION_ISOLATION = "jdbcTransactionIsolation";
+    private static final String PRINCIPAL = "principal";
+    private static final String CREDENTIAL = "credential";
+    private static final String JDBC_PROPERTIES = "jdbcProperties";
 
     // --- //
 
@@ -81,7 +81,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         }
     }
 
-    public AgroalPropertiesReader readProperties(Properties properties) {
+    private AgroalPropertiesReader readProperties(Properties properties) {
         apply( dataSourceSupplier::dataSourceImplementation, DataSourceImplementation::valueOf, properties, IMPLEMENTATION );
         apply( dataSourceSupplier::jndiName, Function.identity(), properties, JNDI_NAME );
         apply( dataSourceSupplier::metricsEnabled, Boolean::parseBoolean, properties, METRICS_ENABLED );

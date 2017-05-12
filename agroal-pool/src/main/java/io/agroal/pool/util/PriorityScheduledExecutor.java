@@ -18,8 +18,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
     private static final AtomicLong THREAD_COUNT = new AtomicLong();
+    private static final Runnable EMPTY_TASK = () -> {};
 
-    private Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
+    private final Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
 
     public PriorityScheduledExecutor(int executorSize, String threadPrefix) {
         super( executorSize, r -> {
@@ -32,7 +33,7 @@ public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
     public Future<?> executeNow(Runnable priorityTask) {
         RunnableFuture<?> priorityFuture = new FutureTask<>( priorityTask, null );
         priorityTasks.add( priorityFuture );
-        submit( () -> {} );
+        execute( EMPTY_TASK );
         return priorityFuture;
     }
 
@@ -48,8 +49,7 @@ public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
     @Override
     public void shutdown() {
-        submit( () -> {
-        } );
+        execute( EMPTY_TASK );
         super.shutdown();
     }
 

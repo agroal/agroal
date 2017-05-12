@@ -1,21 +1,19 @@
 // Copyright (C) 2017 Red Hat, Inc. and individual contributors as indicated by the @author tags.
 // You may not use this file except in compliance with the Apache License, Version 2.0.
 
-package io.agroal.pool.util;
+package io.agroal.pool;
 
 import io.agroal.api.AgroalDataSourceListener;
-import io.agroal.pool.ConnectionHandler;
-import io.agroal.pool.DataSource;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.function.Consumer;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class AgroalDataSourceListenerHelper {
+public class ListenerHelper {
 
-    private AgroalDataSourceListenerHelper() {
+    private ListenerHelper() {
     }
 
     public static void fireBeforeConnectionCreation(DataSource dataSource) {
@@ -90,7 +88,7 @@ public class AgroalDataSourceListenerHelper {
         fire( dataSource.listenerList(), l -> l.onWarning( throwable ) );
     }
 
-    private static void fire(List<AgroalDataSourceListener> listeners, Consumer<AgroalDataSourceListener> consumer) {
+    private static void fire(Collection<AgroalDataSourceListener> listeners, Consumer<AgroalDataSourceListener> consumer) {
         for ( AgroalDataSourceListener listener : listeners ) {
             consumer.accept( listener );
         }

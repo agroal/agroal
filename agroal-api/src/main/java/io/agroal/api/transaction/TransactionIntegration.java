@@ -15,16 +15,16 @@ public interface TransactionIntegration {
         return new TransactionIntegration() {
 
             @Override
-            public Connection getConnection() throws SQLException {
+            public Connection getConnection() {
                 return null;
             }
 
             @Override
-            public void associate(Connection connection) throws SQLException {
+            public void associate(Connection connection) {
             }
 
             @Override
-            public boolean disassociate(Connection connection) throws SQLException {
+            public boolean disassociate(Connection connection) {
                 return true;
             }
         };

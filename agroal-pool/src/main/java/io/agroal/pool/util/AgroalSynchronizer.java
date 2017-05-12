@@ -11,6 +11,8 @@ import java.util.concurrent.locks.AbstractQueuedLongSynchronizer;
  */
 public class AgroalSynchronizer extends AbstractQueuedLongSynchronizer {
 
+    private static final long serialVersionUID = -57548578257544072L;
+    
     private final LongAdder counter = new LongAdder();
 
     @Override

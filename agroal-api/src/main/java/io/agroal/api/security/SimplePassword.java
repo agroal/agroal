@@ -10,9 +10,9 @@ import java.io.Serializable;
  */
 public class SimplePassword implements Serializable {
 
-    private static final long serialVersionUID = 1;
+    private static final long serialVersionUID = -3903625768428915058L;
 
-    private String word;
+    private final String word;
 
     public SimplePassword(String password) {
         this.word = password;
