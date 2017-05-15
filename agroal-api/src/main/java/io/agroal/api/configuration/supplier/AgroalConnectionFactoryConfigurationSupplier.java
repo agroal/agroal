@@ -35,6 +35,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private String driverClassName = "";
     private ClassLoaderProvider classLoaderProvider = systemClassloader();
     private TransactionIsolation transactionIsolation = READ_COMMITTED;
+    @Deprecated
     private InterruptProtection interruptProtection = none();
     private Principal principal;
     private Collection<Object> credentials = new ArrayList<>();
@@ -99,6 +100,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         return applySetting( c -> c.transactionIsolation = transactionIsolation );
     }
 
+    @Deprecated
     public AgroalConnectionFactoryConfigurationSupplier interruptHandlingMode(InterruptProtection interruptProtection) {
         return applySetting( c -> c.interruptProtection = interruptProtection );
     }

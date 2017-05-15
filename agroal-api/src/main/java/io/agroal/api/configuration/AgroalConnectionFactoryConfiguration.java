@@ -24,6 +24,7 @@ public interface AgroalConnectionFactoryConfiguration {
 
     TransactionIsolation jdbcTransactionIsolation();
 
+    @Deprecated
     InterruptProtection interruptProtection();
 
     Principal principal();

@@ -128,6 +128,7 @@ public class BasicTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MAX_POOL_SIZE )
                         .maxSize( MAX_POOL_SIZE )
                         .leakTimeout( ofMillis( LEAK_DETECTION_MS ) )
                 );

@@ -3,7 +3,6 @@
 
 package io.agroal.pool;
 
-import io.agroal.api.configuration.InterruptProtection;
 import io.agroal.api.transaction.TransactionAware;
 
 import java.lang.reflect.InvocationHandler;
@@ -54,7 +53,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     // --- //
 
     private final ConnectionHandler handler;
-    private final InterruptProtection interruptProtection;
+
     private Connection wrappedConnection;
 
     // Flag to indicate that this ConnectionWrapper is currently enlisted with a transaction
@@ -68,9 +67,8 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     // If there is no transaction integration this should just return false
     private TransactionAware.SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
-    public ConnectionWrapper(ConnectionHandler connectionHandler, InterruptProtection protection) {
+    public ConnectionWrapper(ConnectionHandler connectionHandler) {
         handler = connectionHandler;
-        interruptProtection = protection;
         wrappedConnection = connectionHandler.getConnection();
     }
 
@@ -85,12 +83,12 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void transactionCommit() throws SQLException {
-        protect( () -> handler.getConnection().commit() );
+        handler.getConnection().commit();
     }
 
     @Override
     public void transactionRollback() throws SQLException {
-        protect( () -> handler.getConnection().rollback() );
+        handler.getConnection().rollback();
     }
 
     @Override
@@ -110,16 +108,6 @@ public class ConnectionWrapper implements Connection, TransactionAware {
         if ( !inTransaction && transactionActiveCheck.call() ) {
             throw new SQLException( "Lazy enlistment not supported" );
         }
-    }
-
-    // --- //
-
-    private <T> T protect(InterruptProtection.SQLCallable<T> callable) throws SQLException {
-        return interruptProtection.protect( callable );
-    }
-
-    private void protect(InterruptProtection.SQLRunnable runnable) throws SQLException {
-        interruptProtection.protect( () -> runnable );
     }
 
     // --- //
@@ -147,7 +135,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
         if ( inTransaction ) {
             throw new SQLException( "Attempting to commit while taking part in a transaction" );
         }
-        protect( () -> wrappedConnection.commit() );
+        wrappedConnection.commit();
     }
 
     @Override
@@ -416,7 +404,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
         lazyEnlistmentCheck();
-        protect( () -> wrappedConnection.rollback() );
+        wrappedConnection.rollback();
     }
 
     @Override
@@ -425,7 +413,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
             throw new SQLException( "Attempting to commit while enlisted in a transaction" );
         }
         lazyEnlistmentCheck();
-        protect( () -> wrappedConnection.rollback( savepoint ) );
+        wrappedConnection.rollback( savepoint );
     }
 
     @Override

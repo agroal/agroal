@@ -8,6 +8,7 @@ import java.sql.SQLException;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@Deprecated
 public interface InterruptProtection {
 
     static InterruptProtection none() {

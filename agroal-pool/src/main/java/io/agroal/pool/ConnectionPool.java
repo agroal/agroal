@@ -4,7 +4,6 @@
 package io.agroal.pool;
 
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
-import io.agroal.api.configuration.InterruptProtection;
 import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.PriorityScheduledExecutor;
@@ -16,7 +15,11 @@ import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import static io.agroal.pool.ConnectionHandler.State.*;
+import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
+import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
+import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
+import static io.agroal.pool.ConnectionHandler.State.FLUSH;
+import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
 import static io.agroal.pool.ListenerHelper.*;
 import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
@@ -38,7 +41,6 @@ public class ConnectionPool implements AutoCloseable {
     private final AgroalSynchronizer synchronizer = new AgroalSynchronizer();
     private final ConnectionFactory connectionFactory;
     private final PriorityScheduledExecutor housekeepingExecutor;
-    private final InterruptProtection interruptProtection;
     private final TransactionIntegration transactionIntegration;
 
     private final boolean leakEnabled, validationEnable, reapEnable;
@@ -52,9 +54,7 @@ public class ConnectionPool implements AutoCloseable {
 
         localCache = ThreadLocal.withInitial( () -> new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class ) );
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration() );
-        housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal@" + identityHashCode( this ) + "_" );
-
-        interruptProtection = configuration.connectionFactoryConfiguration().interruptProtection();
+        housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal_" + identityHashCode( this ) );
         transactionIntegration = configuration.transactionIntegration();
 
         leakEnabled = !configuration.leakTimeout().isZero();
@@ -63,17 +63,6 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     public void init() {
-        switch ( configuration.preFillMode() ) {
-            default:
-            case NONE:
-                break;
-            case MIN:
-                fill( configuration.minSize() );
-                break;
-            case MAX:
-                fill( configuration.maxSize() );
-                break;
-        }
         fill( configuration.initialSize() );
 
         if ( leakEnabled ) {
@@ -155,7 +144,7 @@ public class ConnectionPool implements AutoCloseable {
             checkedOutHandler.setHoldingThread( currentThread() );
         }
 
-        connectionWrapper = new ConnectionWrapper( checkedOutHandler, interruptProtection );
+        connectionWrapper = new ConnectionWrapper( checkedOutHandler );
         transactionIntegration.associate( connectionWrapper );
         return connectionWrapper;
     }
@@ -223,16 +212,6 @@ public class ConnectionPool implements AutoCloseable {
             synchronizer.releaseConditional();
             dataSource.metricsRepository().afterConnectionReturn();
             fireOnConnectionReturn( dataSource, handler );
-        }
-    }
-
-    private void closeConnectionSafely(ConnectionHandler handler) {
-        try {
-            fireBeforeConnectionDestroy( dataSource, handler );
-            handler.closeConnection();
-            fireOnConnectionDestroy( dataSource, handler );
-        } catch ( SQLException e ) {
-            fireOnWarning( dataSource, e );
         }
     }
 
@@ -390,7 +369,11 @@ public class ConnectionPool implements AutoCloseable {
         @Override
         public void run() {
             fireBeforeConnectionDestroy( dataSource, handler );
-            closeConnectionSafely( handler );
+            try {
+                handler.closeConnection();
+            } catch ( SQLException e ) {
+                fireOnWarning( dataSource, e );
+            }
             handler.setState( DESTROYED );
             fireOnConnectionDestroy( dataSource, handler );
         }
