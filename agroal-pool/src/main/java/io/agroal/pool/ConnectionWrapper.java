@@ -4,8 +4,6 @@
 package io.agroal.pool;
 
 import io.agroal.api.configuration.InterruptProtection;
-import io.agroal.api.configuration.InterruptProtection.SQLCallable;
-import io.agroal.api.configuration.InterruptProtection.SQLRunnable;
 import io.agroal.api.transaction.TransactionAware;
 
 import java.lang.reflect.InvocationHandler;
@@ -51,53 +49,76 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     private static final Connection CLOSED_CONNECTION = (Connection) newProxyInstance( Connection.class.getClassLoader(), new Class[]{Connection.class}, CLOSED_HANDLER );
 
+    private static final TransactionAware.SQLCallable<Boolean> NO_ACTIVE_TRANSACTION = () -> false;
+
     // --- //
 
     private final ConnectionHandler handler;
     private final InterruptProtection interruptProtection;
     private Connection wrappedConnection;
-    private boolean inTransaction;
-    private boolean autocommitStashValue;
+
+    // Flag to indicate that this ConnectionWrapper is currently enlisted with a transaction
+    private boolean inTransaction = false;
+
+    // This field is used to store temporarily the value of the autoCommit flag, while the connection is taking part on the transaction
+    private boolean autocommitStash;
+
+    // Callback set by the transaction integration layer to prevent lazy enlistment
+    // If the connection is not associated with a transaction and an operation occurs within the bounds of a transaction, an SQLException is thrown
+    // If there is no transaction integration this should just return false
+    private TransactionAware.SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
     public ConnectionWrapper(ConnectionHandler connectionHandler, InterruptProtection protection) {
         handler = connectionHandler;
         interruptProtection = protection;
         wrappedConnection = connectionHandler.getConnection();
-        inTransaction = false;
     }
 
     // --- //
 
     @Override
     public void transactionStart() throws SQLException {
-        autocommitStashValue = wrappedConnection.getAutoCommit();
+        autocommitStash = wrappedConnection.getAutoCommit();
         wrappedConnection.setAutoCommit( false );
         inTransaction = true;
     }
 
     @Override
     public void transactionCommit() throws SQLException {
-        protect( () -> wrappedConnection.commit() );
+        protect( () -> handler.getConnection().commit() );
     }
 
     @Override
     public void transactionRollback() throws SQLException {
-        protect( () -> wrappedConnection.rollback() );
+        protect( () -> handler.getConnection().rollback() );
     }
 
     @Override
     public void transactionEnd() throws SQLException {
         inTransaction = false;
-        wrappedConnection.setAutoCommit( autocommitStashValue );
+        if ( wrappedConnection != CLOSED_CONNECTION ) {
+            wrappedConnection.setAutoCommit( autocommitStash );
+        }
+    }
+
+    @Override
+    public void transactionCheckCallback(SQLCallable<Boolean> transactionCheck) {
+        this.transactionActiveCheck = transactionCheck;
+    }
+
+    private void lazyEnlistmentCheck() throws SQLException {
+        if ( !inTransaction && transactionActiveCheck.call() ) {
+            throw new SQLException( "Lazy enlistment not supported" );
+        }
     }
 
     // --- //
 
-    private <T> T protect(SQLCallable<T> callable) throws SQLException {
+    private <T> T protect(InterruptProtection.SQLCallable<T> callable) throws SQLException {
         return interruptProtection.protect( callable );
     }
 
-    private void protect(SQLRunnable runnable) throws SQLException {
+    private void protect(InterruptProtection.SQLRunnable runnable) throws SQLException {
         interruptProtection.protect( () -> runnable );
     }
 
@@ -117,6 +138,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void abort(Executor executor) throws SQLException {
+        wrappedConnection = CLOSED_CONNECTION;
         wrappedConnection.abort( executor );
     }
 
@@ -130,56 +152,67 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void clearWarnings() throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.clearWarnings();
     }
 
     @Override
     public Clob createClob() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createClob();
     }
 
     @Override
     public Blob createBlob() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createBlob();
     }
 
     @Override
     public NClob createNClob() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createNClob();
     }
 
     @Override
     public SQLXML createSQLXML() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createSQLXML();
     }
 
     @Override
     public Array createArrayOf(String typeName, Object[] elements) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createArrayOf( typeName, elements );
     }
 
     @Override
     public Statement createStatement() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createStatement();
     }
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createStatement( resultSetType, resultSetConcurrency );
     }
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createStatement( resultSetType, resultSetConcurrency, resultSetHoldability );
     }
 
     @Override
     public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.createStruct( typeName, attributes );
     }
 
     @Override
     public boolean getAutoCommit() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getAutoCommit();
     }
 
@@ -188,31 +221,37 @@ public class ConnectionWrapper implements Connection, TransactionAware {
         if ( autoCommit && inTransaction ) {
             throw new SQLException( "Trying to set autocommit in connection taking part of transaction" );
         }
+        lazyEnlistmentCheck();
         wrappedConnection.setAutoCommit( autoCommit );
     }
 
     @Override
     public String getCatalog() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getCatalog();
     }
 
     @Override
     public void setCatalog(String catalog) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.setCatalog( catalog );
     }
 
     @Override
     public int getHoldability() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getHoldability();
     }
 
     @Override
     public void setHoldability(int holdability) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.setHoldability( holdability );
     }
 
     @Override
     public Properties getClientInfo() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getClientInfo();
     }
 
@@ -223,126 +262,151 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public String getClientInfo(String name) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getClientInfo( name );
     }
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getMetaData();
     }
 
     @Override
     public int getNetworkTimeout() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getNetworkTimeout();
     }
 
     @Override
     public String getSchema() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getSchema();
     }
 
     @Override
     public void setSchema(String schema) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.setSchema( schema );
     }
 
     @Override
     public Map<String, Class<?>> getTypeMap() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getTypeMap();
     }
 
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.setTypeMap( map );
     }
 
     @Override
     public int getTransactionIsolation() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getTransactionIsolation();
     }
 
     @Override
     public void setTransactionIsolation(int level) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.setTransactionIsolation( level );
     }
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.getWarnings();
     }
 
     @Override
     public boolean isClosed() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.isClosed();
     }
 
     @Override
     public boolean isReadOnly() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.isReadOnly();
     }
 
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.setReadOnly( readOnly );
     }
 
     @Override
     public boolean isValid(int timeout) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.isValid( timeout );
     }
 
     @Override
     public String nativeSQL(String sql) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.nativeSQL( sql );
     }
 
     @Override
     public CallableStatement prepareCall(String sql) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareCall( sql );
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency );
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency, resultSetHoldability );
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareStatement( sql );
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency );
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency, resultSetHoldability );
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareStatement( sql, autoGeneratedKeys );
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareStatement( sql, columnIndexes );
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.prepareStatement( sql, columnNames );
     }
 
     @Override
     public void releaseSavepoint(Savepoint savepoint) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.releaseSavepoint( savepoint );
     }
 
@@ -351,6 +415,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
         if ( inTransaction ) {
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
+        lazyEnlistmentCheck();
         protect( () -> wrappedConnection.rollback() );
     }
 
@@ -359,6 +424,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
         if ( inTransaction ) {
             throw new SQLException( "Attempting to commit while enlisted in a transaction" );
         }
+        lazyEnlistmentCheck();
         protect( () -> wrappedConnection.rollback( savepoint ) );
     }
 
@@ -369,6 +435,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public Savepoint setSavepoint() throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.setSavepoint();
     }
 
@@ -376,11 +443,13 @@ public class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public Savepoint setSavepoint(String name) throws SQLException {
+        lazyEnlistmentCheck();
         return wrappedConnection.setSavepoint( name );
     }
 
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
+        lazyEnlistmentCheck();
         wrappedConnection.setNetworkTimeout( executor, milliseconds );
     }
 

@@ -17,4 +17,14 @@ public interface TransactionAware {
     void transactionRollback() throws SQLException;
 
     void transactionEnd() throws SQLException;
+
+    void transactionCheckCallback(SQLCallable<Boolean> transactionCheck);
+
+    // --- //
+
+    @FunctionalInterface
+    interface SQLCallable<T> {
+
+        T call() throws SQLException;
+    }
 }

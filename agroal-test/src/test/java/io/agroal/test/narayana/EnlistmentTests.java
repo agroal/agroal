@@ -1,7 +1,7 @@
 // Copyright (C) 2017 Red Hat, Inc. and individual contributors as indicated by the @author tags.
 // You may not use this file except in compliance with the Apache License, Version 2.0.
 
-package io.agroal.test.basic;
+package io.agroal.test.narayana;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
@@ -29,7 +29,6 @@ import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
-import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,9 +39,9 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 @Tag( FUNCTIONAL )
 @Tag( TRANSACTION )
-public class BasicNarayanaTests {
+public class EnlistmentTests {
 
-    private static final Logger logger = getLogger( BasicNarayanaTests.class.getName() );
+    private static final Logger logger = getLogger( EnlistmentTests.class.getName() );
 
     @BeforeAll
     public static void setup() {
@@ -57,15 +56,16 @@ public class BasicNarayanaTests {
     // --- //
 
     @Test
-    @DisplayName( "Connection acquire test" )
-    public void basicConnectionAcquireTest() throws SQLException {
+    @DisplayName( "Enroll connection after previous connection close test" )
+    public void enrollConnectionCloseTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
-                        .connectionFactoryConfiguration( cf -> cf.autoCommit( true ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .autoCommit( true ) )
                 );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
@@ -73,25 +73,29 @@ public class BasicNarayanaTests {
 
             Connection connection = dataSource.getConnection();
             logger.info( format( "Got connection {0}", connection ) );
+            String connectionToString = connection.toString();
+            connection.close();
 
-            assertAll( () -> {
-                assertThrows( SQLException.class, () -> connection.setAutoCommit( true ) );
-                assertFalse( connection.getAutoCommit(), "Expect connection to have autocommit not set" );
-                // TODO: comparing toString is brittle. Find a better way to make sure the underlying physical connection is the same.
-                assertTrue( connection.toString().equals( dataSource.getConnection().toString() ), "Expect the same connection under the same transaction" );
-            } );
+            Connection secondConnection = dataSource.getConnection();
+            logger.info( format( "Got connection {0}", secondConnection ) );
+
+            // TODO: comparing toString is brittle. Find a better way to make sure the underlying physical connection is the same.
+            assertTrue( connectionToString.equals( secondConnection.toString() ), "Expect the same connection under the same transaction" );
+            assertFalse( secondConnection.getAutoCommit(), "AutoCommit temporarily disabled in enlisted connection" );
+            secondConnection.close();
 
             txManager.commit();
 
             assertTrue( connection.isClosed() );
+            assertTrue( secondConnection.isClosed() );
         } catch ( NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException e ) {
             fail( "Exception: " + e.getMessage() );
         }
     }
 
     @Test
-    @DisplayName( "Basic rollback test" )
-    public void basicRollbackTest() throws SQLException {
+    @DisplayName( "Connection outside the scope of a transaction test" )
+    public void connectionOutsideTransactionTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -101,22 +105,16 @@ public class BasicNarayanaTests {
                 );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
-            txManager.begin();
-
             Connection connection = dataSource.getConnection();
             logger.info( format( "Got connection {0}", connection ) );
-
-            txManager.rollback();
-
+            connection.close();
             assertTrue( connection.isClosed() );
-        } catch ( NotSupportedException | SystemException e ) {
-            fail( "Exception: " + e.getMessage() );
         }
     }
 
     @Test
-    @DisplayName( "Multiple close test" )
-    public void multipleCloseTest() throws SQLException {
+    @DisplayName( "Lazy enlistment test" )
+    public void lazyEnlistmentTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -126,17 +124,19 @@ public class BasicNarayanaTests {
                 );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            Connection connection = dataSource.getConnection();
+            logger.info( format( "Got connection {0}", connection ) );
 
-            // there is a call to connection#close in the try-with-resources block and another on the callback from the transaction#commit()
-            try ( Connection connection = dataSource.getConnection() ) {
-                logger.info( format( "Got connection {0}", connection ) );
-                try {
-                    txManager.begin();
-                    txManager.commit();
-                } catch ( NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException e ) {
-                    fail( "Exception: " + e.getMessage() );
-                }
-            }  
+            try {
+                txManager.begin();
+                assertThrows( SQLException.class, connection::createStatement );
+                logger.info( format( "Call to a method on the connection thrown a SQLException" ) );
+                txManager.commit();
+
+                assertFalse( connection.isClosed(), "Not expecting the connection to be close since it was not enrolled into the transaction" );
+            } catch ( NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException e ) {
+                fail( "Exception: " + e.getMessage() );
+            }
         }
     }
 }

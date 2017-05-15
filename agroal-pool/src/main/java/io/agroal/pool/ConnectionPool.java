@@ -155,10 +155,8 @@ public class ConnectionPool implements AutoCloseable {
             checkedOutHandler.setHoldingThread( currentThread() );
         }
 
-        if ( connectionWrapper == null ) {
-            connectionWrapper = new ConnectionWrapper( checkedOutHandler, interruptProtection );
-            transactionIntegration.associate( connectionWrapper );
-        }
+        connectionWrapper = new ConnectionWrapper( checkedOutHandler, interruptProtection );
+        transactionIntegration.associate( connectionWrapper );
         return connectionWrapper;
     }
 

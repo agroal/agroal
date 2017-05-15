@@ -46,11 +46,18 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     public void associate(Connection connection) throws SQLException {
         try {
             if ( transactionRunning() ) {
-                transactionSynchronizationRegistry.putResource( key, connection );
+                boolean newEnlistment = transactionSynchronizationRegistry.getResource( key ) == null;
                 transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( connection ) );
-                transactionManager.getTransaction().enlistResource( new LocalXAResource( (TransactionAware) connection ) );
+
+                if ( newEnlistment ) {
+                    transactionSynchronizationRegistry.putResource( key, connection );
+                    transactionManager.getTransaction().enlistResource( new LocalXAResource( (TransactionAware) connection ) );
+                }
+                else {
+                    ( (TransactionAware) connection ).transactionStart();
+                }
             } else {
-                throw new SQLException( "Obtaining a connection outside the scope of an active transaction is not supported" );
+                ( (TransactionAware) connection ).transactionCheckCallback( this::transactionRunning );
             }
         } catch ( Exception e ) {
             throw new SQLException( "Exception in association of connection to existing transaction", e );

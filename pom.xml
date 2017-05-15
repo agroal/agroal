@@ -54,8 +54,8 @@
         <version.org.jboss.logging>3.3.0.Final</version.org.jboss.logging>
         <version.org.jboss.narayana>5.3.3.Final</version.org.jboss.narayana>
         <version.org.jboss.threads>2.2.1.Final</version.org.jboss.threads>
-        <version.org.junit.jupiter>5.0.0-M3</version.org.junit.jupiter>
-        <version.org.junit.platform>1.0.0-M3</version.org.junit.platform>
+        <version.org.junit.jupiter>5.0.0-M4</version.org.junit.jupiter>
+        <version.org.junit.platform>1.0.0-M4</version.org.junit.platform>
         <version.org.slf4j>1.7.24</version.org.slf4j>
     </properties>
     <build>
