@@ -10,6 +10,7 @@ import javax.transaction.Synchronization;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 import javax.transaction.TransactionSynchronizationRegistry;
+import javax.transaction.xa.XAResource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.UUID;
@@ -26,12 +27,26 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     private final TransactionSynchronizationRegistry transactionSynchronizationRegistry;
 
+    private final String jndiName;
+
+    private final boolean connectable;
+
     // In order to construct a UID that is globally unique, simply pair a UID with an InetAddress.
     private final UUID key = UUID.randomUUID();
 
     public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
+        this( transactionManager, transactionSynchronizationRegistry, null, false );
+    }
+
+    public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName) {
+        this( transactionManager, transactionSynchronizationRegistry, jndiName, false );
+    }
+
+    public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable) {
         this.transactionManager = transactionManager;
         this.transactionSynchronizationRegistry = transactionSynchronizationRegistry;
+        this.jndiName = jndiName;
+        this.connectable = connectable;
     }
 
     @Override
@@ -51,7 +66,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
                 if ( newEnlistment ) {
                     transactionSynchronizationRegistry.putResource( key, connection );
-                    transactionManager.getTransaction().enlistResource( new LocalXAResource( (TransactionAware) connection ) );
+                    XAResource resource = connectable ? new ConnectableLocalXAResource( (TransactionAware) connection, jndiName ) : new LocalXAResource( (TransactionAware) connection, jndiName );
+                    transactionManager.getTransaction().enlistResource( resource );
                 }
                 else {
                     ( (TransactionAware) connection ).transactionStart();

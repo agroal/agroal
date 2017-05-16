@@ -19,25 +19,26 @@ public class LocalXAResource implements XAResource, ConnectableResource, LastRes
 
     private final TransactionAware connection;
 
+    private final static String productName = LocalXAResource.class.getPackage().getImplementationTitle();
+
+    private final static String productVersion = LocalXAResource.class.getPackage().getImplementationVersion();
+
+    private final String jndiName;
+
     private Xid currentXid;
 
-    private String productName;
-
-    private String productVersion;
-
-    private String jndiName;
-
     public LocalXAResource(TransactionAware connection) {
+        this( connection, "" );
+    }
+
+    public LocalXAResource(TransactionAware connection, String jndiName) {
         this.connection = connection;
+        this.jndiName = jndiName;
     }
 
     @Override
     public void start(Xid xid, int flags) throws XAException {
-        if ( currentXid != null ) {
-            if ( flags != TMJOIN && flags != TMRESUME ) {
-                throw new XAException( XAException.XAER_DUPID );
-            }
-        } else {
+        if ( currentXid == null ) {
             if ( flags != TMNOFLAGS ) {
                 throw new XAException( "Starting resource with wrong flags" );
             }
@@ -47,6 +48,10 @@ public class LocalXAResource implements XAResource, ConnectableResource, LastRes
                 throw new XAException( "Error trying to start local transaction: " + t.getMessage() );
             }
             currentXid = xid;
+        } else {
+            if ( flags != TMJOIN && flags != TMRESUME ) {
+                throw new XAException( XAException.XAER_DUPID );
+            }
         }
     }
 
@@ -55,8 +60,8 @@ public class LocalXAResource implements XAResource, ConnectableResource, LastRes
         if ( xid == null || !xid.equals( currentXid ) ) {
             throw new XAException( "Invalid xid to transactionCommit" );
         }
-        currentXid = null;
 
+        currentXid = null;
         try {
             connection.transactionCommit();
             connection.transactionEnd();
@@ -68,10 +73,10 @@ public class LocalXAResource implements XAResource, ConnectableResource, LastRes
     @Override
     public void rollback(Xid xid) throws XAException {
         if ( xid == null || !xid.equals( currentXid ) ) {
-            throw new XAException( "Invalid xid to transactionCommit" );
+            throw new XAException( "Invalid xid to transactionRollback" );
         }
-        currentXid = null;
 
+        currentXid = null;
         try {
             connection.transactionRollback();
             connection.transactionEnd();
@@ -82,6 +87,9 @@ public class LocalXAResource implements XAResource, ConnectableResource, LastRes
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
+        if ( xid == null || !xid.equals( currentXid ) ) {
+            throw new XAException( "Invalid xid to transactionEnd" );
+        }
     }
 
     @Override
