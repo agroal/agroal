@@ -24,7 +24,7 @@ import static io.agroal.api.configuration.InterruptProtection.none;
  */
 public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<AgroalConnectionFactoryConfiguration> {
 
-    private static final String USERNAME_PROPERTY_NAME = "username";
+    private static final String USER_PROPERTY_NAME = "user";
     private static final String PASSWORD_PROPERTY_NAME = "password";
 
     private volatile boolean lock;
@@ -120,8 +120,8 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     // --- //
 
     private void validate() {
-        if ( jdbcProperties.containsKey( USERNAME_PROPERTY_NAME ) ) {
-            throw new IllegalArgumentException( "Invalid JDBC property '" + USERNAME_PROPERTY_NAME + "': use principal instead." );
+        if ( jdbcProperties.containsKey( USER_PROPERTY_NAME ) ) {
+            throw new IllegalArgumentException( "Invalid JDBC property '" + USER_PROPERTY_NAME + "': use principal instead." );
         }
         if ( jdbcProperties.containsKey( PASSWORD_PROPERTY_NAME ) ) {
             throw new IllegalArgumentException( "Invalid property '" + PASSWORD_PROPERTY_NAME + "': use credential instead." );

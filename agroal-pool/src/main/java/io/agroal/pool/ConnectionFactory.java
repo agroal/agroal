@@ -20,7 +20,7 @@ import java.util.Properties;
  */
 public class ConnectionFactory {
 
-    private static final String USERNAME_PROPERTY_NAME = "username";
+    private static final String USER_PROPERTY_NAME = "user";
     private static final String PASSWORD_PROPERTY_NAME = "password";
 
     private AgroalConnectionFactoryConfiguration configuration;
@@ -52,7 +52,7 @@ public class ConnectionFactory {
         if ( principal == null ) {
             // skip!
         } else if ( principal instanceof NamePrincipal ) {
-            jdbcProperties.put( USERNAME_PROPERTY_NAME, principal.getName() );
+            jdbcProperties.put( USER_PROPERTY_NAME, principal.getName() );
         }
 
         // Add other principal types here
