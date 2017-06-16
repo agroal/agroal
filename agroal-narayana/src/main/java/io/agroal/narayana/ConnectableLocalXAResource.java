@@ -15,4 +15,9 @@ public class ConnectableLocalXAResource extends LocalXAResource implements Conne
     public ConnectableLocalXAResource(TransactionAware connection, String jndiName) {
         super( connection, jndiName );
     }
+
+    @Override
+    public Object getConnection() throws Throwable {
+        return this.connection.getConnection();
+    }
 }

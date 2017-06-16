@@ -4,8 +4,6 @@
 package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
-import org.jboss.tm.ConnectableResource;
-import org.jboss.tm.LastResource;
 import org.jboss.tm.XAResourceWrapper;
 
 import javax.transaction.xa.XAException;
@@ -15,9 +13,9 @@ import javax.transaction.xa.Xid;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class LocalXAResource implements XAResource, ConnectableResource, LastResource, XAResourceWrapper {
+public class LocalXAResource implements XAResource, XAResourceWrapper {
 
-    private final TransactionAware connection;
+    protected final TransactionAware connection;
 
     private final static String productName = LocalXAResource.class.getPackage().getImplementationTitle();
 
@@ -144,8 +142,4 @@ public class LocalXAResource implements XAResource, ConnectableResource, LastRes
         return jndiName;
     }
 
-    @Override
-    public Object getConnection() throws Throwable {
-        return connection;
-    }
 }

@@ -100,6 +100,13 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     }
 
     @Override
+    public Object getConnection() {
+        ConnectionWrapper connection = new ConnectionWrapper( handler );
+        connection.inTransaction = true;
+        return connection;
+    }
+
+    @Override
     public void transactionCheckCallback(SQLCallable<Boolean> transactionCheck) {
         this.transactionActiveCheck = transactionCheck;
     }

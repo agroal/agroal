@@ -20,6 +20,8 @@ public interface TransactionAware {
 
     void transactionCheckCallback(SQLCallable<Boolean> transactionCheck);
 
+    Object getConnection();
+
     // --- //
 
     @FunctionalInterface
