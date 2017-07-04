@@ -5,10 +5,10 @@
     <parent>
         <groupId>io.agroal</groupId>
         <artifactId>agroal-parent</artifactId>
-        <version>0.2-SNAPSHOT</version>
+        <version>0.2</version>
     </parent>
     <artifactId>agroal-pool</artifactId>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.2</version>
     <name>Agroal Connection Pool</name>
     <dependencies>
         <dependency>
