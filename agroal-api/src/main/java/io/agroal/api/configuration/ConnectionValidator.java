@@ -14,7 +14,7 @@ public interface ConnectionValidator {
         return connection -> {
             try {
                 return connection.isValid( 0 );
-            } catch ( Throwable t ) {
+            } catch ( Exception t ) {
                 return false;
             }
         };

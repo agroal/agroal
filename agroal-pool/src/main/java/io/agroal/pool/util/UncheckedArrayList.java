@@ -202,12 +202,6 @@ public class UncheckedArrayList<T> implements List<T> {
         throw new UnsupportedOperationException();
     }
 
-    @SuppressWarnings( "MethodDoesntCallSuperMethod" )
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        throw new CloneNotSupportedException();
-    }
-
     @Override
     public Stream<T> stream() {
         throw new UnsupportedOperationException();

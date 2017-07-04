@@ -15,11 +15,11 @@ import javax.transaction.xa.Xid;
  */
 public class LocalXAResource implements XAResource, XAResourceWrapper {
 
-    protected final TransactionAware connection;
+    private final TransactionAware connection;
 
-    private final static String productName = LocalXAResource.class.getPackage().getImplementationTitle();
+    private static final String PRODUCT_NAME = LocalXAResource.class.getPackage().getImplementationTitle();
 
-    private final static String productVersion = LocalXAResource.class.getPackage().getImplementationVersion();
+    private static final String PRODUCT_VERSION = LocalXAResource.class.getPackage().getImplementationVersion();
 
     private final String jndiName;
 
@@ -34,6 +34,10 @@ public class LocalXAResource implements XAResource, XAResourceWrapper {
         this.jndiName = jndiName;
     }
 
+    protected TransactionAware getTransactionAware() {
+        return connection;
+    }
+
     @Override
     public void start(Xid xid, int flags) throws XAException {
         if ( currentXid == null ) {
@@ -42,7 +46,7 @@ public class LocalXAResource implements XAResource, XAResourceWrapper {
             }
             try {
                 connection.transactionStart();
-            } catch ( Throwable t ) {
+            } catch ( Exception t ) {
                 throw new XAException( "Error trying to start local transaction: " + t.getMessage() );
             }
             currentXid = xid;
@@ -63,7 +67,7 @@ public class LocalXAResource implements XAResource, XAResourceWrapper {
         try {
             connection.transactionCommit();
             connection.transactionEnd();
-        } catch ( Throwable t ) {
+        } catch ( Exception t ) {
             throw new XAException( "Error trying to transactionCommit local transaction: " + t.getMessage() );
         }
     }
@@ -78,7 +82,7 @@ public class LocalXAResource implements XAResource, XAResourceWrapper {
         try {
             connection.transactionRollback();
             connection.transactionEnd();
-        } catch ( Throwable t ) {
+        } catch ( Exception t ) {
             throw new XAException( "Error trying to transactionRollback local transaction: " + t.getMessage() );
         }
     }
@@ -129,12 +133,12 @@ public class LocalXAResource implements XAResource, XAResourceWrapper {
 
     @Override
     public String getProductName() {
-        return productName;
+        return PRODUCT_NAME;
     }
 
     @Override
     public String getProductVersion() {
-        return productVersion;
+        return PRODUCT_VERSION;
     }
 
     @Override

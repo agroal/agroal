@@ -14,7 +14,7 @@ import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater
  */
 public class ConnectionHandler {
 
-    private final static AtomicReferenceFieldUpdater<ConnectionHandler, State> stateUpdater = newUpdater( ConnectionHandler.class, State.class, "state" );
+    private static final AtomicReferenceFieldUpdater<ConnectionHandler, State> stateUpdater = newUpdater( ConnectionHandler.class, State.class, "state" );
 
     private final Connection connection;
 
@@ -61,8 +61,6 @@ public class ConnectionHandler {
         }
 
         switch ( newState ) {
-            default:
-                throw new IllegalArgumentException( "Trying to set invalid state " + newState );
             case NEW:
                 throw new IllegalArgumentException( "Trying to set invalid state NEW" );
             case CHECKED_IN:
@@ -71,6 +69,8 @@ public class ConnectionHandler {
             case FLUSH:
             case DESTROYED:
                 return stateUpdater.compareAndSet( this, expected, newState );
+            default:
+                throw new IllegalArgumentException( "Trying to set invalid state " + newState );
         }
     }
 

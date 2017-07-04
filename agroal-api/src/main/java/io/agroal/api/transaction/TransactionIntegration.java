@@ -21,6 +21,7 @@ public interface TransactionIntegration {
 
             @Override
             public void associate(Connection connection) {
+                // nothing to do
             }
 
             @Override

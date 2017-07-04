@@ -43,7 +43,9 @@ public class ConnectionPool implements AutoCloseable {
     private final PriorityScheduledExecutor housekeepingExecutor;
     private final TransactionIntegration transactionIntegration;
 
-    private final boolean leakEnabled, validationEnable, reapEnable;
+    private final boolean leakEnabled;
+    private final boolean validationEnabled;
+    private final boolean reapEnabled;
     private volatile long maxUsed = 0;
 
     public ConnectionPool(AgroalConnectionPoolConfiguration configuration, DataSource dataSource) {
@@ -58,8 +60,8 @@ public class ConnectionPool implements AutoCloseable {
         transactionIntegration = configuration.transactionIntegration();
 
         leakEnabled = !configuration.leakTimeout().isZero();
-        validationEnable = !configuration.validationTimeout().isZero();
-        reapEnable = !configuration.reapTimeout().isZero();
+        validationEnabled = !configuration.validationTimeout().isZero();
+        reapEnabled = !configuration.reapTimeout().isZero();
     }
 
     public void init() {
@@ -68,16 +70,16 @@ public class ConnectionPool implements AutoCloseable {
         if ( leakEnabled ) {
             housekeepingExecutor.schedule( new LeakTask(), configuration.leakTimeout().toNanos(), NANOSECONDS );
         }
-        if ( validationEnable ) {
+        if ( validationEnabled ) {
             housekeepingExecutor.schedule( new ValidationTask(), configuration.validationTimeout().toNanos(), NANOSECONDS );
         }
-        if ( reapEnable ) {
+        if ( reapEnabled ) {
             housekeepingExecutor.schedule( new ReapTask(), configuration.reapTimeout().toNanos(), NANOSECONDS );
         }
     }
 
     private void fill(int newSize) {
-        long connectionCount = newSize - allConnections.size();
+        int connectionCount = newSize - allConnections.size();
         while ( connectionCount-- > 0 ) {
             newConnectionHandler();
         }
@@ -103,7 +105,7 @@ public class ConnectionPool implements AutoCloseable {
                 handler.setConnectionPool( this );
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
-                maxUsedCount();
+                maxUsed = Math.max( maxUsed, allConnections.size() );
                 dataSource.metricsRepository().afterConnectionCreation( metricsStamp );
                 fireOnConnectionCreation( dataSource, handler );
             } catch ( SQLException e ) {
@@ -137,7 +139,7 @@ public class ConnectionPool implements AutoCloseable {
         dataSource.metricsRepository().afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( dataSource, checkedOutHandler );
 
-        if ( leakEnabled || reapEnable ) {
+        if ( leakEnabled || reapEnabled ) {
             checkedOutHandler.setLastAccess( nanoTime() );
         }
         if ( leakEnabled ) {
@@ -157,7 +159,7 @@ public class ConnectionPool implements AutoCloseable {
         return null;
     }
 
-    private ConnectionHandler handlerFromLocalCache() throws SQLException {
+    private ConnectionHandler handlerFromLocalCache() {
         UncheckedArrayList<ConnectionHandler> cachedConnections = localCache.get();
         while ( !cachedConnections.isEmpty() ) {
             ConnectionHandler handler = cachedConnections.removeLast();
@@ -190,6 +192,7 @@ public class ConnectionPool implements AutoCloseable {
                 remaining -= nanoTime() - start;
             }
         } catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
             throw new SQLException( "Interrupted while acquiring" );
         } catch ( ExecutionException e ) {
             throw new SQLException( "Exception while creating new connection", e );
@@ -203,7 +206,7 @@ public class ConnectionPool implements AutoCloseable {
         if ( leakEnabled ) {
             handler.setHoldingThread( null );
         }
-        if ( reapEnable ) {
+        if ( reapEnabled ) {
             handler.setLastAccess( nanoTime() );
         }
         if ( transactionIntegration.disassociate( handler.getConnection() ) ) {
@@ -237,7 +240,7 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     public long maxUsedCount() {
-        return maxUsed = Math.max( maxUsed, allConnections.size() );
+        return maxUsed;
     }
 
     public void resetMaxUsedCount() {

@@ -42,8 +42,9 @@ public class ConnectionWrapper implements Connection, TransactionAware {
                 return Boolean.FALSE;
             case "toString":
                 return ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
+            default:
+                throw new SQLException( "Connection is closed" );
         }
-        throw new SQLException( "Connection is closed" );
     };
 
     private static final Connection CLOSED_CONNECTION = (Connection) newProxyInstance( Connection.class.getClassLoader(), new Class[]{Connection.class}, CLOSED_HANDLER );

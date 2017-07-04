@@ -25,7 +25,7 @@ import static java.util.Arrays.copyOf;
  */
 public class StampedCopyOnWriteArrayList<T> implements List<T> {
 
-    private final Iterator<T> EMPTY_ITERATOR = new Iterator<T>() {
+    private final Iterator<T> emptyIterator = new Iterator<T>() {
         @Override
         public boolean hasNext() {
             return false;
@@ -36,6 +36,7 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
             throw new NoSuchElementException();
         }
     };
+    
     private final StampedLock lock;
     private long optimisticStamp;
     private T[] data;
@@ -188,7 +189,7 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     public Iterator<T> iterator() {
         T[] array = getUnderlyingArray();
 
-        return array.length == 0 ? EMPTY_ITERATOR : new Iterator<T>() {
+        return array.length == 0 ? emptyIterator : new Iterator<T>() {
 
             private int index;
 
@@ -321,11 +322,5 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     @Override
     public void sort(Comparator<? super T> c) {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        super.clone();
-        throw new CloneNotSupportedException();
     }
 }

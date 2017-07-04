@@ -109,13 +109,16 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
         @Override
         public void beforeCompletion() {
+            // nothing to do
         }
 
         @Override
         public void afterCompletion(int status) {
-            try { // Return connection to the pool
+            // Return connection to the pool
+            try {
                 connection.close();
             } catch ( SQLException ignore ) {
+                // ignore
             }
         }
     }

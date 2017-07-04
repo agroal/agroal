@@ -30,8 +30,8 @@ public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
         } );
     }
 
-    public Future<?> executeNow(Runnable priorityTask) {
-        RunnableFuture<?> priorityFuture = new FutureTask<>( priorityTask, null );
+    public <T> Future<T> executeNow(Runnable priorityTask) {
+        RunnableFuture<T> priorityFuture = new FutureTask<>( priorityTask, null );
         priorityTasks.add( priorityFuture );
         execute( EMPTY_TASK );
         return priorityFuture;

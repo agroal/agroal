@@ -18,12 +18,18 @@ public class AgroalTestHelper {
 
     public static void safeSleep(Duration duration) {
         long target = nanoTime() + duration.toNanos();
+        boolean interrupted = false;
         do {
             try {
                 sleep( duration.toMillis() );
             } catch ( InterruptedException e ) {
+                interrupted = true;
                 // retry
             }
         } while ( nanoTime() < target );
+
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

@@ -18,6 +18,6 @@ public class ConnectableLocalXAResource extends LocalXAResource implements Conne
 
     @Override
     public Object getConnection() throws Throwable {
-        return this.connection.getConnection();
+        return getTransactionAware().getConnection();
     }
 }

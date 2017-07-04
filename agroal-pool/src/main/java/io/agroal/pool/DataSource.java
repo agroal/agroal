@@ -110,7 +110,7 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
 
     @Override
     public void setLogWriter(PrintWriter out) throws SQLException {
-
+        // no-op
     }
 
     @Override
@@ -120,7 +120,7 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
 
     @Override
     public void setLoginTimeout(int seconds) throws SQLException {
-
+        // no-op
     }
 
     @Override
