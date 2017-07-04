@@ -5,9 +5,9 @@
     <parent>
         <groupId>io.agroal</groupId>
         <artifactId>agroal-parent</artifactId>
-        <version>0.2</version>
+        <version>0.3-SNAPSHOT</version>
     </parent>
     <artifactId>agroal-api</artifactId>
-    <version>0.2</version>
+    <version>0.3-SNAPSHOT</version>
     <name>Agroal API</name>
 </project>
