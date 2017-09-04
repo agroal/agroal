@@ -143,6 +143,11 @@ public class ConnectionPool implements AutoCloseable {
             checkedOutHandler.setLastAccess( nanoTime() );
         }
         if ( leakEnabled ) {
+            if ( checkedOutHandler.getHoldingThread() != null ) {
+                Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
+                warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
+                fireOnWarning( dataSource, warn );
+            }
             checkedOutHandler.setHoldingThread( currentThread() );
         }
 
