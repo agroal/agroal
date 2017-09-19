@@ -30,20 +30,21 @@ public class ConnectionFactory {
     @SuppressWarnings( "unchecked" )
     public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration) {
         try {
-            this.configuration = configuration;
-            this.jdbcProperties = configuration.jdbcProperties();
             ClassLoader driverLoader = configuration.classLoaderProvider().getClassLoader( configuration.driverClassName() );
             Class<Driver> driverClass = (Class<Driver>) driverLoader.loadClass( configuration.driverClassName() );
-            driver = driverClass.newInstance();
-            setupSecurity( configuration );
+            this.driver = driverClass.newInstance();
         } catch ( IllegalAccessException | InstantiationException | ClassNotFoundException e ) {
             try {
                 // Fallback to load the Driver through the DriverManager
-                driver = DriverManager.getDriver( configuration.jdbcUrl() );
+                this.driver = DriverManager.getDriver( configuration.jdbcUrl() );
             } catch ( SQLException ig ) {
                 throw new RuntimeException( "Unable to load driver class", e );
             }
         }
+
+        this.configuration = configuration;
+        this.jdbcProperties = configuration.jdbcProperties();
+        setupSecurity( configuration );
     }
 
     private void setupSecurity(AgroalConnectionFactoryConfiguration configuration) {
