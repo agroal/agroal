@@ -4,8 +4,8 @@
 ~
 target
 # ignore downloaded maven
-/tools/maven
-/tools/maven.zip
+tools/maven
+tools/maven.zip
 # ignore eclipse files
 .project
 .classpath
@@ -29,14 +29,14 @@ test-output
 transaction.log
 # vim files
 *.swp
-/.gitk-tmp.*
+.gitk-tmp.*
 atlassian-ide-plugin.xml
 # temp files
 *~
 # maven versions plugin
 pom.xml.versionsBackup
 # hprof dumps
-/*.hprof
+*.hprof
 # ignore 'randomly' strewn around logs
 server.log
 # ignore java crashes
@@ -45,8 +45,9 @@ hs_err_pid*.log
 *.h2.db
 # JBoss transaction generated files
 PutObjectStoreDirHere
+agroal-test/ObjectStore
 # ignore mvn-rpmbuild repo
-/.m2
+.m2
 # ignore eap repo
 local-repo-eap
 
