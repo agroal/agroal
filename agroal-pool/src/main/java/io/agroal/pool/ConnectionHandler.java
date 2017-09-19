@@ -3,8 +3,12 @@
 
 package io.agroal.pool;
 
+import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
@@ -18,7 +22,7 @@ public class ConnectionHandler {
 
     private final Connection connection;
 
-    private ConnectionPool connectionPool;
+    private final ConnectionPool connectionPool;
 
     // Can use annotation to get (in theory) a little better performance
     // @Contended
@@ -30,18 +34,40 @@ public class ConnectionHandler {
     // for expiration (CHECKED_IN connections) and leak detection (CHECKED_OUT connections)
     private long lastAccess;
 
-    public ConnectionHandler(Connection connection) {
+    // attributes that need to be reset when the connection is returned
+    private Set<DirtyAttribute> dirtyAttributes = EnumSet.noneOf( DirtyAttribute.class );
+
+    public ConnectionHandler(Connection connection, ConnectionPool pool) {
         this.connection = connection;
+        this.connectionPool = pool;
         state = State.NEW;
         lastAccess = System.nanoTime();
     }
 
-    public void setConnectionPool(ConnectionPool connectionPool) {
-        this.connectionPool = connectionPool;
-    }
-
     public Connection getConnection() {
         return connection;
+    }
+
+    public void returnConnection() throws SQLException {
+        connectionPool.returnConnection( this );
+    }
+
+    public void resetConnection(AgroalConnectionFactoryConfiguration connectionFactoryConfiguration) throws SQLException {
+        if ( dirtyAttributes.isEmpty() ) {
+            return;
+        }
+        for ( DirtyAttribute attribute : dirtyAttributes ) {
+            switch ( attribute ) {
+                case AUTOCOMMIT:
+                    connection.setAutoCommit( connectionFactoryConfiguration.autoCommit() );
+                    break;
+                case TRANSACTION_ISOLATION:
+                    connection.setTransactionIsolation( connectionFactoryConfiguration.jdbcTransactionIsolation().level() );
+                    break;
+                // other attributes do not have default values in connectionFactoryConfiguration
+            }
+        }
+        dirtyAttributes.clear();
     }
 
     public void closeConnection() throws SQLException {
@@ -49,10 +75,6 @@ public class ConnectionHandler {
             throw new SQLException( "Closing connection in incorrect state" );
         }
         connection.close();
-    }
-
-    public void returnConnection() throws SQLException {
-        connectionPool.returnConnection( this );
     }
 
     public boolean setState(State expected, State newState) {
@@ -99,9 +121,17 @@ public class ConnectionHandler {
         this.holdingThread = holdingThread;
     }
 
+    public void setDirtyAttribute(DirtyAttribute attribute) {
+        dirtyAttributes.add( attribute );
+    }
+
     // --- //
 
     public enum State {
         NEW, CHECKED_IN, CHECKED_OUT, VALIDATION, FLUSH, DESTROYED
+    }
+
+    public enum DirtyAttribute {
+        AUTOCOMMIT, TRANSACTION_ISOLATION, NETWORK_TIMEOUT, SCHEMA, CATALOG
     }
 }

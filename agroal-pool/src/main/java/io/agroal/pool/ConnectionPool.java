@@ -101,8 +101,7 @@ public class ConnectionPool implements AutoCloseable {
             long metricsStamp = dataSource.metricsRepository().beforeConnectionCreation();
 
             try {
-                ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection() );
-                handler.setConnectionPool( this );
+                ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), this );
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
                 maxUsed = Math.max( maxUsed, allConnections.size() );
@@ -218,6 +217,7 @@ public class ConnectionPool implements AutoCloseable {
             handler.setLastAccess( nanoTime() );
         }
         if ( transactionIntegration.disassociate( handler.getConnection() ) ) {
+            handler.resetConnection( configuration.connectionFactoryConfiguration() );
             localCache.get().add( handler );
             handler.setState( CHECKED_IN );
             synchronizer.releaseConditional();

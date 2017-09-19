@@ -218,6 +218,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
             throw new SQLException( "Trying to set autocommit in connection taking part of transaction" );
         }
         lazyEnlistmentCheck();
+        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.AUTOCOMMIT );
         wrappedConnection.setAutoCommit( autoCommit );
     }
 
@@ -230,6 +231,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void setCatalog(String catalog) throws SQLException {
         lazyEnlistmentCheck();
+        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.CATALOG );
         wrappedConnection.setCatalog( catalog );
     }
 
@@ -283,6 +285,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void setSchema(String schema) throws SQLException {
         lazyEnlistmentCheck();
+        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.SCHEMA );
         wrappedConnection.setSchema( schema );
     }
 
@@ -307,6 +310,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void setTransactionIsolation(int level) throws SQLException {
         lazyEnlistmentCheck();
+        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION );
         wrappedConnection.setTransactionIsolation( level );
     }
 
@@ -446,6 +450,7 @@ public class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
         lazyEnlistmentCheck();
+        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.NETWORK_TIMEOUT );
         wrappedConnection.setNetworkTimeout( executor, milliseconds );
     }
 
