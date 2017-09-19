@@ -78,6 +78,7 @@ public class ConnectionFactory {
     public Connection createConnection() throws SQLException {
         Connection connection = driver.connect( configuration.jdbcUrl(), jdbcProperties );
         connection.setAutoCommit( configuration.autoCommit() );
+        connection.setTransactionIsolation( configuration.jdbcTransactionIsolation().level() );
         if ( configuration.initialSql() != null && !configuration.initialSql().isEmpty() ) {
             try ( Statement statement = connection.createStatement() ) {
                 statement.execute( configuration.initialSql() );

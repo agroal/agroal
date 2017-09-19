@@ -4,6 +4,7 @@
 package io.agroal.api.configuration;
 
 import java.security.Principal;
+import java.sql.Connection;
 import java.util.Collection;
 import java.util.Properties;
 
@@ -36,6 +37,22 @@ public interface AgroalConnectionFactoryConfiguration {
     // --- //
 
     enum TransactionIsolation {
-        NONE, READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE
+        NONE, READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE;
+
+        public int level() {
+            switch ( this ) {
+                case READ_UNCOMMITTED:
+                    return Connection.TRANSACTION_READ_UNCOMMITTED;
+                case READ_COMMITTED:
+                    return Connection.TRANSACTION_READ_COMMITTED;
+                case REPEATABLE_READ:
+                    return Connection.TRANSACTION_REPEATABLE_READ;
+                case SERIALIZABLE:
+                    return Connection.TRANSACTION_SERIALIZABLE;
+                case NONE:
+                default:
+                    return Connection.TRANSACTION_NONE;
+            }
+        }
     }
 }
