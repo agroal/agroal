@@ -72,6 +72,22 @@ public class BasicTests {
     }
 
     @Test
+    @DisplayName( "DataSource in closed state" )
+    public void basicDataSourceCloseTest() throws SQLException {
+        AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() );
+
+        Connection connection = dataSource.getConnection();
+        assertAll( () -> {
+            assertFalse( connection.isClosed(), "Expected open connection, but it's closed" );
+            assertNotNull( connection.getSchema(), "Expected non null value" );
+        } );
+        connection.close();
+        
+        dataSource.close();
+        assertThrows( SQLException.class, dataSource::getConnection );
+    }
+
+    @Test
     @DisplayName( "Connection wrapper in closed state" )
     public void basicConnectionCloseTest() throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() ) ) {

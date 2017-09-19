@@ -119,10 +119,13 @@ public class ConnectionPool implements AutoCloseable {
 
     // --- //
 
-
     public Connection getConnection() throws SQLException {
         fireBeforeConnectionAcquire( dataSource );
         long metricsStamp = dataSource.metricsRepository().beforeConnectionAcquire();
+
+        if ( housekeepingExecutor.isShutdown() ) {
+            throw new SQLException( "This pool is closed and does not handle any more connections!" );
+        }
 
         ConnectionHandler checkedOutHandler = null;
         ConnectionWrapper connectionWrapper = wrapperFromTransaction();
@@ -197,7 +200,7 @@ public class ConnectionPool implements AutoCloseable {
                 remaining -= nanoTime() - start;
             }
         } catch ( InterruptedException e ) {
-            Thread.currentThread().interrupt();
+            currentThread().interrupt();
             throw new SQLException( "Interrupted while acquiring" );
         } catch ( ExecutionException e ) {
             throw new SQLException( "Exception while creating new connection", e );
