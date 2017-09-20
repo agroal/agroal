@@ -135,12 +135,9 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
                         if ( writeStamp != 0 ) {
                             stamp = writeStamp;
 
-                            int numMoved = data.length - index - 1;
-                            if ( numMoved > 0 ) {
-                                T[] newData = copyOf( data, data.length - 1 );
-                                arraycopy( data, index + 1, newData, index, data.length - index - 1 );
-                                data = newData;
-                            }
+                            T[] newData = copyOf( data, data.length - 1 );
+                            arraycopy( data, index + 1, newData, index, data.length - index - 1 );
+                            data = newData;
                             return true;
                         } else {
                             break;

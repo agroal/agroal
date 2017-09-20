@@ -22,6 +22,8 @@ import static java.util.logging.Logger.getLogger;
  */
 public interface MockDriver extends Driver {
 
+    DriverPropertyInfo[] EMPTY_PROPERTY_INFO = new DriverPropertyInfo[0];
+
     static void registerMockDriver(Class<? extends Connection> connectionType) {
         try {
             registerDriver(
@@ -67,7 +69,7 @@ public interface MockDriver extends Driver {
 
     @Override
     default DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
-        return new DriverPropertyInfo[0];
+        return EMPTY_PROPERTY_INFO;
     }
 
     @Override

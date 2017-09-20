@@ -88,26 +88,6 @@ public class BasicTests {
     }
 
     @Test
-    @DisplayName( "Connection wrapper in closed state" )
-    public void basicConnectionCloseTest() throws SQLException {
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() ) ) {
-            Connection connection = dataSource.getConnection();
-
-            assertAll( () -> {
-                assertFalse( connection.isClosed(), "Expected open connection, but it's closed" );
-                assertNotNull( connection.getSchema(), "Expected non null value" );
-            } );
-
-            connection.close();
-
-            assertAll( () -> {
-                assertThrows( SQLException.class, connection::getSchema );
-                assertTrue( connection.isClosed(), "Expected closed connection, but it's open" );
-            } );
-        }
-    }
-
-    @Test
     @DisplayName( "Acquisition timeout" )
     public void basicAcquisitionTimeoutTest() throws SQLException {
         int MAX_POOL_SIZE = 100, ACQUISITION_TIMEOUT_MS = 1000;

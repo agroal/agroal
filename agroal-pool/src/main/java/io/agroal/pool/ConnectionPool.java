@@ -9,6 +9,7 @@ import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 import io.agroal.pool.util.UncheckedArrayList;
+import io.agroal.pool.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -108,7 +109,7 @@ public class ConnectionPool implements AutoCloseable {
                 dataSource.metricsRepository().afterConnectionCreation( metricsStamp );
                 fireOnConnectionCreation( dataSource, handler );
             } catch ( SQLException e ) {
-                throw new RuntimeException( e );
+                throw new RuntimeException( "Exception while creating new connection", e );
             } finally {
                 // not strictly needed, but not harmful either
                 synchronizer.releaseConditional();

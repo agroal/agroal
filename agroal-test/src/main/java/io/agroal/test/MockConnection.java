@@ -29,19 +29,9 @@ import static java.lang.System.identityHashCode;
  */
 public interface MockConnection extends Connection {
 
-    class Empty implements MockConnection{
-
-        @Override
-        public String toString() {
-            return "MockConnection@" + identityHashCode( this );
-        }
-    }
-
-    // --- //
-
     @Override
     default Statement createStatement() throws SQLException {
-        return null;
+        return new MockStatement.Empty();
     }
 
     @Override
@@ -70,7 +60,6 @@ public interface MockConnection extends Connection {
 
     @Override
     default void commit() throws SQLException {
-
     }
 
     @Override
@@ -291,5 +280,15 @@ public interface MockConnection extends Connection {
     @Override
     default boolean isWrapperFor(Class<?> target) throws SQLException {
         return false;
+    }
+
+    // --- //
+
+    class Empty implements MockConnection {
+
+        @Override
+        public String toString() {
+            return "MockConnection@" + identityHashCode( this );
+        }
     }
 }
