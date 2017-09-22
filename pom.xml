@@ -49,6 +49,7 @@
         <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
         <version.com.zaxxer>2.6.0</version.com.zaxxer>
+        <version.eu.somatik.serviceloader-maven-plugin>1.0.7</version.eu.somatik.serviceloader-maven-plugin>
         <version.org.jboss.jboss-transaction-spi>7.5.0.Final</version.org.jboss.jboss-transaction-spi>
         <version.org.jboss.logging>3.3.0.Final</version.org.jboss.logging>
         <version.org.jboss.narayana>5.3.3.Final</version.org.jboss.narayana>

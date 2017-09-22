@@ -132,7 +132,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
 
     @Override
     public void setLogWriter(PrintWriter out) throws SQLException {
-        hikari.getLogWriter();
+        hikari.setLogWriter( out );
     }
 
     @Override
