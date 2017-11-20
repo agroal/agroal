@@ -24,17 +24,35 @@ import static java.util.Arrays.copyOf;
  */
 public class UncheckedArrayList<T> implements List<T> {
 
+    private final Iterator<T> emptyIterator = new Iterator<T>() {
+        @Override
+        public boolean hasNext() {
+            return false;
+        }
+
+        @Override
+        public T next() {
+            throw new NoSuchElementException();
+        }
+    };
+
     private T[] data;
     private int size;
-
-    public UncheckedArrayList(Class<?> clazz) {
-        this( clazz, 4 );
-    }
 
     @SuppressWarnings( "unchecked" )
     private UncheckedArrayList(Class<?> clazz, int capacity) {
         this.data = (T[]) newInstance( clazz, capacity );
         this.size = 0;
+    }
+
+    public UncheckedArrayList(Class<?> clazz) {
+        this( clazz, 4 );
+    }
+
+    public UncheckedArrayList(Class<?> clazz, T[] initial) {
+        this( clazz, initial.length );
+        this.size = initial.length;
+        arraycopy( initial, 0, data, 0, size );
     }
 
     @Override
@@ -119,22 +137,7 @@ public class UncheckedArrayList<T> implements List<T> {
 
     @Override
     public Iterator<T> iterator() {
-        return new Iterator<T>() {
-            private int index = 0;
-
-            @Override
-            public boolean hasNext() {
-                return index < size;
-            }
-
-            @Override
-            public T next() {
-                if ( index < size ) {
-                    return data[index++];
-                }
-                throw new NoSuchElementException( "No more elements in this list" );
-            }
-        };
+        return size == 0 ? emptyIterator : new UncheckedIterator<>( data );
     }
 
     @Override
@@ -235,5 +238,34 @@ public class UncheckedArrayList<T> implements List<T> {
     @Override
     public void sort(Comparator<? super T> c) {
         throw new UnsupportedOperationException();
+    }
+
+    // --- //
+
+    private static class UncheckedIterator<T> implements Iterator<T> {
+
+        private final int size;
+
+        private final T[] data;
+
+        private int index = 0;
+
+        public UncheckedIterator(T[] data) {
+            this.data = data;
+            this.size = data.length;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return index < size;
+        }
+
+        @Override
+        public T next() {
+            if ( index < size ) {
+                return data[index++];
+            }
+            throw new NoSuchElementException( "No more elements in this list" );
+        }
     }
 }

@@ -10,12 +10,15 @@ import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
 import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
+import io.agroal.pool.util.UncheckedArrayList;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -31,19 +34,23 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
     private final ConnectionPool connectionPool;
     private MetricsRepository dataSourceMetrics;
 
-    public DataSource(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener... listeners) {
-        this.configuration = configuration;
-        this.configuration.registerMetricsEnabledListener( this );
+    @SuppressWarnings( "ThisEscapedInObjectConstruction" )
+    public DataSource(AgroalDataSourceConfiguration dataSourceConfiguration, AgroalDataSourceListener... listeners) {
+        configuration = dataSourceConfiguration;
+        connectionPool = new ConnectionPool( dataSourceConfiguration.connectionPoolConfiguration(), this );
+        dataSourceConfiguration.registerMetricsEnabledListener( this );
+        onMetricsEnabled( dataSourceConfiguration.metricsEnabled() );
 
-        listenerList = new StampedCopyOnWriteArrayList<>( AgroalDataSourceListener.class );
-        listenerList.addAll( Arrays.asList( listeners ) );
-        connectionPool = new ConnectionPool( configuration.connectionPoolConfiguration(), this );
-        onMetricsEnabled( configuration.metricsEnabled() );
+        if ( listeners.length == 0 ) {
+            listenerList = Collections.emptyList();
+        } else {
+            listenerList = new UncheckedArrayList<>( AgroalDataSourceListener.class, listeners );
+        }
 
         connectionPool.init();
     }
 
-    public List<AgroalDataSourceListener> listenerList() {
+    public Collection<AgroalDataSourceListener> listenerList() {
         return listenerList;
     }
 
@@ -68,8 +75,9 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
         return dataSourceMetrics;
     }
 
+    @Deprecated
     public void addListener(AgroalDataSourceListener listener) {
-        listenerList.add( listener );
+        throw new UnsupportedOperationException( "Deprecated. Add listeners using the constructor or AgroalDataSource factory methods" );
     }
 
     @Override
@@ -86,7 +94,7 @@ public class DataSource implements AgroalDataSource, MetricsEnabledListener {
 
     @Override
     public Connection getConnection(String username, String password) throws SQLException {
-        throw new SQLException( "username/password invalid on a pooled data source" );
+        throw new SQLException( "username and password combination invalid on a pooled data source!" );
     }
 
     // --- Wrapper methods //

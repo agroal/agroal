@@ -37,6 +37,7 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
 
     AgroalDataSourceMetrics getMetrics();
 
+    @Deprecated
     void addListener(AgroalDataSourceListener listener);
 
     @Override

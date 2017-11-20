@@ -37,21 +37,21 @@ public class HikariUnderTheCovers implements AgroalDataSource {
 
     private final HikariDataSource hikari;
 
-    public HikariUnderTheCovers(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener... listeners) {
-        this.configuration = configuration;
-        this.poolConfiguration = configuration.connectionPoolConfiguration();
+    public HikariUnderTheCovers(AgroalDataSourceConfiguration dataSourceConfiguration, AgroalDataSourceListener... listeners) {
+        this.configuration = dataSourceConfiguration;
+        this.poolConfiguration = dataSourceConfiguration.connectionPoolConfiguration();
         this.factoryConfiguration = poolConfiguration.connectionFactoryConfiguration();
-        this.hikari = new HikariDataSource( getHikariConfig( configuration ) );
+        this.hikari = new HikariDataSource( getHikariConfig( dataSourceConfiguration ) );
     }
 
-    private HikariConfig getHikariConfig(AgroalDataSourceConfiguration configuration) {
-        if ( configuration.isXA() ) {
+    private HikariConfig getHikariConfig(AgroalDataSourceConfiguration dataSourceConfiguration) {
+        if ( dataSourceConfiguration.isXA() ) {
             throw new UnsupportedOperationException( "Unsupported. Hikari does not support XA" );
         }
 
         HikariConfig hikariConfig = new HikariConfig();
 
-        hikariConfig.setDataSourceJNDI( configuration.jndiName() );
+        hikariConfig.setDataSourceJNDI( dataSourceConfiguration.jndiName() );
         hikariConfig.setLeakDetectionThreshold( poolConfiguration.leakTimeout().toMillis() );
         hikariConfig.setIdleTimeout( poolConfiguration.reapTimeout().toMillis() );
         hikariConfig.setValidationTimeout( poolConfiguration.validationTimeout().toMillis() );

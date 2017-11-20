@@ -69,8 +69,7 @@ public class BasicConcurrencyTests {
                         .maxSize( MAX_POOL_SIZE )
                 );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
-            dataSource.addListener( listener );
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
 
             for ( int i = 0; i < CALLS; i++ ) {
                 executor.submit( () -> {
@@ -111,7 +110,7 @@ public class BasicConcurrencyTests {
 
     private static class BasicConcurrencyTestsListener implements AgroalDataSourceListener {
 
-        private LongAdder creationCount = new LongAdder(), acquireCount = new LongAdder(), returnCount = new LongAdder();
+        private final LongAdder creationCount = new LongAdder(), acquireCount = new LongAdder(), returnCount = new LongAdder();
 
         @Override
         public void onConnectionCreation(Connection connection) {

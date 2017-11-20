@@ -188,26 +188,7 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     @Override
     public Iterator<T> iterator() {
         T[] array = getUnderlyingArray();
-
-        return array.length == 0 ? emptyIterator : new Iterator<T>() {
-
-            private int index;
-
-            private final T[] cache = getUnderlyingArray();
-
-            @Override
-            public boolean hasNext() {
-                return index < cache.length;
-            }
-
-            @Override
-            public T next() {
-                if ( index >= cache.length ) {
-                    throw new NoSuchElementException();
-                }
-                return cache[index++];
-            }
-        };
+        return array.length == 0 ? emptyIterator : new UncheckedIterator<>( array );
     }
 
     @Override
@@ -323,4 +304,34 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
     public void sort(Comparator<? super T> c) {
         throw new UnsupportedOperationException();
     }
+
+    // --- //
+
+    private static class UncheckedIterator<T> implements Iterator<T> {
+
+        private final int size;
+
+        private final T[] data;
+
+        private int index = 0;
+
+        public UncheckedIterator(T[] data) {
+            this.data = data;
+            this.size = data.length;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return index < size;
+        }
+
+        @Override
+        public T next() {
+            if ( index < size ) {
+                return data[index++];
+            }
+            throw new NoSuchElementException( "No more elements in this list" );
+        }
+    }
+
 }
