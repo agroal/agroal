@@ -40,9 +40,21 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String INITIAL_SIZE = "initialSize";
     public static final String PRE_FILL_MODE = "preFillMode";
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
+    public static final String ACQUISITION_TIMEOUT_MS = "acquisitionTimeout_ms";
+    public static final String ACQUISITION_TIMEOUT_S = "acquisitionTimeout_s";
+    public static final String ACQUISITION_TIMEOUT_M = "acquisitionTimeout_m";
     public static final String VALIDATION_TIMEOUT = "validationTimeout";
+    public static final String VALIDATION_TIMEOUT_MS = "validationTimeout_ms";
+    public static final String VALIDATION_TIMEOUT_S = "validationTimeout_s";
+    public static final String VALIDATION_TIMEOUT_M = "validationTimeout_m";
     public static final String LEAK_TIMEOUT = "leakTimeout";
+    public static final String LEAK_TIMEOUT_MS = "leakTimeout_ms";
+    public static final String LEAK_TIMEOUT_S = "leakTimeout_s";
+    public static final String LEAK_TIMEOUT_M = "leakTimeout_m";
     public static final String REAP_TIMEOUT = "reapTimeout";
+    public static final String REAP_TIMEOUT_MS = "reapTimeout_ms";
+    public static final String REAP_TIMEOUT_S = "reapTimeout_s";
+    public static final String REAP_TIMEOUT_M = "reapTimeout_m";
 
     // --- //
 
@@ -103,8 +115,8 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     }
 
     public AgroalPropertiesReader readProperties(Map<String, String> properties) {
-        AgroalConnectionPoolConfigurationSupplier connectionPoolSupplier = new AgroalConnectionPoolConfigurationSupplier( );
-        AgroalConnectionFactoryConfigurationSupplier connectionFactorySupplier= new AgroalConnectionFactoryConfigurationSupplier();
+        AgroalConnectionPoolConfigurationSupplier connectionPoolSupplier = new AgroalConnectionPoolConfigurationSupplier();
+        AgroalConnectionFactoryConfigurationSupplier connectionFactorySupplier = new AgroalConnectionFactoryConfigurationSupplier();
 
         apply( dataSourceSupplier::dataSourceImplementation, DataSourceImplementation::valueOf, properties, IMPLEMENTATION );
         apply( dataSourceSupplier::jndiName, Function.identity(), properties, JNDI_NAME );
@@ -115,10 +127,26 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::maxSize, Integer::parseInt, properties, MAX_SIZE );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
         apply( connectionPoolSupplier::preFillMode, PreFillMode::valueOf, properties, PRE_FILL_MODE );
+
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );
+        apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationMs, properties, ACQUISITION_TIMEOUT_MS );
+        apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationS, properties, ACQUISITION_TIMEOUT_S );
+        apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationM, properties, ACQUISITION_TIMEOUT_M );
         apply( connectionPoolSupplier::validationTimeout, Duration::parse, properties, VALIDATION_TIMEOUT );
+
+        apply( connectionPoolSupplier::validationTimeout, this::parseDurationMs, properties, VALIDATION_TIMEOUT_MS );
+        apply( connectionPoolSupplier::validationTimeout, this::parseDurationS, properties, VALIDATION_TIMEOUT_S );
+        apply( connectionPoolSupplier::validationTimeout, this::parseDurationM, properties, VALIDATION_TIMEOUT_M );
         apply( connectionPoolSupplier::leakTimeout, Duration::parse, properties, LEAK_TIMEOUT );
+
+        apply( connectionPoolSupplier::leakTimeout, this::parseDurationMs, properties, LEAK_TIMEOUT_MS );
+        apply( connectionPoolSupplier::leakTimeout, this::parseDurationS, properties, LEAK_TIMEOUT_S );
+        apply( connectionPoolSupplier::leakTimeout, this::parseDurationM, properties, LEAK_TIMEOUT_M );
         apply( connectionPoolSupplier::reapTimeout, Duration::parse, properties, REAP_TIMEOUT );
+
+        apply( connectionPoolSupplier::reapTimeout, this::parseDurationMs, properties, REAP_TIMEOUT_MS );
+        apply( connectionPoolSupplier::reapTimeout, this::parseDurationS, properties, REAP_TIMEOUT_S );
+        apply( connectionPoolSupplier::reapTimeout, this::parseDurationM, properties, REAP_TIMEOUT_M );
 
         apply( connectionFactorySupplier::jdbcUrl, Function.identity(), properties, JDBC_URL );
         apply( connectionFactorySupplier::autoCommit, Boolean::parseBoolean, properties, AUTO_COMMIT );
@@ -148,5 +176,17 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
                 consumer.accept( keyValue[0], keyValue[1] );
             }
         }
+    }
+
+    private Duration parseDurationMs(String value) {
+        return Duration.ofMillis( Long.parseLong( value ) );
+    }
+
+    private Duration parseDurationS(String value) {
+        return Duration.ofSeconds( Long.parseLong( value ) );
+    }
+
+    private Duration parseDurationM(String value) {
+        return Duration.ofMinutes( Long.parseLong( value ) );
     }
 }
