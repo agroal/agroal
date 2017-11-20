@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
+public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
     private static final AtomicLong THREAD_COUNT = new AtomicLong();
     private static final Runnable EMPTY_TASK = () -> {};

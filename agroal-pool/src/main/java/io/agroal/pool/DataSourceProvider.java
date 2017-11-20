@@ -13,7 +13,7 @@ import static io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSour
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class DataSourceProvider implements AgroalDataSourceProvider {
+public final class DataSourceProvider implements AgroalDataSourceProvider {
 
     @Override
     public AgroalDataSource getDataSource(AgroalDataSourceConfiguration config, AgroalDataSourceListener... listeners) {

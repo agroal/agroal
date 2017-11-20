@@ -44,7 +44,7 @@ public interface MetricsRepository extends AgroalDataSourceMetrics {
 
     // --- //
 
-    class EmptyMetricsRepository implements MetricsRepository {
+    final class EmptyMetricsRepository implements MetricsRepository {
 
         @Override
         public String toString() {

@@ -13,7 +13,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class DefaultMetricsRepository implements MetricsRepository {
+public final class DefaultMetricsRepository implements MetricsRepository {
 
     private final ConnectionPool connectionPool;
     private final LongAdder creationCount = new LongAdder();

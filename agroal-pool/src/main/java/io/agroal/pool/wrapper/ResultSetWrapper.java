@@ -31,7 +31,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class ResultSetWrapper implements ResultSet {
+public final class ResultSetWrapper implements ResultSet {
 
     private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
         switch ( method.getName() ) {

@@ -25,7 +25,7 @@ import java.util.logging.Logger;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class DataSource implements AgroalDataSource, MetricsEnabledListener {
+public final class DataSource implements AgroalDataSource, MetricsEnabledListener {
 
     private static final long serialVersionUID = 6485903416474487024L;
 

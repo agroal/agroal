@@ -22,7 +22,7 @@ import static java.util.Arrays.copyOf;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class UncheckedArrayList<T> implements List<T> {
+public final class UncheckedArrayList<T> implements List<T> {
 
     private final Iterator<T> emptyIterator = new Iterator<T>() {
         @Override
@@ -242,7 +242,7 @@ public class UncheckedArrayList<T> implements List<T> {
 
     // --- //
 
-    private static class UncheckedIterator<T> implements Iterator<T> {
+    private final static class UncheckedIterator<T> implements Iterator<T> {
 
         private final int size;
 

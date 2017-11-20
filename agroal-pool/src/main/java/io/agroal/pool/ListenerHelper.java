@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class ListenerHelper {
+public final class ListenerHelper {
 
     private ListenerHelper() {
     }

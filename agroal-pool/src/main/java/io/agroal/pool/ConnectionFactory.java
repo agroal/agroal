@@ -18,7 +18,7 @@ import java.util.Properties;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class ConnectionFactory {
+public final class ConnectionFactory {
 
     private static final String USER_PROPERTY_NAME = "user";
     private static final String PASSWORD_PROPERTY_NAME = "password";

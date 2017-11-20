@@ -30,7 +30,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class ConnectionPool implements AutoCloseable {
+public final class ConnectionPool implements AutoCloseable {
 
     private final AgroalConnectionPoolConfiguration configuration;
 
@@ -258,7 +258,7 @@ public class ConnectionPool implements AutoCloseable {
 
     // --- leak detection //
 
-    private class LeakTask implements Runnable {
+    private final class LeakTask implements Runnable {
 
         @Override
         public void run() {
@@ -290,7 +290,7 @@ public class ConnectionPool implements AutoCloseable {
 
     // --- validation //
 
-    private class ValidationTask implements Runnable {
+    private final class ValidationTask implements Runnable {
 
         @Override
         public void run() {
@@ -327,7 +327,7 @@ public class ConnectionPool implements AutoCloseable {
 
     // --- reap //
 
-    private class ReapTask implements Runnable {
+    private final class ReapTask implements Runnable {
 
         @Override
         public void run() {
@@ -366,7 +366,7 @@ public class ConnectionPool implements AutoCloseable {
 
     // --- destroy //
 
-    private class DestroyConnectionTask implements Runnable {
+    private final class DestroyConnectionTask implements Runnable {
 
         private final ConnectionHandler handler;
 

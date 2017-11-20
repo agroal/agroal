@@ -23,7 +23,7 @@ import static java.util.Arrays.copyOf;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class StampedCopyOnWriteArrayList<T> implements List<T> {
+public final class StampedCopyOnWriteArrayList<T> implements List<T> {
 
     private final Iterator<T> emptyIterator = new Iterator<T>() {
         @Override
@@ -304,7 +304,7 @@ public class StampedCopyOnWriteArrayList<T> implements List<T> {
 
     // --- //
 
-    private static class UncheckedIterator<T> implements Iterator<T> {
+    private static final class UncheckedIterator<T> implements Iterator<T> {
 
         private final int size;
 

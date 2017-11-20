@@ -30,7 +30,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class PreparedStatementWrapper extends StatementWrapper implements PreparedStatement {
+public final class PreparedStatementWrapper extends StatementWrapper implements PreparedStatement {
 
     private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
         switch ( method.getName() ) {

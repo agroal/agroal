@@ -9,7 +9,7 @@ import java.util.concurrent.locks.AbstractQueuedLongSynchronizer;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class AgroalSynchronizer extends AbstractQueuedLongSynchronizer {
+public final class AgroalSynchronizer extends AbstractQueuedLongSynchronizer {
 
     private static final long serialVersionUID = -57548578257544072L;
     

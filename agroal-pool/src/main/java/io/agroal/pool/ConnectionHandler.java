@@ -18,7 +18,7 @@ import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class ConnectionHandler {
+public final class ConnectionHandler {
 
     private static final AtomicReferenceFieldUpdater<ConnectionHandler, State> stateUpdater = newUpdater( ConnectionHandler.class, State.class, "state" );
 
