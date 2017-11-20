@@ -30,6 +30,7 @@ import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -78,7 +79,7 @@ public class BasicNarayanaTests {
                 assertThrows( SQLException.class, () -> connection.setAutoCommit( true ) );
                 assertFalse( connection.getAutoCommit(), "Expect connection to have autocommit not set" );
                 // TODO: comparing toString is brittle. Find a better way to make sure the underlying physical connection is the same.
-                assertTrue( connection.toString().equals( dataSource.getConnection().toString() ), "Expect the same connection under the same transaction" );
+                assertEquals( connection.toString(), dataSource.getConnection().toString(), "Expect the same connection under the same transaction" );
             } );
 
             txManager.commit();

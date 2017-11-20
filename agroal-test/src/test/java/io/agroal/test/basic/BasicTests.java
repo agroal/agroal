@@ -150,13 +150,7 @@ public class BasicTests {
                 );
         CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
 
-        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
-            @Override
-            public void onConnectionLeak(Connection connection, Thread thread) {
-                assertEquals( leakingThread, thread, "Wrong thread reported" );
-                latch.countDown();
-            }
-        };
+        AgroalDataSourceListener listener = new LeakDetectionListener( leakingThread, latch );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
@@ -166,7 +160,7 @@ public class BasicTests {
             }
             try {
                 logger.info( format( "Holding all {0} connections from the pool and waiting for leak notifications", MAX_POOL_SIZE ) );
-                if ( !latch.await( 2 * LEAK_DETECTION_MS, MILLISECONDS ) ) {
+                if ( !latch.await( 2L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
                     fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
                 }
             } catch ( InterruptedException e ) {
@@ -188,12 +182,8 @@ public class BasicTests {
                 );
 
         CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
-        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
-            @Override
-            public void beforeConnectionValidation(Connection connection) {
-                latch.countDown();
-            }
-        };
+
+        AgroalDataSourceListener listener = new ValidationListener( latch );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < CAllS; i++ ) {
@@ -203,7 +193,7 @@ public class BasicTests {
             }
             try {
                 logger.info( format( "Awaiting for validation of all the {0} connections on the pool", MAX_POOL_SIZE ) );
-                if ( !latch.await( 2 * VALIDATION_MS, MILLISECONDS ) ) {
+                if ( !latch.await( 2L * VALIDATION_MS, MILLISECONDS ) ) {
                     fail( format( "Validation of {0} connections", latch.getCount() ) );
                 }
             } catch ( InterruptedException e ) {
@@ -229,23 +219,7 @@ public class BasicTests {
         CountDownLatch destroyLatch = new CountDownLatch( MAX_POOL_SIZE - MIN_POOL_SIZE );
         LongAdder reapCount = new LongAdder();
 
-        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
-
-            @Override
-            public void beforeConnectionReap(Connection connection) {
-                allLatch.countDown();
-            }
-
-            @Override
-            public void onConnectionReap(Connection connection) {
-                reapCount.increment();
-            }
-
-            @Override
-            public void beforeConnectionDestroy(Connection connection) {
-                destroyLatch.countDown();
-            }
-        };
+        AgroalDataSourceListener listener = new ReapListener( allLatch, reapCount, destroyLatch );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < CAllS; i++ ) {
@@ -255,7 +229,7 @@ public class BasicTests {
             }
             try {
                 logger.info( format( "Awaiting test of all the {0} connections on the pool", MAX_POOL_SIZE ) );
-                if ( !allLatch.await( 2 * REAP_TIMEOUT_MS, MILLISECONDS ) ) {
+                if ( !allLatch.await( 2L * REAP_TIMEOUT_MS, MILLISECONDS ) ) {
                     fail( format( "{0} connections not tested for reap", allLatch.getCount() ) );
                 }
                 logger.info( format( "Waiting for reaping of {0} connections ", MAX_POOL_SIZE - MIN_POOL_SIZE ) );
@@ -266,6 +240,65 @@ public class BasicTests {
             } catch ( InterruptedException e ) {
                 fail( "Test fail due to interrupt" );
             }
+        }
+    }
+
+    // --- //
+
+    private static class LeakDetectionListener implements AgroalDataSourceListener {
+        private final Thread leakingThread;
+        private final CountDownLatch latch;
+
+        public LeakDetectionListener(Thread leakingThread, CountDownLatch latch) {
+            this.leakingThread = leakingThread;
+            this.latch = latch;
+        }
+
+        @Override
+        public void onConnectionLeak(Connection connection, Thread thread) {
+            assertEquals( leakingThread, thread, "Wrong thread reported" );
+            latch.countDown();
+        }
+    }
+
+    private static class ValidationListener implements AgroalDataSourceListener {
+        private final CountDownLatch latch;
+
+        public ValidationListener(CountDownLatch latch) {
+            this.latch = latch;
+        }
+
+        @Override
+        public void beforeConnectionValidation(Connection connection) {
+            latch.countDown();
+        }
+    }
+
+    private static class ReapListener implements AgroalDataSourceListener {
+
+        private final CountDownLatch allLatch;
+        private final LongAdder reapCount;
+        private final CountDownLatch destroyLatch;
+
+        public ReapListener(CountDownLatch allLatch, LongAdder reapCount, CountDownLatch destroyLatch) {
+            this.allLatch = allLatch;
+            this.reapCount = reapCount;
+            this.destroyLatch = destroyLatch;
+        }
+
+        @Override
+        public void beforeConnectionReap(Connection connection) {
+            allLatch.countDown();
+        }
+
+        @Override
+        public void onConnectionReap(Connection connection) {
+            reapCount.increment();
+        }
+
+        @Override
+        public void beforeConnectionDestroy(Connection connection) {
+            destroyLatch.countDown();
         }
     }
 

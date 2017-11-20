@@ -42,7 +42,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(AgroalConnectionPoolConfiguration configuration) {
         return applySetting( c -> c.connectionPoolConfiguration = configuration );
     }
-    
+
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Supplier<AgroalConnectionPoolConfiguration> supplier) {
         return connectionPoolConfiguration( supplier.get() );
     }
@@ -61,12 +61,12 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         return applySetting( c -> c.jndiName = name );
     }
 
-    public AgroalDataSourceConfigurationSupplier xa(boolean xa) {
-        return applySetting( c -> c.xa = xa );
+    public AgroalDataSourceConfigurationSupplier xa(boolean xaEnabled) {
+        return applySetting( c -> c.xa = xaEnabled );
     }
 
-    public AgroalDataSourceConfigurationSupplier metricsEnabled(boolean metrics) {
-        return applySetting( c -> c.metrics = metrics );
+    public AgroalDataSourceConfigurationSupplier metricsEnabled(boolean metricsEnabled) {
+        return applySetting( c -> c.metrics = metricsEnabled );
     }
 
     // --- //
@@ -78,6 +78,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     }
 
     @Override
+    @SuppressWarnings( "ReturnOfInnerClass" )
     public AgroalDataSourceConfiguration get() {
         validate();
         this.lock = true;

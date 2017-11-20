@@ -49,7 +49,6 @@ public interface AgroalConnectionFactoryConfiguration {
                     return Connection.TRANSACTION_REPEATABLE_READ;
                 case SERIALIZABLE:
                     return Connection.TRANSACTION_SERIALIZABLE;
-                case NONE:
                 default:
                     return Connection.TRANSACTION_NONE;
             }

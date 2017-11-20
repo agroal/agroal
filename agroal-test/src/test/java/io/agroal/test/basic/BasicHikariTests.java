@@ -43,8 +43,6 @@ public class BasicHikariTests {
 
     private static final Logger logger = getLogger( BasicHikariTests.class.getName() );
 
-    private static final String FAKE_SCHEMA = "skeema";
-
     private static final Driver fakeDriver = new FakeDriver();
 
     @BeforeAll
@@ -76,7 +74,7 @@ public class BasicHikariTests {
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
             Connection connection = dataSource.getConnection();
-            assertEquals( connection.getSchema(), FAKE_SCHEMA );
+            assertEquals( connection.getSchema(), FakeDriver.FakeConnection.FAKE_SCHEMA );
             logger.info( format( "Got schema \"{0}\" from {1}", connection.getSchema(), connection ) );
             connection.close();
         }
@@ -153,12 +151,17 @@ public class BasicHikariTests {
     public static class FakeDriver implements MockDriver {
         @Override
         public Connection connect(String url, Properties info) {
-            return new MockConnection() {
-                @Override
-                public String getSchema() {
-                    return FAKE_SCHEMA;
-                }
-            };
+            return new FakeConnection();
+        }
+
+        private static class FakeConnection implements MockConnection {
+
+            private static final String FAKE_SCHEMA = "skeema";
+
+            @Override
+            public String getSchema() {
+                return FAKE_SCHEMA;
+            }
         }
     }
 }

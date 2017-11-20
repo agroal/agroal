@@ -34,7 +34,7 @@ public class NamePrincipal implements Serializable, Principal {
             return false;
         }
         Principal p = (Principal) o;
-        return name == null ? p.getName() == null : name.equals( p.getName() );
+        return name == null ? p.getName() == null : name.contentEquals( p.getName() );
     }
 
     @Override

@@ -159,11 +159,7 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     private ConnectionWrapper wrapperFromTransaction() throws SQLException {
-        Connection connection = transactionIntegration.getConnection();
-        if ( connection != null ) {
-            return (ConnectionWrapper) connection;
-        }
-        return null;
+        return (ConnectionWrapper) transactionIntegration.getConnection();
     }
 
     private ConnectionHandler handlerFromLocalCache() {

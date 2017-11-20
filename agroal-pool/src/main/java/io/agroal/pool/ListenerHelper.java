@@ -5,7 +5,6 @@ package io.agroal.pool;
 
 import io.agroal.api.AgroalDataSourceListener;
 
-import java.util.Collection;
 import java.util.function.Consumer;
 
 /**
@@ -88,7 +87,7 @@ public class ListenerHelper {
         fire( dataSource.listenerList(), l -> l.onWarning( throwable ) );
     }
 
-    private static void fire(Collection<AgroalDataSourceListener> listeners, Consumer<AgroalDataSourceListener> consumer) {
+    private static void fire(Iterable<AgroalDataSourceListener> listeners, Consumer<AgroalDataSourceListener> consumer) {
         for ( AgroalDataSourceListener listener : listeners ) {
             consumer.accept( listener );
         }

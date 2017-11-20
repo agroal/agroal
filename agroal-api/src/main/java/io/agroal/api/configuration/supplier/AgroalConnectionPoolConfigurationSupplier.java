@@ -107,8 +107,8 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         return applySetting( c -> c.maxSize = size );
     }
 
-    public AgroalConnectionPoolConfigurationSupplier connectionValidator(ConnectionValidator connectionValidator) {
-        return applySetting( c -> c.connectionValidator = connectionValidator );
+    public AgroalConnectionPoolConfigurationSupplier connectionValidator(ConnectionValidator validator) {
+        return applySetting( c -> c.connectionValidator = validator );
     }
 
     public AgroalConnectionPoolConfigurationSupplier acquisitionTimeout(Duration timeout) {
@@ -131,13 +131,13 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     private void validate() {
         if ( minSize < 0 ) {
-            throw new IllegalArgumentException( "Invalid min size" );
+            throw new IllegalArgumentException( "Invalid min size: smaller than 0" );
         }
         if ( maxSize <= 0 ) {
             throw new IllegalArgumentException( "A Positive max size is required" );
         }
         if ( minSize > maxSize ) {
-            throw new IllegalArgumentException( "Wrong size of min / max size" );
+            throw new IllegalArgumentException( "Invalid min size: greater than max size" );
         }
         if ( initialSize < minSize || initialSize > maxSize ) {
             throw new IllegalArgumentException( "Invalid value for initial size. Must be between min and max." );
@@ -151,6 +151,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     @Override
+    @SuppressWarnings( "ReturnOfInnerClass" )
     public AgroalConnectionPoolConfiguration get() {
         validate();
         this.lock = true;

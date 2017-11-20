@@ -72,20 +72,20 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
 
     // --- //
 
-    public AgroalConnectionFactoryConfigurationSupplier autoCommit(boolean autoCommit) {
-        return applySetting( c -> c.autoCommit = autoCommit );
+    public AgroalConnectionFactoryConfigurationSupplier autoCommit(boolean autoCommitEnabled) {
+        return applySetting( c -> c.autoCommit = autoCommitEnabled );
     }
 
-    public AgroalConnectionFactoryConfigurationSupplier jdbcUrl(String jdbcUrl) {
-        return applySetting( c -> c.jdbcUrl = jdbcUrl );
+    public AgroalConnectionFactoryConfigurationSupplier jdbcUrl(String jdbcUrlString) {
+        return applySetting( c -> c.jdbcUrl = jdbcUrlString );
     }
 
-    public AgroalConnectionFactoryConfigurationSupplier initialSql(String initialSql) {
-        return applySetting( c -> c.initialSql = initialSql );
+    public AgroalConnectionFactoryConfigurationSupplier initialSql(String initialSqlString) {
+        return applySetting( c -> c.initialSql = initialSqlString );
     }
 
-    public AgroalConnectionFactoryConfigurationSupplier driverClassName(String driverClassName) {
-        return applySetting( c -> c.driverClassName = driverClassName );
+    public AgroalConnectionFactoryConfigurationSupplier driverClassName(String driverClass) {
+        return applySetting( c -> c.driverClassName = driverClass );
     }
 
     public AgroalConnectionFactoryConfigurationSupplier classLoaderProvider(ClassLoaderProvider provider) {
@@ -96,17 +96,17 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         return applySetting( c -> c.classLoaderProvider = className -> classLoader );
     }
 
-    public AgroalConnectionFactoryConfigurationSupplier jdbcTransactionIsolation(TransactionIsolation transactionIsolation) {
-        return applySetting( c -> c.transactionIsolation = transactionIsolation );
+    public AgroalConnectionFactoryConfigurationSupplier jdbcTransactionIsolation(TransactionIsolation transactionIsolationLevel) {
+        return applySetting( c -> c.transactionIsolation = transactionIsolationLevel );
     }
 
     @Deprecated
-    public AgroalConnectionFactoryConfigurationSupplier interruptHandlingMode(InterruptProtection interruptProtection) {
-        return applySetting( c -> c.interruptProtection = interruptProtection );
+    public AgroalConnectionFactoryConfigurationSupplier interruptHandlingMode(InterruptProtection interruptProtectionEnabled) {
+        return applySetting( c -> c.interruptProtection = interruptProtectionEnabled );
     }
 
-    public AgroalConnectionFactoryConfigurationSupplier principal(Principal principal) {
-        return applySetting( c -> c.principal = principal );
+    public AgroalConnectionFactoryConfigurationSupplier principal(Principal loginPrincipal) {
+        return applySetting( c -> c.principal = loginPrincipal );
     }
 
     public AgroalConnectionFactoryConfigurationSupplier credential(Object credential) {
@@ -129,6 +129,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     }
 
     @Override
+    @SuppressWarnings( "ReturnOfInnerClass" )
     public AgroalConnectionFactoryConfiguration get() {
         validate();
         this.lock = true;

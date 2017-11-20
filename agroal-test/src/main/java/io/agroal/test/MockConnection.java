@@ -284,12 +284,12 @@ public interface MockConnection extends Connection {
     }
 
     @Override
-    default <T> T unwrap(Class<T> iface) throws SQLException {
+    default <T> T unwrap(Class<T> target) throws SQLException {
         return null;
     }
 
     @Override
-    default boolean isWrapperFor(Class<?> iface) throws SQLException {
+    default boolean isWrapperFor(Class<?> target) throws SQLException {
         return false;
     }
 }

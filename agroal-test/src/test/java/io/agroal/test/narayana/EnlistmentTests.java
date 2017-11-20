@@ -29,6 +29,7 @@ import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -80,7 +81,7 @@ public class EnlistmentTests {
             logger.info( format( "Got connection {0}", secondConnection ) );
 
             // TODO: comparing toString is brittle. Find a better way to make sure the underlying physical connection is the same.
-            assertTrue( connectionToString.equals( secondConnection.toString() ), "Expect the same connection under the same transaction" );
+            assertEquals( connectionToString, secondConnection.toString(), "Expect the same connection under the same transaction" );
             assertFalse( secondConnection.getAutoCommit(), "AutoCommit temporarily disabled in enlisted connection" );
             secondConnection.close();
 

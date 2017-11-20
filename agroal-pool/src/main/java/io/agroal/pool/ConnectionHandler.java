@@ -11,6 +11,8 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
+import static io.agroal.pool.ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION;
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
 
 /**
@@ -24,6 +26,9 @@ public class ConnectionHandler {
 
     private final ConnectionPool connectionPool;
 
+    // attributes that need to be reset when the connection is returned
+    private final Set<DirtyAttribute> dirtyAttributes = EnumSet.noneOf( DirtyAttribute.class );
+
     // Can use annotation to get (in theory) a little better performance
     // @Contended
     private volatile State state;
@@ -33,9 +38,6 @@ public class ConnectionHandler {
 
     // for expiration (CHECKED_IN connections) and leak detection (CHECKED_OUT connections)
     private long lastAccess;
-
-    // attributes that need to be reset when the connection is returned
-    private Set<DirtyAttribute> dirtyAttributes = EnumSet.noneOf( DirtyAttribute.class );
 
     public ConnectionHandler(Connection connection, ConnectionPool pool) {
         this.connection = connection;
@@ -53,21 +55,17 @@ public class ConnectionHandler {
     }
 
     public void resetConnection(AgroalConnectionFactoryConfiguration connectionFactoryConfiguration) throws SQLException {
-        if ( dirtyAttributes.isEmpty() ) {
-            return;
-        }
-        for ( DirtyAttribute attribute : dirtyAttributes ) {
-            switch ( attribute ) {
-                case AUTOCOMMIT:
-                    connection.setAutoCommit( connectionFactoryConfiguration.autoCommit() );
-                    break;
-                case TRANSACTION_ISOLATION:
-                    connection.setTransactionIsolation( connectionFactoryConfiguration.jdbcTransactionIsolation().level() );
-                    break;
-                // other attributes do not have default values in connectionFactoryConfiguration
+        if ( !dirtyAttributes.isEmpty() ) {
+            if ( dirtyAttributes.contains( AUTOCOMMIT ) ) {
+                connection.setAutoCommit( connectionFactoryConfiguration.autoCommit() );
             }
+            if ( dirtyAttributes.contains( TRANSACTION_ISOLATION ) ) {
+                connection.setTransactionIsolation( connectionFactoryConfiguration.jdbcTransactionIsolation().level() );
+            }
+            // other attributes do not have default values in connectionFactoryConfiguration
+
+            dirtyAttributes.clear();
         }
-        dirtyAttributes.clear();
     }
 
     public void closeConnection() throws SQLException {

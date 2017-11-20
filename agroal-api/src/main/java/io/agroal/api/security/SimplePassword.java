@@ -34,7 +34,7 @@ public class SimplePassword implements Serializable {
         }
 
         SimplePassword that = (SimplePassword) o;
-        return word == null ? that.word == null : word.equals( that.word );
+        return word == null ? that.word == null : word.contentEquals( that.word );
     }
 
     @Override
