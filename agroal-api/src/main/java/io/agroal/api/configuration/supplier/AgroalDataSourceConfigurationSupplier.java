@@ -19,6 +19,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
 
     private volatile boolean lock;
 
+    @Deprecated
     private String jndiName = "";
     private AgroalConnectionPoolConfiguration connectionPoolConfiguration = new AgroalConnectionPoolConfigurationSupplier().get();
     private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
@@ -57,6 +58,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         return applySetting( c -> c.dataSourceImplementation = implementation );
     }
 
+    @Deprecated
     public AgroalDataSourceConfigurationSupplier jndiName(String name) {
         return applySetting( c -> c.jndiName = name );
     }
