@@ -3,8 +3,8 @@
 
 package io.agroal.test.osgi;
 
+import io.agroal.api.AgroalDataSource;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
-import io.agroal.pool.DataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -99,7 +99,7 @@ public class BasicOSGiTests {
         public void probe(BundleReference bundleReference) throws SQLException {
             probeLogger.info( "In OSGi container running from a Bundle named " + bundleReference.getBundle().getSymbolicName() );
 
-            try ( DataSource dataSource = new DataSource( new AgroalDataSourceConfigurationSupplier().get() ) ) {
+            try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() ) ) {
                 try ( Connection connection = dataSource.getConnection() ) {
                     probeLogger.info( format( "Got connection {0}", connection ) );
                 }

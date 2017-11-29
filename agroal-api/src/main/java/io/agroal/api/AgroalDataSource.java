@@ -7,6 +7,8 @@ import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
@@ -22,13 +24,21 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
     }
 
     static AgroalDataSource from(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener... listeners) throws SQLException {
-        for ( AgroalDataSourceProvider provider : load( AgroalDataSourceProvider.class ) ) {
+        for ( AgroalDataSourceProvider provider : load( AgroalDataSourceProvider.class, AgroalDataSourceProvider.class.getClassLoader() ) ) {
             AgroalDataSource implementation = provider.getDataSource( configuration, listeners );
             if ( implementation != null ) {
                 return implementation;
             }
         }
-        throw new SQLException( "Unable to find the required implementation" );
+
+        // Fall back to load the implementation using reflection
+        try {
+            Class<? extends AgroalDataSource> dataSourceClass = AgroalDataSource.class.getClassLoader().loadClass( configuration.dataSourceImplementation().className() ).asSubclass( AgroalDataSource.class );
+            Constructor<? extends AgroalDataSource> dataSourceConstructor = dataSourceClass.getConstructor( AgroalDataSourceConfiguration.class, AgroalDataSourceListener[].class );
+            return dataSourceConstructor.newInstance( configuration, listeners );
+        } catch ( ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e ) {
+            throw new SQLException( "Could not load the required implementation", e );
+        }
     }
 
     // --- //

@@ -22,6 +22,9 @@
                             filter:="(osgi.serviceloader=io.agroal.api.AgroalDataSourceProvider)";
                             cardinality:=multiple
                         </Require-Capability>
+                        <DynamicImport-Package>
+                            io.agroal.*
+                        </DynamicImport-Package>
                     </instructions>
                 </configuration>
             </plugin>
