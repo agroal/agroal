@@ -37,7 +37,7 @@ public interface AgroalConnectionFactoryConfiguration {
     // --- //
 
     enum TransactionIsolation {
-        NONE, READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE;
+        UNDEFINED, NONE, READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE;
 
         public int level() {
             switch ( this ) {
@@ -49,9 +49,16 @@ public interface AgroalConnectionFactoryConfiguration {
                     return Connection.TRANSACTION_REPEATABLE_READ;
                 case SERIALIZABLE:
                     return Connection.TRANSACTION_SERIALIZABLE;
-                default:
+                case NONE:
                     return Connection.TRANSACTION_NONE;
+                default:
+                    return -1;
             }
         }
+
+        public boolean isDefined() {
+            return this != UNDEFINED;
+        }
+
     }
 }

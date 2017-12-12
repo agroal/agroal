@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.READ_COMMITTED;
+import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.UNDEFINED;
 import static io.agroal.api.configuration.ClassLoaderProvider.systemClassloader;
 import static io.agroal.api.configuration.InterruptProtection.none;
 
@@ -34,7 +35,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private String initialSql = "";
     private String driverClassName = "";
     private ClassLoaderProvider classLoaderProvider = systemClassloader();
-    private TransactionIsolation transactionIsolation = READ_COMMITTED;
+    private TransactionIsolation transactionIsolation = UNDEFINED;
     @Deprecated
     private InterruptProtection interruptProtection = none();
     private Principal principal;
