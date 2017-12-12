@@ -140,7 +140,7 @@ public class BasicTests {
             }
             try {
                 logger.info( format( "Holding all {0} connections from the pool and waiting for leak notifications", MAX_POOL_SIZE ) );
-                if ( !latch.await( 2L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
+                if ( !latch.await( 3L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
                     fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
                 }
             } catch ( InterruptedException e ) {
@@ -173,7 +173,7 @@ public class BasicTests {
             }
             try {
                 logger.info( format( "Awaiting for validation of all the {0} connections on the pool", MAX_POOL_SIZE ) );
-                if ( !latch.await( 2L * VALIDATION_MS, MILLISECONDS ) ) {
+                if ( !latch.await( 3L * VALIDATION_MS, MILLISECONDS ) ) {
                     fail( format( "Validation of {0} connections", latch.getCount() ) );
                 }
             } catch ( InterruptedException e ) {
@@ -209,7 +209,7 @@ public class BasicTests {
             }
             try {
                 logger.info( format( "Awaiting test of all the {0} connections on the pool", MAX_POOL_SIZE ) );
-                if ( !allLatch.await( 2L * REAP_TIMEOUT_MS, MILLISECONDS ) ) {
+                if ( !allLatch.await( 3L * REAP_TIMEOUT_MS, MILLISECONDS ) ) {
                     fail( format( "{0} connections not tested for reap", allLatch.getCount() ) );
                 }
                 logger.info( format( "Waiting for reaping of {0} connections ", MAX_POOL_SIZE - MIN_POOL_SIZE ) );
