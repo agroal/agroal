@@ -213,7 +213,7 @@ public class BasicTests {
                     fail( format( "{0} connections not tested for reap", allLatch.getCount() ) );
                 }
                 logger.info( format( "Waiting for reaping of {0} connections ", MAX_POOL_SIZE - MIN_POOL_SIZE ) );
-                if ( !destroyLatch.await( REAP_TIMEOUT_MS, MILLISECONDS ) ) {
+                if ( !destroyLatch.await( 2L * REAP_TIMEOUT_MS, MILLISECONDS ) ) {
                     fail( format( "{0} idle connections not sent for destruction", destroyLatch.getCount() ) );
                 }
                 assertEquals( MAX_POOL_SIZE - MIN_POOL_SIZE, reapCount.longValue(), "Unexpected number of idle connections " );
