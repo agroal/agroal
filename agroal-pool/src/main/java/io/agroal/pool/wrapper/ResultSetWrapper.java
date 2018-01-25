@@ -69,7 +69,7 @@ public final class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean next() throws SQLException {
-        return false;
+        return wrappedResultSet.next();
     }
 
     @Override
