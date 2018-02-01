@@ -67,9 +67,6 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     // Flag to indicate that this ConnectionWrapper is currently enlisted with a transaction
     private boolean inTransaction = false;
 
-    // This field is used to store temporarily the value of the autoCommit flag, while the connection is taking part on the transaction
-    private boolean autocommitStash;
-
     // TODO: make trackStatements configurable
     // Flag to indicate that this ConnectionWrapper should track statements to close them on close()
     private boolean trackStatements = true;
@@ -92,8 +89,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void transactionStart() throws SQLException {
-        autocommitStash = wrappedConnection.getAutoCommit();
-        wrappedConnection.setAutoCommit( false );
+        this.setAutoCommit( false );
         inTransaction = true;
     }
 
@@ -110,9 +106,6 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void transactionEnd() throws SQLException {
         inTransaction = false;
-        if ( wrappedConnection != CLOSED_CONNECTION ) {
-            wrappedConnection.setAutoCommit( autocommitStash );
-        }
     }
 
     @Override
