@@ -176,6 +176,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
         wrappedConnection = CLOSED_CONNECTION;
         if ( !inTransaction ) {
             closeTrackedStatements();
+            transactionActiveCheck = NO_ACTIVE_TRANSACTION;
             handler.returnConnection();
         }
     }
