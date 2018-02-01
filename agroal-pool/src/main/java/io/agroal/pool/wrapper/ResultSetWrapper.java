@@ -373,7 +373,7 @@ public final class ResultSetWrapper implements ResultSet {
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-        wrappedResultSet.setFetchDirection( rows );
+        wrappedResultSet.setFetchSize( rows );
     }
 
     @Override
