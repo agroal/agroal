@@ -51,6 +51,9 @@ public class StatementWrapper implements Statement {
     // --- //
 
     protected ResultSet trackResultSet(ResultSet resultSet) {
+        if ( resultSet == null ) {
+            return null;
+        }
         ResultSet wrappedResultSet = new ResultSetWrapper( this, resultSet );
         trackedResultSets.add( wrappedResultSet );
         return wrappedResultSet;

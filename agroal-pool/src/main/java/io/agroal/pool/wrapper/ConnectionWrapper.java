@@ -129,7 +129,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     // --- //
 
     private Statement trackStatement(Statement statement) {
-        if ( trackStatements ) {
+        if ( trackStatements && statement != null ) {
             Statement wrappedStatement = new StatementWrapper( this, statement );
             trackedStatements.add( wrappedStatement );
             return wrappedStatement;
@@ -138,7 +138,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     }
 
     private CallableStatement trackCallableStatement(CallableStatement statement) {
-        if ( trackStatements ) {
+        if ( trackStatements && statement != null ) {
             CallableStatement wrappedStatement = new CallableStatementWrapper( this, statement );
             trackedStatements.add( wrappedStatement );
             return wrappedStatement;
@@ -147,7 +147,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     }
 
     private PreparedStatement trackPreparedStatement(PreparedStatement statement) {
-        if ( trackStatements ) {
+        if ( trackStatements && statement != null ) {
             PreparedStatement wrappedStatement = new PreparedStatementWrapper( this, statement );
             trackedStatements.add( wrappedStatement );
             return wrappedStatement;
