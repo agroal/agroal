@@ -64,6 +64,12 @@
     <build>
         <plugins>
             <plugin>
+                <artifactId>maven-release-plugin</artifactId>
+                <configuration>
+                    <tagNameFormat>@{version}</tagNameFormat>
+                </configuration>
+            </plugin>
+            <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
                     <archive>
