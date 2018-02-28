@@ -5,14 +5,16 @@ package io.agroal.pool;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 
+import javax.sql.XAConnection;
+import javax.transaction.xa.XAResource;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION;
+import static java.util.EnumSet.noneOf;
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
 
 /**
@@ -24,10 +26,13 @@ public final class ConnectionHandler {
 
     private final Connection connection;
 
+    //used in XA mode, otherwise null
+    private final XAResource xaResource;
+
     private final ConnectionPool connectionPool;
 
     // attributes that need to be reset when the connection is returned
-    private final Set<DirtyAttribute> dirtyAttributes = EnumSet.noneOf( DirtyAttribute.class );
+    private final Set<DirtyAttribute> dirtyAttributes = noneOf( DirtyAttribute.class );
 
     // Can use annotation to get (in theory) a little better performance
     // @Contended
@@ -39,15 +44,21 @@ public final class ConnectionHandler {
     // for expiration (CHECKED_IN connections) and leak detection (CHECKED_OUT connections)
     private long lastAccess;
 
-    public ConnectionHandler(Connection connection, ConnectionPool pool) {
-        this.connection = connection;
-        this.connectionPool = pool;
+    public ConnectionHandler(XAConnection xaConnection, ConnectionPool pool) throws SQLException {
+        connection = xaConnection.getConnection();
+        xaResource = xaConnection.getXAResource();
+
+        connectionPool = pool;
         state = State.NEW;
         lastAccess = System.nanoTime();
     }
 
     public Connection getConnection() {
         return connection;
+    }
+
+    public XAResource getXaResource() {
+        return xaResource;
     }
 
     public void returnConnection() throws SQLException {

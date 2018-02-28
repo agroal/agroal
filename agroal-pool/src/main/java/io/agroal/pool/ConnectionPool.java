@@ -56,7 +56,7 @@ public final class ConnectionPool implements AutoCloseable {
         allConnections = new StampedCopyOnWriteArrayList<>( ConnectionHandler.class );
 
         localCache = ThreadLocal.withInitial( () -> new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class ) );
-        connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration() );
+        connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), dataSource.getConfiguration().isXA() );
         housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal_" + identityHashCode( this ) );
         transactionIntegration = configuration.transactionIntegration();
 

@@ -9,14 +9,12 @@ import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
 import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
-import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 import io.agroal.pool.util.UncheckedArrayList;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
