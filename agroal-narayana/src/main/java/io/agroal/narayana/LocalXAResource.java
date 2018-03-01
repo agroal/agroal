@@ -13,7 +13,7 @@ import javax.transaction.xa.Xid;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class LocalXAResource implements XAResource, XAResourceWrapper {
+public class LocalXAResource implements XAResourceWrapper {
 
     private final TransactionAware connection;
 

@@ -3,6 +3,7 @@
 
 package io.agroal.api.transaction;
 
+import javax.transaction.xa.XAResource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -20,7 +21,7 @@ public interface TransactionIntegration {
             }
 
             @Override
-            public void associate(Connection connection) {
+            public void associate(Connection connection, XAResource xaResource) {
                 // nothing to do
             }
 
@@ -35,7 +36,7 @@ public interface TransactionIntegration {
 
     Connection getConnection() throws SQLException;
 
-    void associate(Connection connection) throws SQLException;
+    void associate(Connection connection, XAResource xaResource) throws SQLException;
 
     boolean disassociate(Connection connection) throws SQLException;
 }

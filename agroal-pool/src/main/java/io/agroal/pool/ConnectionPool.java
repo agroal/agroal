@@ -155,7 +155,7 @@ public final class ConnectionPool implements AutoCloseable {
         }
 
         connectionWrapper = new ConnectionWrapper( checkedOutHandler );
-        transactionIntegration.associate( connectionWrapper );
+        transactionIntegration.associate( connectionWrapper, checkedOutHandler.getXaResource() );
         return connectionWrapper;
     }
 

@@ -58,7 +58,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     }
 
     @Override
-    public void associate(Connection connection) throws SQLException {
+    public void associate(Connection connection, XAResource xaResource) throws SQLException {
         try {
             if ( transactionRunning() ) {
                 boolean newEnlistment = transactionSynchronizationRegistry.getResource( key ) == null;
@@ -66,10 +66,18 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
                 if ( newEnlistment ) {
                     transactionSynchronizationRegistry.putResource( key, connection );
-                    XAResource resource = connectable ? new ConnectableLocalXAResource( (TransactionAware) connection, jndiName ) : new LocalXAResource( (TransactionAware) connection, jndiName );
-                    transactionManager.getTransaction().enlistResource( resource );
-                }
-                else {
+
+                    XAResource xaResourceToEnlist;
+                    if ( xaResource != null ) {
+                        xaResourceToEnlist = new BaseXAResource( (TransactionAware) connection, xaResource, jndiName );
+                    } else if ( connectable ) {
+                        xaResourceToEnlist = new ConnectableLocalXAResource( (TransactionAware) connection, jndiName );
+                    } else {
+                        xaResourceToEnlist = new LocalXAResource( (TransactionAware) connection, jndiName );
+                    }
+                    transactionManager.getTransaction().enlistResource( xaResourceToEnlist );
+
+                } else {
                     ( (TransactionAware) connection ).transactionStart();
                 }
             } else {
