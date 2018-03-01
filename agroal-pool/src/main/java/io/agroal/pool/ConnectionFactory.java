@@ -34,20 +34,20 @@ public final class ConnectionFactory {
     private javax.sql.DataSource dataSource;
     private javax.sql.XADataSource xaDataSource;
 
-    public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration, boolean isXA) {
+    public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration) {
         this.configuration = configuration;
         this.jdbcProperties = new Properties( configuration.jdbcProperties() );
         setupSecurity( configuration );
 
         Mode mode;
-        if ( isXA ) {
+        try {
             setupXA();
             mode = Mode.XADATASOURCE;
-        } else {
+        }  catch ( Throwable xat ) {
             try {
                 setupDataSource();
                 mode = Mode.DATASOURCE;
-            } catch ( Throwable t ) {
+            } catch ( Throwable dst ) {
                 setupDriver();
                 mode = Mode.DRIVER;
             }

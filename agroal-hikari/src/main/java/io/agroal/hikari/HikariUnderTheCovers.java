@@ -45,10 +45,6 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     }
 
     private HikariConfig getHikariConfig(AgroalDataSourceConfiguration dataSourceConfiguration) {
-        if ( dataSourceConfiguration.isXA() ) {
-            throw new UnsupportedOperationException( "Unsupported. Hikari does not support XA" );
-        }
-
         HikariConfig hikariConfig = new HikariConfig();
 
         hikariConfig.setDataSourceJNDI( dataSourceConfiguration.jndiName() );

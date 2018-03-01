@@ -23,6 +23,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     private String jndiName = "";
     private AgroalConnectionPoolConfiguration connectionPoolConfiguration = new AgroalConnectionPoolConfigurationSupplier().get();
     private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
+    @Deprecated
     private boolean xa;
 
     private volatile boolean metrics = false;
@@ -63,6 +64,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         return applySetting( c -> c.jndiName = name );
     }
 
+    @Deprecated
     public AgroalDataSourceConfigurationSupplier xa(boolean xaEnabled) {
         return applySetting( c -> c.xa = xaEnabled );
     }

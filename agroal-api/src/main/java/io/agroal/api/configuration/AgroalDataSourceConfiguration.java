@@ -15,6 +15,7 @@ public interface AgroalDataSourceConfiguration {
 
     DataSourceImplementation dataSourceImplementation();
 
+    @Deprecated
     boolean isXA();
 
     // --- //
