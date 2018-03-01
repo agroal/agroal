@@ -23,14 +23,18 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static java.util.function.Function.identity;
+
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfiguration> {
 
     public static final String IMPLEMENTATION = "implementation";
+    @Deprecated
     public static final String JNDI_NAME = "jndiName";
     public static final String METRICS_ENABLED = "metricsEnabled";
+    @Deprecated
     public static final String XA = "xa";
 
     // --- //
@@ -38,6 +42,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String MIN_SIZE = "minSize";
     public static final String MAX_SIZE = "maxSize";
     public static final String INITIAL_SIZE = "initialSize";
+    @Deprecated
     public static final String PRE_FILL_MODE = "preFillMode";
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
     public static final String ACQUISITION_TIMEOUT_MS = "acquisitionTimeout_ms";
@@ -61,7 +66,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String JDBC_URL = "jdbcUrl";
     public static final String AUTO_COMMIT = "autoCommit";
     public static final String INITIAL_SQL = "initialSQL";
-    public static final String DRIVER_CLASS_NAME = "driverClassName";
+    public static final String PROVIDER_CLASS_NAME = "providerClassName";
     public static final String TRANSACTION_ISOLATION = "jdbcTransactionIsolation";
     public static final String PRINCIPAL = "principal";
     public static final String CREDENTIAL = "credential";
@@ -119,7 +124,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         AgroalConnectionFactoryConfigurationSupplier connectionFactorySupplier = new AgroalConnectionFactoryConfigurationSupplier();
 
         apply( dataSourceSupplier::dataSourceImplementation, DataSourceImplementation::valueOf, properties, IMPLEMENTATION );
-        apply( dataSourceSupplier::jndiName, Function.identity(), properties, JNDI_NAME );
+        apply( dataSourceSupplier::jndiName, identity(), properties, JNDI_NAME );
         apply( dataSourceSupplier::metricsEnabled, Boolean::parseBoolean, properties, METRICS_ENABLED );
         apply( dataSourceSupplier::xa, Boolean::parseBoolean, properties, XA );
 
@@ -148,10 +153,10 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::reapTimeout, this::parseDurationS, properties, REAP_TIMEOUT_S );
         apply( connectionPoolSupplier::reapTimeout, this::parseDurationM, properties, REAP_TIMEOUT_M );
 
-        apply( connectionFactorySupplier::jdbcUrl, Function.identity(), properties, JDBC_URL );
+        apply( connectionFactorySupplier::jdbcUrl, identity(), properties, JDBC_URL );
         apply( connectionFactorySupplier::autoCommit, Boolean::parseBoolean, properties, AUTO_COMMIT );
-        apply( connectionFactorySupplier::initialSql, Function.identity(), properties, INITIAL_SQL );
-        apply( connectionFactorySupplier::driverClassName, Function.identity(), properties, DRIVER_CLASS_NAME );
+        apply( connectionFactorySupplier::initialSql, identity(), properties, INITIAL_SQL );
+        apply( connectionFactorySupplier::connectionProviderClassName, identity(), properties, PROVIDER_CLASS_NAME );
         apply( connectionFactorySupplier::jdbcTransactionIsolation, TransactionIsolation::valueOf, properties, TRANSACTION_ISOLATION );
         apply( connectionFactorySupplier::principal, NamePrincipal::new, properties, PRINCIPAL );
         apply( connectionFactorySupplier::credential, SimplePassword::new, properties, CREDENTIAL );
@@ -189,4 +194,5 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     private Duration parseDurationM(String value) {
         return Duration.ofMinutes( Long.parseLong( value ) );
     }
+
 }

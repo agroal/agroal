@@ -8,6 +8,7 @@ import static java.lang.ClassLoader.getSystemClassLoader;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@Deprecated
 public interface ClassLoaderProvider {
 
     static ClassLoaderProvider systemClassloader() {

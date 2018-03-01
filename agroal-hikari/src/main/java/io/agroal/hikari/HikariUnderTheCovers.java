@@ -72,7 +72,9 @@ public class HikariUnderTheCovers implements AgroalDataSource {
 
         hikariConfig.setMaximumPoolSize( poolConfiguration.maxSize() );
         hikariConfig.setConnectionTimeout( poolConfiguration.acquisitionTimeout().toMillis() );
-        hikariConfig.setDriverClassName( factoryConfiguration.driverClassName() );
+        if ( factoryConfiguration.connectionProviderClass() != null) {
+            hikariConfig.setDriverClassName( factoryConfiguration.connectionProviderClass().getName() );
+        }
 
         return hikariConfig;
     }

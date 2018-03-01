@@ -19,8 +19,12 @@ public interface AgroalConnectionFactoryConfiguration {
 
     String initialSql();
 
+    Class<?> connectionProviderClass();
+
+    @Deprecated
     String driverClassName();
 
+    @Deprecated
     ClassLoaderProvider classLoaderProvider();
 
     TransactionIsolation jdbcTransactionIsolation();

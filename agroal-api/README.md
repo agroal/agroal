@@ -8,13 +8,11 @@ The natural database connection pool
 ```java
     AgroalDataSourceConfigurationSupplier configuration = new AgroalDataSourceConfigurationSupplier()
             .dataSourceImplementation( DataSourceImplementation.AGROAL )
-            .jndiName( "sampleDS" )
-            .xa( false )
             .metricsEnabled( false )
             .connectionPoolConfiguration( cp -> cp
                     .minSize( 5 )
                     .maxSize( 20 )
-                    .preFillMode( MIN )
+                    .initialSize( 10 )
                     .connectionValidator( defaultValidator() )
                     .acquisitionTimeout( ofSeconds( 5 ) )
                     .leakTimeout( ofSeconds( 5 ) )
@@ -22,9 +20,8 @@ The natural database connection pool
                     .reapTimeout( ofSeconds( 500 ) )
                     .connectionFactoryConfiguration( cf -> cf
                             .jdbcUrl( "jdbc:h2:mem:test" )
-                            .driverClassName( "org.h2.Driver" )
+                            .connectionProviderClassName( "org.h2.Driver" )
                             .autoCommit( false )
-                            .driverClassName( "" )
                             .jdbcTransactionIsolation( SERIALIZABLE )
                             .principal( new NamePrincipal( "username" ) )
                             .credential( new SimplePassword( "secret" ) )

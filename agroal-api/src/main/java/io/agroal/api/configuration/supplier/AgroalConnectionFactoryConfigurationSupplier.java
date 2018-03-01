@@ -15,7 +15,6 @@ import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.READ_COMMITTED;
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.UNDEFINED;
 import static io.agroal.api.configuration.ClassLoaderProvider.systemClassloader;
 import static io.agroal.api.configuration.InterruptProtection.none;
@@ -33,7 +32,10 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private boolean autoCommit = false;
     private String jdbcUrl = "";
     private String initialSql = "";
+    private Class<?> connectionProviderClass;
+    @Deprecated
     private String driverClassName = "";
+    @Deprecated
     private ClassLoaderProvider classLoaderProvider = systemClassloader();
     private TransactionIsolation transactionIsolation = UNDEFINED;
     @Deprecated
@@ -54,6 +56,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         this.autoCommit = existingConfiguration.autoCommit();
         this.jdbcUrl = existingConfiguration.jdbcUrl();
         this.initialSql = existingConfiguration.initialSql();
+        this.connectionProviderClass = existingConfiguration.connectionProviderClass();
         this.driverClassName = existingConfiguration.driverClassName();
         this.classLoaderProvider = existingConfiguration.classLoaderProvider();
         this.transactionIsolation = existingConfiguration.jdbcTransactionIsolation();
@@ -85,14 +88,30 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         return applySetting( c -> c.initialSql = initialSqlString );
     }
 
+    public AgroalConnectionFactoryConfigurationSupplier connectionProviderClass(Class<?> connectionProvider) {
+        return applySetting( c -> c.connectionProviderClass = connectionProvider );
+    }
+
+    public AgroalConnectionFactoryConfigurationSupplier connectionProviderClassName(String connectionProviderName) {
+        try {
+            Class<?> connectionProvider = connectionProviderName == null ? null : Class.forName( connectionProviderName );
+            return applySetting( c -> c.connectionProviderClass = connectionProvider );
+        } catch ( ClassNotFoundException e ) {
+            throw new RuntimeException( "Unable to load class " + connectionProviderName, e );
+        }
+    }
+
+    @Deprecated
     public AgroalConnectionFactoryConfigurationSupplier driverClassName(String driverClass) {
         return applySetting( c -> c.driverClassName = driverClass );
     }
 
+    @Deprecated
     public AgroalConnectionFactoryConfigurationSupplier classLoaderProvider(ClassLoaderProvider provider) {
         return applySetting( c -> c.classLoaderProvider = provider );
     }
 
+    @Deprecated
     public AgroalConnectionFactoryConfigurationSupplier classLoader(ClassLoader classLoader) {
         return applySetting( c -> c.classLoaderProvider = className -> classLoader );
     }
@@ -150,6 +169,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public String initialSql() {
                 return initialSql;
+            }
+
+            @Override
+            public Class<?> connectionProviderClass() {
+                return connectionProviderClass;
             }
 
             @Override

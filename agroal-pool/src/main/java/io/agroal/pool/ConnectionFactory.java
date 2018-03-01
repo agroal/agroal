@@ -39,30 +39,24 @@ public final class ConnectionFactory {
         this.jdbcProperties = new Properties( configuration.jdbcProperties() );
         setupSecurity( configuration );
 
-        Mode mode;
-        try {
-            setupXA();
-            mode = Mode.XADATASOURCE;
-        }  catch ( Throwable xat ) {
-            try {
-                setupDataSource();
-                mode = Mode.DATASOURCE;
-            } catch ( Throwable dst ) {
+        switch ( factoryMode = Mode.fromClass( configuration.connectionProviderClass() ) ) {
+            case DRIVER:
                 setupDriver();
-                mode = Mode.DRIVER;
-            }
+                break;
+            case DATASOURCE:
+                setupDataSource();
+                break;
+            case XADATASOURCE:
+                setupXA();
+                break;
         }
-        factoryMode = mode;
     }
 
-    @SuppressWarnings( "unchecked" )
     private void setupXA() {
         try {
-            ClassLoader driverLoader = configuration.classLoaderProvider().getClassLoader( configuration.driverClassName() );
-            Class<javax.sql.XADataSource> xaDataSourceClass = (Class<javax.sql.XADataSource>) driverLoader.loadClass( configuration.driverClassName() );
-            this.xaDataSource = xaDataSourceClass.newInstance();
-        } catch ( IllegalAccessException | InstantiationException | ClassNotFoundException e ) {
-            throw new RuntimeException( "Unable to load XA DataSource class", e );
+            this.xaDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.XADataSource.class ).newInstance();
+        } catch ( IllegalAccessException | InstantiationException e ) {
+            throw new RuntimeException( "Unable to instantiate XADataSource", e );
         }
 
         PropertyInjector.inject( xaDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
@@ -71,14 +65,11 @@ public final class ConnectionFactory {
         }
     }
 
-    @SuppressWarnings( "unchecked" )
     private void setupDataSource() {
         try {
-            ClassLoader driverLoader = configuration.classLoaderProvider().getClassLoader( configuration.driverClassName() );
-            Class<javax.sql.DataSource> dataSourceClass = (Class<javax.sql.DataSource>) driverLoader.loadClass( configuration.driverClassName() );
-            this.dataSource = dataSourceClass.newInstance();
-        } catch ( IllegalAccessException | InstantiationException | ClassNotFoundException e ) {
-            throw new RuntimeException( "Unable to load DataSource class", e );
+            this.dataSource = configuration.connectionProviderClass().asSubclass( javax.sql.DataSource.class ).newInstance();
+        } catch ( IllegalAccessException | InstantiationException e ) {
+            throw new RuntimeException( "Unable to instantiate DataSource", e );
         }
 
         PropertyInjector.inject( dataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
@@ -87,18 +78,18 @@ public final class ConnectionFactory {
         }
     }
 
-    @SuppressWarnings( "unchecked" )
     private void setupDriver() {
-        try {
-            ClassLoader driverLoader = configuration.classLoaderProvider().getClassLoader( configuration.driverClassName() );
-            Class<java.sql.Driver> driverClass = (Class<java.sql.Driver>) driverLoader.loadClass( configuration.driverClassName() );
-            this.driver = driverClass.newInstance();
-        } catch ( IllegalAccessException | InstantiationException | ClassNotFoundException e ) {
+        if ( configuration.connectionProviderClass() == null ) {
             try {
-                // Fallback to load the Driver through the DriverManager
                 this.driver = java.sql.DriverManager.getDriver( configuration.jdbcUrl() );
-            } catch ( SQLException ig ) {
-                throw new RuntimeException( "Unable to load Driver class", e );
+            } catch ( SQLException sql ) {
+                throw new RuntimeException( "Unable to get java.sql.Driver from DriverManager", sql );
+            }
+        } else {
+            try {
+                this.driver = configuration.connectionProviderClass().asSubclass( java.sql.Driver.class ).newInstance();
+            } catch ( IllegalAccessException | InstantiationException e ) {
+                throw new RuntimeException( "Unable to instantiate java.sql.Driver", e );
             }
         }
     }
@@ -137,6 +128,8 @@ public final class ConnectionFactory {
 
     public XAConnection createConnection() throws SQLException {
         switch ( factoryMode ) {
+            default:
+                throw new SQLException( "Unknown connection factory mode" );
             case DRIVER:
                 return new XAConnectionAdaptor( connectionSetup( driver.connect( configuration.jdbcUrl(), jdbcProperties ) ) );
             case DATASOURCE:
@@ -150,7 +143,6 @@ public final class ConnectionFactory {
                 }
                 return xaConnection;
         }
-        throw new SQLException( "Unknown connection factory mode" );
     }
 
     private Connection connectionSetup(Connection connection) throws SQLException {
@@ -169,6 +161,20 @@ public final class ConnectionFactory {
     // --- //
 
     private enum Mode {
-        DRIVER, DATASOURCE, XADATASOURCE
+        DRIVER, DATASOURCE, XADATASOURCE;
+
+        private static Mode fromClass(Class<?> providerClass) {
+            if ( providerClass == null ) {
+                return DRIVER;
+            } else if ( javax.sql.XADataSource.class.isAssignableFrom( providerClass ) ) {
+                return XADATASOURCE;
+            } else if ( javax.sql.DataSource.class.isAssignableFrom( providerClass ) ) {
+                return DATASOURCE;
+            } else if ( java.sql.Driver.class.isAssignableFrom( providerClass ) ) {
+                return DRIVER;
+            } else {
+                throw new IllegalArgumentException( "Unable to create ConnectionFactory from providerClass " + providerClass.getName() );
+            }
+        }
     }
 }
