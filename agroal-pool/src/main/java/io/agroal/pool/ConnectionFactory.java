@@ -39,7 +39,8 @@ public final class ConnectionFactory {
         this.jdbcProperties = new Properties( configuration.jdbcProperties() );
         setupSecurity( configuration );
 
-        switch ( factoryMode = Mode.fromClass( configuration.connectionProviderClass() ) ) {
+        this.factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
+        switch ( factoryMode ) {
             case DRIVER:
                 setupDriver();
                 break;
@@ -128,8 +129,6 @@ public final class ConnectionFactory {
 
     public XAConnection createConnection() throws SQLException {
         switch ( factoryMode ) {
-            default:
-                throw new SQLException( "Unknown connection factory mode" );
             case DRIVER:
                 return new XAConnectionAdaptor( connectionSetup( driver.connect( configuration.jdbcUrl(), jdbcProperties ) ) );
             case DATASOURCE:
@@ -142,6 +141,8 @@ public final class ConnectionFactory {
                     throw new SQLException( "null XAResource from XADataSource" );
                 }
                 return xaConnection;
+            default:
+                throw new SQLException( "Unknown connection factory mode" );
         }
     }
 

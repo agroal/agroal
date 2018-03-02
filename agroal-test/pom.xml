@@ -8,7 +8,6 @@
         <version>0.5-SNAPSHOT</version>
     </parent>
     <artifactId>agroal-test</artifactId>
-    <version>0.5-SNAPSHOT</version>
     <name>Agroal Test Suite</name>
     <dependencies>
         <dependency>
@@ -98,7 +97,6 @@
         <plugins>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${version.surefire.plugin}</version>
                 <configuration>
                     <properties>
                         <groups>functional</groups>

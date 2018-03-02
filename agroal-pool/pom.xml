@@ -8,7 +8,6 @@
         <version>0.5-SNAPSHOT</version>
     </parent>
     <artifactId>agroal-pool</artifactId>
-    <version>0.5-SNAPSHOT</version>
     <name>Agroal Connection Pool</name>
     <dependencies>
         <dependency>

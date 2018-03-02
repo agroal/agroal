@@ -8,7 +8,6 @@
         <version>0.5-SNAPSHOT</version>
     </parent>
     <artifactId>agroal-api</artifactId>
-    <version>0.5-SNAPSHOT</version>
     <name>Agroal API</name>
     <build>
         <plugins>

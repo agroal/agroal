@@ -8,7 +8,6 @@
         <version>0.5-SNAPSHOT</version>
     </parent>
     <artifactId>agroal-narayana</artifactId>
-    <version>0.5-SNAPSHOT</version>
     <name>Agroal Narayana Integration</name>
     <dependencies>
         <dependency>

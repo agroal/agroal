@@ -97,7 +97,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             Class<?> connectionProvider = connectionProviderName == null ? null : Class.forName( connectionProviderName );
             return applySetting( c -> c.connectionProviderClass = connectionProvider );
         } catch ( ClassNotFoundException e ) {
-            throw new RuntimeException( "Unable to load class " + connectionProviderName, e );
+            throw new IllegalArgumentException( "Unable to load class " + connectionProviderName, e );
         }
     }
 
