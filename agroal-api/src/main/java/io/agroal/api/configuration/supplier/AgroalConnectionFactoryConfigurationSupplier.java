@@ -29,7 +29,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
 
     private volatile boolean lock;
 
-    private boolean autoCommit = false;
+    private boolean autoCommit = true;
     private String jdbcUrl = "";
     private String initialSql = "";
     private Class<?> connectionProviderClass;
