@@ -6,7 +6,6 @@ package io.agroal.api.configuration.supplier;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode;
-import io.agroal.api.configuration.ConnectionValidator;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.time.Duration;
@@ -14,9 +13,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.MAX;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.NONE;
-import static io.agroal.api.configuration.ConnectionValidator.emptyValidator;
 import static io.agroal.api.transaction.TransactionIntegration.none;
 import static java.lang.Integer.MAX_VALUE;
 import static java.time.Duration.ZERO;
@@ -36,7 +35,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private int initialSize = 0;
     private volatile int minSize = 0;
     private volatile int maxSize = MAX_VALUE;
-    private ConnectionValidator connectionValidator = emptyValidator();
+    private AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
     private Duration leakTimeout = ZERO;
     private Duration validationTimeout = ZERO;
     private Duration reapTimeout = ZERO;
@@ -107,7 +106,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         return applySetting( c -> c.maxSize = size );
     }
 
-    public AgroalConnectionPoolConfigurationSupplier connectionValidator(ConnectionValidator validator) {
+    public AgroalConnectionPoolConfigurationSupplier connectionValidator(AgroalConnectionPoolConfiguration.ConnectionValidator validator) {
         return applySetting( c -> c.connectionValidator = validator );
     }
 

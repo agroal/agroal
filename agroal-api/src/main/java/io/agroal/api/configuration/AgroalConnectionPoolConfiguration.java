@@ -5,6 +5,7 @@ package io.agroal.api.configuration;
 
 import io.agroal.api.transaction.TransactionIntegration;
 
+import java.sql.Connection;
 import java.time.Duration;
 
 /**
@@ -44,6 +45,27 @@ public interface AgroalConnectionPoolConfiguration {
     void setAcquisitionTimeout(Duration timeout);
 
     // --- //
+
+    interface ConnectionValidator {
+
+        static ConnectionValidator defaultValidator() {
+            return connection -> {
+                try {
+                    return connection.isValid( 0 );
+                } catch ( Exception t ) {
+                    return false;
+                }
+            };
+        }
+
+        static ConnectionValidator emptyValidator() {
+            return connection -> true;
+        }
+
+        // --- //
+
+        boolean isValid(Connection connection);
+    }
 
     @Deprecated( )
     enum PreFillMode {

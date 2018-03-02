@@ -8,6 +8,7 @@ import java.sql.Connection;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@Deprecated
 public interface ConnectionValidator {
     
     static ConnectionValidator defaultValidator() {
