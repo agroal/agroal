@@ -60,7 +60,9 @@ public final class ConnectionFactory {
             throw new RuntimeException( "Unable to instantiate XADataSource", e );
         }
 
-        PropertyInjector.inject( xaDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+        if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
+            PropertyInjector.inject( xaDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+        }
         for ( String property : jdbcProperties.stringPropertyNames() ) {
             PropertyInjector.inject( xaDataSource, property, jdbcProperties.getProperty( property ) );
         }
@@ -73,7 +75,9 @@ public final class ConnectionFactory {
             throw new RuntimeException( "Unable to instantiate DataSource", e );
         }
 
-        PropertyInjector.inject( dataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+        if ( configuration.jdbcUrl() != null && !configuration.jdbcProperties().isEmpty() ) {
+            PropertyInjector.inject( dataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+        }
         for ( String property : jdbcProperties.stringPropertyNames() ) {
             PropertyInjector.inject( dataSource, property, jdbcProperties.getProperty( property ) );
         }
