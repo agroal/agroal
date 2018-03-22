@@ -7,58 +7,29 @@ import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
-import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
-import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
-import io.agroal.pool.util.UncheckedArrayList;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.logging.Logger;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class DataSource implements AgroalDataSource, MetricsEnabledListener {
+public final class DataSource implements AgroalDataSource {
 
     private static final long serialVersionUID = 6485903416474487024L;
 
     private final AgroalDataSourceConfiguration configuration;
-    private final List<AgroalDataSourceListener> listenerList;
     private final ConnectionPool connectionPool;
-    private MetricsRepository dataSourceMetrics;
 
-    @SuppressWarnings( "ThisEscapedInObjectConstruction" )
     public DataSource(AgroalDataSourceConfiguration dataSourceConfiguration, AgroalDataSourceListener... listeners) {
         configuration = dataSourceConfiguration;
-        connectionPool = new ConnectionPool( dataSourceConfiguration.connectionPoolConfiguration(), this );
-        dataSourceConfiguration.registerMetricsEnabledListener( this );
-        onMetricsEnabled( dataSourceConfiguration.metricsEnabled() );
-
-        if ( listeners.length == 0 ) {
-            listenerList = Collections.emptyList();
-        } else {
-            listenerList = new UncheckedArrayList<>( AgroalDataSourceListener.class, listeners );
-        }
-
+        connectionPool = new ConnectionPool( dataSourceConfiguration.connectionPoolConfiguration(), listeners );
+        dataSourceConfiguration.registerMetricsEnabledListener( connectionPool );
+        connectionPool.onMetricsEnabled( dataSourceConfiguration.metricsEnabled() );
         connectionPool.init();
-    }
-
-    public Collection<AgroalDataSourceListener> listenerList() {
-        return listenerList;
-    }
-
-    public MetricsRepository metricsRepository() {
-        return dataSourceMetrics;
-    }
-
-    @Override
-    public void onMetricsEnabled(boolean metricsEnabled) {
-        dataSourceMetrics = metricsEnabled ? new DefaultMetricsRepository( connectionPool ) : new EmptyMetricsRepository();
     }
 
     // --- AgroalDataSource methods //
@@ -70,7 +41,7 @@ public final class DataSource implements AgroalDataSource, MetricsEnabledListene
 
     @Override
     public AgroalDataSourceMetrics getMetrics() {
-        return dataSourceMetrics;
+        return connectionPool.getMetrics();
     }
 
     @Deprecated

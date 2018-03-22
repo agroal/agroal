@@ -3,6 +3,7 @@
 
 package io.agroal.pool;
 
+import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
@@ -26,6 +27,7 @@ public final class ConnectionFactory {
     private static final String PASSWORD_PROPERTY_NAME = "password";
 
     private final AgroalConnectionFactoryConfiguration configuration;
+    private final AgroalDataSourceListener[] listeners;
     private final Properties jdbcProperties;
     private final Mode factoryMode;
 
@@ -34,8 +36,9 @@ public final class ConnectionFactory {
     private javax.sql.DataSource dataSource;
     private javax.sql.XADataSource xaDataSource;
 
-    public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration) {
+    public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
+        this.listeners = listeners;
         this.jdbcProperties = new Properties( configuration.jdbcProperties() );
         setupSecurity( configuration );
 
@@ -138,13 +141,7 @@ public final class ConnectionFactory {
             case DATASOURCE:
                 return new XAConnectionAdaptor( connectionSetup( dataSource.getConnection() ) );
             case XADATASOURCE:
-                XAConnection xaConnection = xaDataSource.getXAConnection();
-                connectionSetup( xaConnection.getConnection() );
-                if ( xaConnection.getXAResource() == null ) {
-                    // this ensures that XAConnections are not processed as non-XA connections by the pool
-                    throw new SQLException( "null XAResource from XADataSource" );
-                }
-                return xaConnection;
+                return xaConnectionSetup( xaDataSource.getXAConnection() );
             default:
                 throw new SQLException( "Unknown connection factory mode" );
         }
@@ -161,6 +158,15 @@ public final class ConnectionFactory {
             }
         }
         return connection;
+    }
+
+    private XAConnection xaConnectionSetup(XAConnection xaConnection) throws SQLException {
+        if ( xaConnection.getXAResource() == null ) {
+            // this ensures that XAConnections are not processed as non-XA connections by the pool
+            throw new SQLException( "null XAResource from XADataSource" );
+        }
+        connectionSetup( xaConnection.getConnection() );
+        return xaConnection;
     }
 
     // --- //

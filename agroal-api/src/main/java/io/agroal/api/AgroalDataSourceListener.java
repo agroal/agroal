@@ -44,6 +44,8 @@ public interface AgroalDataSourceListener {
 
     default void onConnectionDestroy(Connection connection) {}
 
+    default void onWarning(String message) {}
+
     default void onWarning(Throwable throwable) {}
 
 }

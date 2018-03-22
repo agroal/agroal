@@ -3,8 +3,11 @@
 
 package io.agroal.pool;
 
+import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
+import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
 import io.agroal.api.transaction.TransactionIntegration;
+import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
 import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
@@ -21,7 +24,7 @@ import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
 import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
-import static io.agroal.pool.ListenerHelper.*;
+import static io.agroal.pool.util.ListenerHelper.*;
 import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
@@ -30,11 +33,11 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class ConnectionPool implements AutoCloseable {
+public final class ConnectionPool implements MetricsEnabledListener, AutoCloseable {
 
     private final AgroalConnectionPoolConfiguration configuration;
 
-    private final DataSource dataSource;
+    private final AgroalDataSourceListener[] listeners;
     private final ThreadLocal<UncheckedArrayList<ConnectionHandler>> localCache;
 
     private final StampedCopyOnWriteArrayList<ConnectionHandler> allConnections;
@@ -47,16 +50,18 @@ public final class ConnectionPool implements AutoCloseable {
     private final boolean leakEnabled;
     private final boolean validationEnabled;
     private final boolean reapEnabled;
-    private volatile long maxUsed = 0;
 
-    public ConnectionPool(AgroalConnectionPoolConfiguration configuration, DataSource dataSource) {
+    private volatile long maxUsed = 0;
+    private MetricsRepository metricsRepository;
+
+    public ConnectionPool(AgroalConnectionPoolConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
-        this.dataSource = dataSource;
+        this.listeners = listeners;
 
         allConnections = new StampedCopyOnWriteArrayList<>( ConnectionHandler.class );
 
         localCache = ThreadLocal.withInitial( () -> new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class ) );
-        connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration() );
+        connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
         housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal_" + identityHashCode( this ) );
         transactionIntegration = configuration.transactionIntegration();
 
@@ -98,16 +103,16 @@ public final class ConnectionPool implements AutoCloseable {
             if ( allConnections.size() >= configuration.maxSize() ) {
                 return;
             }
-            fireBeforeConnectionCreation( dataSource );
-            long metricsStamp = dataSource.metricsRepository().beforeConnectionCreation();
+            fireBeforeConnectionCreation( listeners );
+            long metricsStamp = metricsRepository.beforeConnectionCreation();
 
             try {
                 ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), this );
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
                 maxUsed = Math.max( maxUsed, allConnections.size() );
-                dataSource.metricsRepository().afterConnectionCreation( metricsStamp );
-                fireOnConnectionCreation( dataSource, handler );
+                metricsRepository.afterConnectionCreation( metricsStamp );
+                fireOnConnectionCreation( listeners, handler );
             } catch ( SQLException e ) {
                 throw new RuntimeException( "Exception while creating new connection", e );
             } finally {
@@ -120,8 +125,8 @@ public final class ConnectionPool implements AutoCloseable {
     // --- //
 
     public Connection getConnection() throws SQLException {
-        fireBeforeConnectionAcquire( dataSource );
-        long metricsStamp = dataSource.metricsRepository().beforeConnectionAcquire();
+        fireBeforeConnectionAcquire( listeners );
+        long metricsStamp = metricsRepository.beforeConnectionAcquire();
 
         if ( housekeepingExecutor.isShutdown() ) {
             throw new SQLException( "This pool is closed and does not handle any more connections!" );
@@ -139,8 +144,8 @@ public final class ConnectionPool implements AutoCloseable {
             checkedOutHandler = handlerFromSharedCache();
         }
 
-        dataSource.metricsRepository().afterConnectionAcquire( metricsStamp );
-        fireOnConnectionAcquired( dataSource, checkedOutHandler );
+        metricsRepository.afterConnectionAcquire( metricsStamp );
+        fireOnConnectionAcquired( listeners, checkedOutHandler );
 
         if ( leakEnabled || reapEnabled ) {
             checkedOutHandler.setLastAccess( nanoTime() );
@@ -149,7 +154,7 @@ public final class ConnectionPool implements AutoCloseable {
             if ( checkedOutHandler.getHoldingThread() != null ) {
                 Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
                 warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
-                fireOnWarning( dataSource, warn );
+                fireOnWarning( listeners, warn );
             }
             checkedOutHandler.setHoldingThread( currentThread() );
         }
@@ -206,7 +211,7 @@ public final class ConnectionPool implements AutoCloseable {
     // --- //
 
     public void returnConnection(ConnectionHandler handler) throws SQLException {
-        fireBeforeConnectionReturn( dataSource, handler );
+        fireBeforeConnectionReturn( listeners, handler );
         if ( leakEnabled ) {
             handler.setHoldingThread( null );
         }
@@ -218,12 +223,25 @@ public final class ConnectionPool implements AutoCloseable {
             localCache.get().add( handler );
             handler.setState( CHECKED_IN );
             synchronizer.releaseConditional();
-            dataSource.metricsRepository().afterConnectionReturn();
-            fireOnConnectionReturn( dataSource, handler );
+            metricsRepository.afterConnectionReturn();
+            fireOnConnectionReturn( listeners, handler );
         }
     }
 
     // --- Exposed statistics //
+
+    @Override
+    public void onMetricsEnabled(boolean metricsEnabled) {
+        setMetricsRepository( metricsEnabled ? new DefaultMetricsRepository( this ) : new EmptyMetricsRepository() );
+    }
+
+    public MetricsRepository getMetrics() {
+        return metricsRepository;
+    }
+
+    public void setMetricsRepository(MetricsRepository metricsRepository) {
+        this.metricsRepository = metricsRepository;
+    }
 
     private long activeCount(ConnectionHandler[] handlers) {
         int l = 0;
@@ -278,11 +296,11 @@ public final class ConnectionPool implements AutoCloseable {
 
             @Override
             public void run() {
-                fireBeforeConnectionLeak( dataSource, handler );
+                fireBeforeConnectionLeak( listeners, handler );
                 Thread thread = handler.getHoldingThread();
                 if ( thread != null && nanoTime() - handler.getLastAccess() > configuration.leakTimeout().toNanos() ) {
-                    dataSource.metricsRepository().afterLeakDetection();
-                    fireOnConnectionLeak( dataSource, handler );
+                    metricsRepository.afterLeakDetection();
+                    fireOnConnectionLeak( listeners, handler );
                 }
             }
         }
@@ -308,16 +326,16 @@ public final class ConnectionPool implements AutoCloseable {
 
             @Override
             public void run() {
-                fireBeforeConnectionValidation( dataSource, handler );
+                fireBeforeConnectionValidation( listeners, handler );
                 if ( handler.setState( CHECKED_IN, VALIDATION ) ) {
                     if ( configuration.connectionValidator().isValid( handler.getConnection() ) ) {
                         handler.setState( CHECKED_IN );
-                        fireOnConnectionValid( dataSource, handler );
+                        fireOnConnectionValid( listeners, handler );
                     } else {
                         handler.setState( FLUSH );
                         allConnections.remove( handler );
-                        dataSource.metricsRepository().afterConnectionInvalid();
-                        fireOnConnectionInvalid( dataSource, handler );
+                        metricsRepository.afterConnectionInvalid();
+                        fireOnConnectionInvalid( listeners, handler );
                         housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
                     }
                 }
@@ -348,12 +366,12 @@ public final class ConnectionPool implements AutoCloseable {
 
             @Override
             public void run() {
-                fireBeforeConnectionReap( dataSource, handler );
+                fireBeforeConnectionReap( listeners, handler );
                 if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
                     if ( nanoTime() - handler.getLastAccess() > configuration.reapTimeout().toNanos() ) {
                         allConnections.remove( handler );
-                        dataSource.metricsRepository().afterConnectionReap();
-                        fireOnConnectionReap( dataSource, handler );
+                        metricsRepository.afterConnectionReap();
+                        fireOnConnectionReap( listeners, handler );
                         housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
                     } else {
                         handler.setState( CHECKED_IN );
@@ -376,14 +394,14 @@ public final class ConnectionPool implements AutoCloseable {
 
         @Override
         public void run() {
-            fireBeforeConnectionDestroy( dataSource, handler );
+            fireBeforeConnectionDestroy( listeners, handler );
             try {
                 handler.closeConnection();
             } catch ( SQLException e ) {
-                fireOnWarning( dataSource, e );
+                fireOnWarning( listeners, e );
             }
             handler.setState( DESTROYED );
-            fireOnConnectionDestroy( dataSource, handler );
+            fireOnConnectionDestroy( listeners, handler );
         }
     }
 }
