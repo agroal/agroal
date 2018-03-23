@@ -11,11 +11,15 @@ import io.agroal.pool.util.PropertyInjector;
 import io.agroal.pool.util.XAConnectionAdaptor;
 
 import javax.sql.XAConnection;
+import java.lang.reflect.InvocationTargetException;
 import java.security.Principal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Properties;
+
+import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -39,19 +43,21 @@ public final class ConnectionFactory {
     public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
         this.listeners = listeners;
-        this.jdbcProperties = new Properties( configuration.jdbcProperties() );
+        this.jdbcProperties = new Properties();
+        configuration.jdbcProperties().forEach( jdbcProperties::put );
+
         setupSecurity( configuration );
 
         this.factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
         switch ( factoryMode ) {
-            case DRIVER:
-                setupDriver();
+            case XA_DATASOURCE:
+                setupXA();
                 break;
             case DATASOURCE:
                 setupDataSource();
                 break;
-            case XADATASOURCE:
-                setupXA();
+            case DRIVER:
+                setupDriver();
                 break;
         }
     }
@@ -62,13 +68,13 @@ public final class ConnectionFactory {
         } catch ( IllegalAccessException | InstantiationException e ) {
             throw new RuntimeException( "Unable to instantiate XADataSource", e );
         }
+        PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
 
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            PropertyInjector.inject( xaDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+            injectProperty( injector, xaDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
-        for ( String property : jdbcProperties.stringPropertyNames() ) {
-            PropertyInjector.inject( xaDataSource, property, jdbcProperties.getProperty( property ) );
-        }
+
+        injectJdbcProperties( injector, xaDataSource );
     }
 
     private void setupDataSource() {
@@ -77,13 +83,13 @@ public final class ConnectionFactory {
         } catch ( IllegalAccessException | InstantiationException e ) {
             throw new RuntimeException( "Unable to instantiate DataSource", e );
         }
+        PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
 
-        if ( configuration.jdbcUrl() != null && !configuration.jdbcProperties().isEmpty() ) {
-            PropertyInjector.inject( dataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+        if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
+            injectProperty( injector, dataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
-        for ( String property : jdbcProperties.stringPropertyNames() ) {
-            PropertyInjector.inject( dataSource, property, jdbcProperties.getProperty( property ) );
-        }
+
+        injectJdbcProperties( injector, dataSource );
     }
 
     private void setupDriver() {
@@ -99,6 +105,29 @@ public final class ConnectionFactory {
             } catch ( IllegalAccessException | InstantiationException e ) {
                 throw new RuntimeException( "Unable to instantiate java.sql.Driver", e );
             }
+        }
+    }
+
+    private void injectProperty(PropertyInjector injector, Object target, String propertyName, String propertyValue) {
+        try {
+            injector.inject( target, propertyName, propertyValue );
+        } catch ( IllegalArgumentException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
+            fireOnWarning( listeners, "Ignoring property '" + propertyName + "': " + e.getMessage() );
+        }
+    }
+
+    private void injectJdbcProperties(PropertyInjector injector, Object target) {
+        boolean ignoring = false;
+        for ( String propertyName : jdbcProperties.stringPropertyNames() ) {
+            try {
+                injector.inject( target, propertyName, jdbcProperties.getProperty( propertyName ) );
+            } catch ( IllegalArgumentException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
+                fireOnWarning( listeners, "Ignoring property '" + propertyName + "': " + e.getMessage() );
+                ignoring = true;
+            }
+        }
+        if ( ignoring ) {
+            fireOnWarning( listeners, "Available properties " + Arrays.toString( injector.availableProperties().toArray() ) );
         }
     }
 
@@ -140,7 +169,7 @@ public final class ConnectionFactory {
                 return new XAConnectionAdaptor( connectionSetup( driver.connect( configuration.jdbcUrl(), jdbcProperties ) ) );
             case DATASOURCE:
                 return new XAConnectionAdaptor( connectionSetup( dataSource.getConnection() ) );
-            case XADATASOURCE:
+            case XA_DATASOURCE:
                 return xaConnectionSetup( xaDataSource.getXAConnection() );
             default:
                 throw new SQLException( "Unknown connection factory mode" );
@@ -172,13 +201,14 @@ public final class ConnectionFactory {
     // --- //
 
     private enum Mode {
-        DRIVER, DATASOURCE, XADATASOURCE;
+
+        DRIVER, DATASOURCE, XA_DATASOURCE;
 
         private static Mode fromClass(Class<?> providerClass) {
             if ( providerClass == null ) {
                 return DRIVER;
             } else if ( javax.sql.XADataSource.class.isAssignableFrom( providerClass ) ) {
-                return XADATASOURCE;
+                return XA_DATASOURCE;
             } else if ( javax.sql.DataSource.class.isAssignableFrom( providerClass ) ) {
                 return DATASOURCE;
             } else if ( java.sql.Driver.class.isAssignableFrom( providerClass ) ) {

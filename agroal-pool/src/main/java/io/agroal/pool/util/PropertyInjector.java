@@ -3,91 +3,76 @@
 
 package io.agroal.pool.util;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public final class PropertyInjector {
 
-    public static void inject(Object target, String propertyName, Object propertyValue) {
-        try {
-            injectMethod( target, propertyName, propertyValue );
-        } catch ( NoSuchMethodException | IllegalAccessException me ) {
-            try {
-                injectField( target, propertyName, propertyValue );
-            } catch ( NoSuchFieldException | IllegalAccessException fe ) {
-                try {
-                    injectSetProperty( target, propertyName, propertyValue );
-                } catch ( NoSuchMethodException | IllegalAccessException e ) {
-                    throw new IllegalArgumentException( "Unable to inject property " + propertyName + " of type " + propertyValue.getClass() + " into " + target.getClass() );
-                } catch ( InvocationTargetException e ) {
-                    throw new IllegalArgumentException( "Unable to inject property " + propertyName, e.getTargetException() );
-                }
-            } catch ( InvocationTargetException e ) {
-                throw new IllegalArgumentException( "Unable to inject property " + propertyName, e.getTargetException() );
+    private final Class<?> cls;
+
+    private final Map<String, Method> propertySetter = new HashMap<>();
+
+    public PropertyInjector(Class<?> cls) {
+        this.cls = cls;
+
+        for ( Method method : cls.getMethods() ) {
+            String name = method.getName();
+            if ( method.getParameterCount() == 1 && name.startsWith( "set" ) ) {
+                propertySetter.put( name.substring( 3 ), method );
+            } else if ( method.getParameterCount() == 2 && "setProperty".equals( name ) ) {
+                propertySetter.put( "Property", method );
             }
-        } catch ( InvocationTargetException e ) {
-            throw new IllegalArgumentException( "Unable to inject property " + propertyName, e.getTargetException() );
         }
     }
 
-    // --- //
-
-    private static void injectMethod(Object target, String propertyName, Object propertyValue) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        try {
-            injectPublicMethod( target, propertyName, propertyValue );
-        } catch ( NoSuchMethodException | IllegalAccessException | InvocationTargetException me ) {
-            injectPrivateMethod( target, propertyName, propertyValue );
+    public void inject(Object target, String propertyName, String propertyValue) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+        String realName = propertyName.substring( 0, 1 ).toUpperCase( Locale.ROOT ) + propertyName.substring( 1 );
+        if ( propertySetter.containsKey( realName ) ) {
+            Method method = propertySetter.get( realName );
+            method.invoke( target, typeConvert( propertyValue, method.getParameterTypes()[0] ) );
+        } else if ( propertySetter.containsKey( "Property" ) ) {
+            cls.getMethod( "setProperty", propertyName.getClass(), propertyValue.getClass() ).invoke( target, propertyName, propertyValue );
+        } else {
+            throw new NoSuchMethodException( "No setter in class " + cls.getName() );
         }
     }
 
-    private static void injectPublicMethod(Object target, String propertyName, Object propertyValue) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = target.getClass().getMethod( methodName( propertyName ), propertyValue.getClass() );
-        method.invoke( target, propertyValue );
+    public Set<String> availableProperties() {
+        return propertySetter.keySet();
     }
 
-    private static void injectPrivateMethod(Object target, String propertyName, Object propertyValue) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = target.getClass().getDeclaredMethod( methodName( propertyName ), propertyValue.getClass() );
-        method.setAccessible( true );
-        method.invoke( target, propertyValue );
-    }
-
-    private static String methodName(String propertyName) {
-        StringBuilder methodName = new StringBuilder( "set" ).append( propertyName.substring( 0, 1 ).toUpperCase( Locale.US ) );
-        if ( propertyName.length() > 1 ) {
-            methodName.append( propertyName.substring( 1 ) );
+    private Object typeConvert(String value, Class<?> target) {
+        if ( target == String.class ) {
+            return value;
+        } else if ( Boolean.class.isAssignableFrom( target ) || Boolean.TYPE.isAssignableFrom( target ) ) {
+            return Boolean.parseBoolean( value );
+        } else if ( Character.class.isAssignableFrom( target ) || Character.TYPE.isAssignableFrom( target ) ) {
+            return value.charAt( 0 );
+        } else if ( Short.class.isAssignableFrom( target ) || Short.TYPE.isAssignableFrom( target ) ) {
+            return Short.parseShort( value );
+        } else if ( Integer.class.isAssignableFrom( target ) || Integer.TYPE.isAssignableFrom( target ) ) {
+            return Integer.parseInt( value );
+        } else if ( Long.class.isAssignableFrom( target ) || Long.TYPE.isAssignableFrom( target ) ) {
+            return Long.parseLong( value );
+        } else if ( Float.class.isAssignableFrom( target ) || Float.TYPE.isAssignableFrom( target ) ) {
+            return Float.parseFloat( value );
+        } else if ( Double.class.isAssignableFrom( target ) || Double.TYPE.isAssignableFrom( target ) ) {
+            return Double.parseDouble( value );
+        } else if ( Class.class.isAssignableFrom( target ) ) {
+            try {
+                return cls.getClassLoader().loadClass( value );
+            } catch ( ClassNotFoundException e ) {
+                throw new IllegalArgumentException( "ClassNotFoundException: " + e.getMessage() );
+            }
+        } else {
+            throw new IllegalArgumentException( "Can't convert to " + target.getName() );
         }
-        return methodName.toString();
-    }
-
-    // --- //
-
-    private static void injectField(Object target, String propertyName, Object propertyValue) throws NoSuchFieldException, InvocationTargetException, IllegalAccessException {
-        try {
-            injectPublicField( target, propertyName, propertyValue );
-        } catch ( NoSuchFieldException | IllegalAccessException | InvocationTargetException me ) {
-            injectPrivateField( target, propertyName, propertyValue );
-        }
-    }
-
-    private static void injectPublicField(Object target, String propertyName, Object propertyValue) throws NoSuchFieldException, InvocationTargetException, IllegalAccessException {
-        Field field = target.getClass().getField( propertyName );
-        field.set( target, propertyValue );
-    }
-
-    private static void injectPrivateField(Object target, String propertyName, Object propertyValue) throws NoSuchFieldException, InvocationTargetException, IllegalAccessException {
-        Field field = target.getClass().getDeclaredField( propertyName );
-        field.set( target, propertyValue );
-    }
-
-    // --- //
-
-    private static void injectSetProperty(Object target, String propertyName, Object propertyValue) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = target.getClass().getMethod( methodName( "property" ), propertyName.getClass(), propertyValue.getClass() );
-        method.invoke( target, propertyName, propertyValue );
     }
 }
