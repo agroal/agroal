@@ -97,6 +97,11 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     }
 
     @Override
+    public void flush(FlushMode mode) {
+        hikari.getHikariPoolMXBean().softEvictConnections();
+    }
+
+    @Override
     public void close() {
         hikari.close();
     }

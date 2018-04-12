@@ -50,6 +50,11 @@ public final class DataSource implements AgroalDataSource {
     }
 
     @Override
+    public void flush(FlushMode mode) {
+        connectionPool.flush(mode);
+    }
+
+    @Override
     public void close() {
         connectionPool.close();
     }

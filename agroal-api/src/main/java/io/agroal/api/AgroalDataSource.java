@@ -47,9 +47,17 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
 
     AgroalDataSourceMetrics getMetrics();
 
+    void flush(FlushMode mode);
+
     @Deprecated
     void addListener(AgroalDataSourceListener listener);
 
     @Override
     void close();
+
+    // --- //
+
+    enum FlushMode{
+        ALL, IDLE, INVALID, GRACEFUL
+    }
 }

@@ -3,6 +3,7 @@
 
 package io.agroal.pool;
 
+import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
@@ -89,6 +90,10 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         while ( connectionCount-- > 0 ) {
             newConnectionHandler();
         }
+    }
+
+    public void flush(AgroalDataSource.FlushMode mode) {
+        housekeepingExecutor.execute( new FlushTask( mode ) );
     }
 
     @Override
@@ -272,6 +277,22 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
     public long awaitingCount() {
         return synchronizer.getQueueLength();
+    }
+
+    // --- flush //
+
+    private final class FlushTask implements Runnable {
+
+        private final AgroalDataSource.FlushMode mode;
+
+        public FlushTask(AgroalDataSource.FlushMode mode) {
+            this.mode = mode;
+        }
+
+        @Override
+        public void run() {
+            // TODO:
+        }
     }
 
     // --- leak detection //
