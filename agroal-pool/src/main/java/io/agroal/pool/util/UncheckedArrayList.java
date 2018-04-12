@@ -70,12 +70,6 @@ public final class UncheckedArrayList<T> implements List<T> {
         return data[index];
     }
 
-    public T removeLast() {
-        T element = data[--size];
-        data[size] = null;
-        return element;
-    }
-
     @Override
     public boolean remove(Object element) {
         for ( int index = size - 1; index >= 0; index-- ) {

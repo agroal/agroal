@@ -33,6 +33,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     public <T> Future<T> executeNow(Runnable priorityTask) {
         RunnableFuture<T> priorityFuture = new FutureTask<>( priorityTask, null );
         priorityTasks.add( priorityFuture );
+        // Submit a task so that the beforeExecute() method gets called
         execute( EMPTY_TASK );
         return priorityFuture;
     }
@@ -55,7 +56,9 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
 
     @Override
     public List<Runnable> shutdownNow() {
-        priorityTasks.forEach( runnableFuture -> runnableFuture.cancel( true ) );
+        for ( RunnableFuture<?> runnableFuture : priorityTasks ) {
+            runnableFuture.cancel( true );
+        }
         priorityTasks.clear();
         return super.shutdownNow();
     }

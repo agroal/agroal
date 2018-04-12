@@ -17,8 +17,8 @@ import io.agroal.pool.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
@@ -37,13 +37,11 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 public final class ConnectionPool implements MetricsEnabledListener, AutoCloseable {
 
     private final AgroalConnectionPoolConfiguration configuration;
-
     private final AgroalDataSourceListener[] listeners;
-    private final ThreadLocal<UncheckedArrayList<ConnectionHandler>> localCache;
 
     private final StampedCopyOnWriteArrayList<ConnectionHandler> allConnections;
 
-    private final AgroalSynchronizer synchronizer = new AgroalSynchronizer();
+    private final AgroalSynchronizer synchronizer;
     private final ConnectionFactory connectionFactory;
     private final PriorityScheduledExecutor housekeepingExecutor;
     private final TransactionIntegration transactionIntegration;
@@ -54,14 +52,16 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
     private volatile long maxUsed = 0;
     private MetricsRepository metricsRepository;
+    private ThreadLocal<List<ConnectionHandler>> localCache;
 
     public ConnectionPool(AgroalConnectionPoolConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
         this.listeners = listeners;
 
         allConnections = new StampedCopyOnWriteArrayList<>( ConnectionHandler.class );
+        localCache = new ConnectionHandlerThreadLocal();
 
-        localCache = ThreadLocal.withInitial( () -> new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class ) );
+        synchronizer = new AgroalSynchronizer();
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
         housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal_" + identityHashCode( this ) );
         transactionIntegration = configuration.transactionIntegration();
@@ -72,8 +72,6 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     }
 
     public void init() {
-        fill( configuration.initialSize() );
-
         if ( leakEnabled ) {
             housekeepingExecutor.schedule( new LeakTask(), configuration.leakTimeout().toNanos(), NANOSECONDS );
         }
@@ -83,12 +81,10 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         if ( reapEnabled ) {
             housekeepingExecutor.schedule( new ReapTask(), configuration.reapTimeout().toNanos(), NANOSECONDS );
         }
-    }
 
-    private void fill(int newSize) {
-        int connectionCount = newSize - allConnections.size();
-        while ( connectionCount-- > 0 ) {
-            newConnectionHandler();
+        // fill to the initial size
+        for ( int n = configuration.initialSize(); n > 0; n-- ) {
+            housekeepingExecutor.execute( new CreateConnectionTask() );
         }
     }
 
@@ -98,33 +94,11 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
     @Override
     public void close() {
-        housekeepingExecutor.shutdownNow();
-    }
-
-    // --- //
-
-    private Future<?> newConnectionHandler() {
-        return housekeepingExecutor.executeNow( () -> {
-            if ( allConnections.size() >= configuration.maxSize() ) {
-                return;
-            }
-            fireBeforeConnectionCreation( listeners );
-            long metricsStamp = metricsRepository.beforeConnectionCreation();
-
-            try {
-                ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), this );
-                handler.setState( CHECKED_IN );
-                allConnections.add( handler );
-                maxUsed = Math.max( maxUsed, allConnections.size() );
-                metricsRepository.afterConnectionCreation( metricsStamp );
-                fireOnConnectionCreation( listeners, handler );
-            } catch ( SQLException e ) {
-                throw new RuntimeException( "Exception while creating new connection", e );
-            } finally {
-                // not strictly needed, but not harmful either
-                synchronizer.releaseConditional();
-            }
-        } );
+        for ( ConnectionHandler handler : allConnections ) {
+            housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
+        }
+        allConnections.clear();
+        housekeepingExecutor.shutdown();
     }
 
     // --- //
@@ -174,9 +148,9 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     }
 
     private ConnectionHandler handlerFromLocalCache() {
-        UncheckedArrayList<ConnectionHandler> cachedConnections = localCache.get();
+        List<ConnectionHandler> cachedConnections = localCache.get();
         while ( !cachedConnections.isEmpty() ) {
-            ConnectionHandler handler = cachedConnections.removeLast();
+            ConnectionHandler handler = cachedConnections.remove( cachedConnections.size() - 1 );
             if ( handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
                 return handler;
             }
@@ -195,7 +169,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                     }
                 }
                 if ( allConnections.size() < configuration.maxSize() ) {
-                    newConnectionHandler().get();
+                    housekeepingExecutor.executeNow( new CreateConnectionTask() ).get();
                     continue;
                 }
                 long synchronizationStamp = synchronizer.getStamp();
@@ -226,10 +200,19 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         if ( transactionIntegration.disassociate( handler.getConnection() ) ) {
             handler.resetConnection( configuration.connectionFactoryConfiguration() );
             localCache.get().add( handler );
-            handler.setState( CHECKED_IN );
-            synchronizer.releaseConditional();
-            metricsRepository.afterConnectionReturn();
-            fireOnConnectionReturn( listeners, handler );
+
+            if ( handler.setState( CHECKED_OUT, CHECKED_IN ) ) {
+                // here the handler is already up for grabs
+                synchronizer.releaseConditional();
+                metricsRepository.afterConnectionReturn();
+                fireOnConnectionReturn( listeners, handler );
+            } else {
+                // handler not in CHECKED_OUT implies FLUSH
+                allConnections.remove( handler );
+                metricsRepository.afterConnectionFlush();
+                fireOnConnectionFlush( listeners, handler );
+                housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+            }
         }
     }
 
@@ -279,6 +262,44 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         return synchronizer.getQueueLength();
     }
 
+    // --- //
+
+    private final class ConnectionHandlerThreadLocal extends ThreadLocal<List<ConnectionHandler>> {
+
+        @Override
+        protected List<ConnectionHandler> initialValue() {
+            return new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class );
+        }
+    }
+    
+    // --- create //
+
+    private final class CreateConnectionTask implements Runnable {
+
+        @Override
+        public void run() {
+            if ( allConnections.size() >= configuration.maxSize() ) {
+                return;
+            }
+            fireBeforeConnectionCreation( listeners );
+            long metricsStamp = metricsRepository.beforeConnectionCreation();
+
+            try {
+                ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
+                handler.setState( CHECKED_IN );
+                allConnections.add( handler );
+                maxUsed = Math.max( maxUsed, allConnections.size() );
+                metricsRepository.afterConnectionCreation( metricsStamp );
+                fireOnConnectionCreation( listeners, handler );
+            } catch ( SQLException e ) {
+                throw new RuntimeException( "Exception while creating new connection", e );
+            } finally {
+                // not strictly needed, but not harmful either
+                synchronizer.releaseConditional();
+            }
+        }
+    }
+
     // --- flush //
 
     private final class FlushTask implements Runnable {
@@ -291,7 +312,68 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
         @Override
         public void run() {
-            // TODO:
+            for ( ConnectionHandler handler : allConnections ) {
+                fireBeforeConnectionFlush( listeners, handler );
+                handlerFlush( mode, handler );
+            }
+            afterFlush( mode );
+        }
+
+        private void handlerFlush(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
+            switch ( mode ) {
+                case ALL:
+                    handler.setState( FLUSH );
+                    flushHandler( handler );
+                    break;
+                case GRACEFUL:
+                    if ( handler.setState( CHECKED_IN, FLUSH ) ) {
+                        flushHandler( handler );
+                    } else {
+                        handler.setState( FLUSH );
+                    }
+                    break;
+                case IDLE:
+                    if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
+                        flushHandler( handler );
+                    }
+                    break;
+                case INVALID:
+                    fireBeforeConnectionValidation( listeners, handler );
+                    if ( handler.setState( CHECKED_IN, VALIDATION ) ) {
+                        if ( configuration.connectionValidator().isValid( handler.getConnection() ) ) {
+                            fireOnConnectionValid( listeners, handler );
+                            handler.setState( CHECKED_IN );
+                        } else {
+                            fireOnConnectionInvalid( listeners, handler );
+                            flushHandler( handler );
+                        }
+                    }
+                    break;
+            }
+        }
+
+        public void flushHandler(ConnectionHandler handler) {
+            allConnections.remove( handler );
+            metricsRepository.afterConnectionFlush();
+            fireOnConnectionFlush( listeners, handler );
+            housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+        }
+
+        private void afterFlush(AgroalDataSource.FlushMode mode) {
+            switch ( mode ) {
+                case ALL:
+                case GRACEFUL:
+                case INVALID:
+                    // refill to minSize
+                    for ( int n = configuration.minSize(); n > 0; n-- ) {
+                        housekeepingExecutor.execute( new CreateConnectionTask() );
+                    }
+                    break;
+                case IDLE:
+                    break;
+                default:
+                    fireOnWarning( listeners, "Unsupported afterFlush mode " + mode );
+            }
         }
     }
 
@@ -301,10 +383,11 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
         @Override
         public void run() {
+            housekeepingExecutor.schedule( this, configuration.leakTimeout().toNanos(), NANOSECONDS );
+
             for ( ConnectionHandler handler : allConnections.getUnderlyingArray() ) {
                 housekeepingExecutor.execute( new LeakConnectionTask( handler ) );
             }
-            housekeepingExecutor.schedule( this, configuration.leakTimeout().toNanos(), NANOSECONDS );
         }
 
         private class LeakConnectionTask implements Runnable {
@@ -333,8 +416,11 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
         @Override
         public void run() {
-            allConnections.forEach( hadler -> housekeepingExecutor.submit( new ValidateConnectionTask( hadler ) ) );
             housekeepingExecutor.schedule( this, configuration.validationTimeout().toNanos(), NANOSECONDS );
+
+            for ( ConnectionHandler handler : allConnections ) {
+                housekeepingExecutor.execute( new ValidateConnectionTask( handler ) );
+            }
         }
 
         private class ValidateConnectionTask implements Runnable {
@@ -370,11 +456,14 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
         @Override
         public void run() {
-            // TODO Clear thread-local connection cache
-            // localCache = ThreadLocal.withInitial( () -> new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class ) ) );
-
-            allConnections.forEach( hadler -> housekeepingExecutor.submit( new ReapConnectionTask( hadler ) ) );
             housekeepingExecutor.schedule( this, configuration.reapTimeout().toNanos(), NANOSECONDS );
+
+            // reset the thead local cache
+            localCache = new ConnectionHandlerThreadLocal();
+
+            for ( ConnectionHandler handler : allConnections ) {
+                housekeepingExecutor.execute( new ReapConnectionTask( handler ) );
+            }
         }
 
         private class ReapConnectionTask implements Runnable {
