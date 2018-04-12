@@ -14,15 +14,15 @@ public interface AgroalDataSourceMetrics {
         return 0;
     }
 
-    default Duration averageCreationTime() {
+    default Duration creationTimeAverage() {
         return Duration.ZERO;
     }
 
-    default Duration maxCreationTime() {
+    default Duration creationTimeMax() {
         return Duration.ZERO;
     }
 
-    default Duration totalCreationTime() {
+    default Duration creationTimeTotal() {
         return Duration.ZERO;
     }
 
@@ -64,15 +64,15 @@ public interface AgroalDataSourceMetrics {
         return 0;
     }
 
-    default Duration averageBlockingTime() {
+    default Duration blockingTimeAverage() {
         return Duration.ZERO;
     }
 
-    default Duration maxBlockingTime() {
+    default Duration blockingTimeMax() {
         return Duration.ZERO;
     }
 
-    default Duration totalBlockingTime() {
+    default Duration blockingTimeTotal() {
         return Duration.ZERO;
     }
 

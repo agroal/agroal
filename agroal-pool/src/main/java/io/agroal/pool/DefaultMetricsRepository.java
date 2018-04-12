@@ -105,7 +105,7 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     }
 
     @Override
-    public Duration averageCreationTime() {
+    public Duration creationTimeAverage() {
         if ( creationCount.longValue() == 0 ) {
             return ZERO;
         }
@@ -113,12 +113,12 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     }
 
     @Override
-    public Duration maxCreationTime() {
+    public Duration creationTimeMax() {
         return ofNanos( maxCreatedDuration.get() );
     }
 
     @Override
-    public Duration totalCreationTime() {
+    public Duration creationTimeTotal() {
         return ofNanos( creationTotalTime.longValue() );
     }
 
@@ -168,7 +168,7 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     }
 
     @Override
-    public Duration averageBlockingTime() {
+    public Duration blockingTimeAverage() {
         if ( acquireCount.longValue() == 0 ) {
             return ZERO;
         }
@@ -176,12 +176,12 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     }
 
     @Override
-    public Duration maxBlockingTime() {
+    public Duration blockingTimeMax() {
         return ofNanos( maxAcquireDuration.get() );
     }
 
     @Override
-    public Duration totalBlockingTime() {
+    public Duration blockingTimeTotal() {
         return ofNanos( acquireTotalTime.longValue() );
     }
 
@@ -210,13 +210,13 @@ public final class DefaultMetricsRepository implements MetricsRepository {
 
     @Override
     public String toString() {
-        double avgCreationMs = (double) averageCreationTime().toNanos() / MILLISECONDS.toNanos( 1 );
-        double avgBlockingMs = (double) averageBlockingTime().toNanos() / MILLISECONDS.toNanos( 1 );
+        double avgCreationMs = (double) creationTimeAverage().toNanos() / MILLISECONDS.toNanos( 1 );
+        double avgBlockingMs = (double) blockingTimeAverage().toNanos() / MILLISECONDS.toNanos( 1 );
 
         String s1 = format( "Connections: {0} created | {1} invalid | {2} reap | {3} flush | {4} destroyed", creationCount, invalidCount, reapCount, flushCount, destroyCount );
         String s2 = format( "Pool: {0} available | {1} active | {2} max | {3} acquired | {4} returned", availableCount(), activeCount(), maxUsedCount(), acquireCount, returnCount );
-        String s3 = format( "Created duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgCreationMs, maxCreationTime().toMillis(), totalCreationTime().toMillis() );
-        String s4 = format( "Acquire duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgBlockingMs, maxBlockingTime().toMillis(), totalBlockingTime().toMillis() );
+        String s3 = format( "Created duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgCreationMs, creationTimeMax().toMillis(), creationTimeTotal().toMillis() );
+        String s4 = format( "Acquire duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgBlockingMs, blockingTimeMax().toMillis(), blockingTimeTotal().toMillis() );
         String s5 = format( "Threads awaiting: {0}", awaitingCount() );
 
         String nl = System.lineSeparator();
