@@ -511,6 +511,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 fireOnWarning( listeners, e );
             }
             handler.setState( DESTROYED );
+            metricsRepository.afterConnectionDestroy();
             fireOnConnectionDestroy( listeners, handler );
         }
     }
