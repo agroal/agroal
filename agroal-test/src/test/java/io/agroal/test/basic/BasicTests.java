@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
@@ -74,9 +75,22 @@ public class BasicTests {
     @Test
     @DisplayName( "DataSource in closed state" )
     public void basicDataSourceCloseTest() throws SQLException {
-        AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() );
+        AtomicBoolean warning = new AtomicBoolean( false );
+
+        AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier(), new AgroalDataSourceListener() {
+            @Override
+            public void onWarning(String message) {
+                warning.set( true );
+            }
+
+            @Override
+            public void onWarning(Throwable throwable) {
+                warning.set( true );
+            }
+        } );
 
         Connection connection = dataSource.getConnection();
+        Connection leaked = dataSource.getConnection();
         assertAll( () -> {
             assertFalse( connection.isClosed(), "Expected open connection, but it's closed" );
             assertNotNull( connection.getSchema(), "Expected non null value" );
@@ -84,7 +98,12 @@ public class BasicTests {
         connection.close();
         
         dataSource.close();
-        assertThrows( SQLException.class, dataSource::getConnection );
+        
+        assertAll( () -> {
+            assertThrows( SQLException.class, dataSource::getConnection );
+            assertTrue( leaked.isClosed(), "Expected closed connection, but it's open" );
+            assertFalse( warning.get(), "Unexpected warning" );
+        } );
     }
 
     @Test
@@ -285,9 +304,22 @@ public class BasicTests {
     // --- //
 
     public static class FakeSchemaConnection implements MockConnection {
+
+        private boolean closed = false;
+
         @Override
         public String getSchema() throws SQLException {
             return FAKE_SCHEMA;
+        }
+
+        @Override
+        public void close() throws SQLException {
+            closed = true;
+        }
+
+        @Override
+        public boolean isClosed() throws SQLException {
+            return closed;
         }
     }
 }

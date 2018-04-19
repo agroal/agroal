@@ -95,6 +95,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     @Override
     public void close() {
         for ( ConnectionHandler handler : allConnections ) {
+            handler.setState( FLUSH );
             housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
         }
         allConnections.clear();
