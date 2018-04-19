@@ -69,6 +69,10 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         return applySetting( c -> c.xa = xaEnabled );
     }
 
+    public AgroalDataSourceConfigurationSupplier metricsEnabled() {
+        return metricsEnabled( true );
+    }
+
     public AgroalDataSourceConfigurationSupplier metricsEnabled(boolean metricsEnabled) {
         return applySetting( c -> c.metrics = metricsEnabled );
     }

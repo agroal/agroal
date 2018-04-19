@@ -184,6 +184,12 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
             @Override
             public void setMinSize(int size) {
+                if ( size < 0 ) {
+                    throw new IllegalArgumentException( "Invalid min size: smaller than 0" );
+                }
+                if ( size > maxSize ) {
+                    throw new IllegalArgumentException( "Invalid min size: greater than max size" );
+                }
                 minSize = size;
             }
 
@@ -194,6 +200,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
             @Override
             public void setMaxSize(int size) {
+                if ( size <= 0 ) {
+                    throw new IllegalArgumentException( "A Positive max size is required" );
+                }
                 maxSize = size;
             }
 

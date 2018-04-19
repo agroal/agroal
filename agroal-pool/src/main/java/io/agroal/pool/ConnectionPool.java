@@ -198,6 +198,12 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             handler.setLastAccess( nanoTime() );
         }
         if ( transactionIntegration.disassociate( handler.getConnection() ) ) {
+            if ( allConnections.size() > configuration.maxSize() ) {
+                 handler.setState( FLUSH );
+                 allConnections.remove( handler );
+                 housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+            }
+            
             handler.resetConnection( configuration.connectionFactoryConfiguration() );
             localCache.get().add( handler );
 
