@@ -162,7 +162,9 @@ public class FlushTests {
                 assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
                 assertEquals( MAX_POOL_SIZE - 1, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
                 assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE - 1, listener.creationCount.longValue(), "Unexpected number of created connections" );
-                assertEquals( MIN_POOL_SIZE, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
+                
+                assertEquals( MIN_POOL_SIZE - 1, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
+                assertEquals( 1, dataSource.getMetrics().activeCount(), "Incorrect active count" );
 
                 assertFalse( connection.isClosed(), "Expecting connection open after graceful flush" );
             } );
@@ -181,6 +183,7 @@ public class FlushTests {
             assertAll( () -> {
                 assertEquals( MAX_POOL_SIZE, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
                 assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( 0, dataSource.getMetrics().activeCount(), "Incorrect active count" );
                 assertEquals( MIN_POOL_SIZE, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
             } );
         } catch ( InterruptedException e ) {

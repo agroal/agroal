@@ -19,6 +19,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.LongAccumulator;
+import java.util.concurrent.atomic.LongAdder;
 
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
@@ -50,7 +52,9 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     private final boolean validationEnabled;
     private final boolean reapEnabled;
 
-    private volatile long maxUsed = 0;
+    private final LongAccumulator maxUsed = new LongAccumulator(Math::max, Long.MIN_VALUE);
+    private final LongAdder activeCount = new LongAdder();
+
     private MetricsRepository metricsRepository;
     private ThreadLocal<List<ConnectionHandler>> localCache;
 
@@ -126,6 +130,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
+        activeCount.increment();
 
         if ( leakEnabled || reapEnabled ) {
             checkedOutHandler.setLastAccess( nanoTime() );
@@ -199,6 +204,9 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             handler.setLastAccess( nanoTime() );
         }
         if ( transactionIntegration.disassociate( handler.getConnection() ) ) {
+            activeCount.decrement();
+
+            // resize on change of max-size
             if ( allConnections.size() > configuration.maxSize() ) {
                  handler.setState( FLUSH );
                  allConnections.remove( handler );
@@ -239,31 +247,20 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         this.metricsRepository = metricsRepository;
     }
 
-    private long activeCount(ConnectionHandler[] handlers) {
-        int l = 0;
-        for ( ConnectionHandler handler : handlers ) {
-            if ( handler.isActive() ) {
-                l++;
-            }
-        }
-        return l;
-    }
-
     public long activeCount() {
-        return activeCount( allConnections.getUnderlyingArray() );
+        return activeCount.sum();
     }
 
     public long availableCount() {
-        ConnectionHandler[] handlers = allConnections.getUnderlyingArray();
-        return handlers.length - activeCount( handlers );
+        return allConnections.size() - activeCount.sum();
     }
 
     public long maxUsedCount() {
-        return maxUsed;
+        return maxUsed.get();
     }
 
     public void resetMaxUsedCount() {
-        maxUsed = 0;
+        maxUsed.reset();
     }
 
     public long awaitingCount() {
@@ -296,7 +293,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
-                maxUsed = Math.max( maxUsed, allConnections.size() );
+                maxUsed.accumulate( allConnections.size() );
                 metricsRepository.afterConnectionCreation( metricsStamp );
                 fireOnConnectionCreation( listeners, handler );
             } catch ( SQLException e ) {
