@@ -219,6 +219,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 metricsRepository.afterConnectionFlush();
                 fireOnConnectionFlush( listeners, handler );
                 housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+                housekeepingExecutor.execute( new FillTask() );
             }
         }
     }
@@ -371,15 +372,26 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 case ALL:
                 case GRACEFUL:
                 case INVALID:
+                case FILL:
                     // refill to minSize
-                    for ( int n = configuration.minSize(); n > 0; n-- ) {
-                        housekeepingExecutor.execute( new CreateConnectionTask() );
-                    }
+                    housekeepingExecutor.execute( new FillTask() );
                     break;
                 case IDLE:
                     break;
                 default:
                     fireOnWarning( listeners, "Unsupported afterFlush mode " + mode );
+            }
+        }
+    }
+
+    // --- fill task //
+
+    private final class FillTask implements Runnable {
+
+        @Override
+        public void run() {
+            for ( int n = configuration.minSize() - allConnections.size(); n > 0; n-- ) {
+                housekeepingExecutor.execute( new CreateConnectionTask() );
             }
         }
     }

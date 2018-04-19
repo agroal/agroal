@@ -58,6 +58,6 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
     // --- //
 
     enum FlushMode{
-        ALL, IDLE, INVALID, GRACEFUL
+        ALL, IDLE, INVALID, GRACEFUL, FILL
     }
 }

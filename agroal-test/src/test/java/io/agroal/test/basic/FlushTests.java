@@ -117,6 +117,7 @@ public class FlushTests {
         int MIN_POOL_SIZE = 10, MAX_POOL_SIZE = 30, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
                         .initialSize( MAX_POOL_SIZE )
                         .minSize( MIN_POOL_SIZE )
@@ -135,7 +136,7 @@ public class FlushTests {
                 fail( format( "{0} connections not created", listener.creationLatch.getCount() ) );
             }
 
-            listener.creationLatch = new CountDownLatch( MIN_POOL_SIZE );
+            listener.creationLatch = new CountDownLatch( MIN_POOL_SIZE - 1 );
 
             Connection connection = dataSource.getConnection();
             assertFalse( connection.isClosed() );
@@ -160,7 +161,8 @@ public class FlushTests {
             assertAll( () -> {
                 assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
                 assertEquals( MAX_POOL_SIZE - 1, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
-                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE - 1, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MIN_POOL_SIZE, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
 
                 assertFalse( connection.isClosed(), "Expecting connection open after graceful flush" );
             } );
@@ -179,6 +181,7 @@ public class FlushTests {
             assertAll( () -> {
                 assertEquals( MAX_POOL_SIZE, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
                 assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MIN_POOL_SIZE, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
             } );
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );
