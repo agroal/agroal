@@ -146,6 +146,7 @@ public class BasicTests {
                         .initialSize( MAX_POOL_SIZE )
                         .maxSize( MAX_POOL_SIZE )
                         .leakTimeout( ofMillis( LEAK_DETECTION_MS ) )
+                        .acquisitionTimeout( ofMillis( LEAK_DETECTION_MS ) )
                 );
         CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
 

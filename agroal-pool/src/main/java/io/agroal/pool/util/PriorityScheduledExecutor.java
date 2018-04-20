@@ -10,6 +10,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -18,7 +19,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
     private static final AtomicLong THREAD_COUNT = new AtomicLong();
-    private static final Runnable EMPTY_TASK = () -> {};
+    private static final Runnable EMPTY_TASK = () -> {
+    };
 
     private final Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
 
@@ -41,17 +43,19 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     @Override
     protected void beforeExecute(Thread thread, Runnable lowPriorityTask) {
         // Run all high priority tasks in queue first, then low priority
-        RunnableFuture<?> priorityTask;
-        while ( ( priorityTask = priorityTasks.poll() ) != null ) {
-            priorityTask.run();
+        for ( RunnableFuture<?> priorityTask; ( priorityTask = priorityTasks.poll() ) != null; ) {
+            if ( isShutdown() ) {
+                priorityTask.cancel( false );
+            } else {
+                priorityTask.run();
+            }
         }
         super.beforeExecute( thread, lowPriorityTask );
     }
 
     @Override
     public void shutdown() {
-        execute( EMPTY_TASK );
-        super.shutdown();
+        executeNow( super::shutdown );
     }
 
     @Override
