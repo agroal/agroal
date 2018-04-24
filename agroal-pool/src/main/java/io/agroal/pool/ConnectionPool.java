@@ -52,7 +52,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     private final boolean validationEnabled;
     private final boolean reapEnabled;
 
-    private final LongAccumulator maxUsed = new LongAccumulator(Math::max, Long.MIN_VALUE);
+    private final LongAccumulator maxUsed = new LongAccumulator( Math::max, Long.MIN_VALUE );
     private final LongAdder activeCount = new LongAdder();
 
     private MetricsRepository metricsRepository;
@@ -169,7 +169,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         remaining = remaining > 0 ? remaining : Long.MAX_VALUE;
         try {
             for ( ; ; ) {
-                for ( ConnectionHandler handler : allConnections.getUnderlyingArray() ) {
+                for ( ConnectionHandler handler : allConnections ) {
                     if ( handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
                         return handler;
                     }
@@ -208,11 +208,11 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
             // resize on change of max-size
             if ( allConnections.size() > configuration.maxSize() ) {
-                 handler.setState( FLUSH );
-                 allConnections.remove( handler );
-                 housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+                handler.setState( FLUSH );
+                allConnections.remove( handler );
+                housekeepingExecutor.execute( new FlushTask( handler ) );
             }
-            
+
             handler.resetConnection( configuration.connectionFactoryConfiguration() );
             localCache.get().add( handler );
 
@@ -223,10 +223,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 fireOnConnectionReturn( listeners, handler );
             } else {
                 // handler not in CHECKED_OUT implies FLUSH
-                allConnections.remove( handler );
-                metricsRepository.afterConnectionFlush();
-                fireOnConnectionFlush( listeners, handler );
-                housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+                housekeepingExecutor.execute( new FlushTask( handler ) );
                 housekeepingExecutor.execute( new FillTask() );
             }
         }
@@ -276,7 +273,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             return new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class );
         }
     }
-    
+
     // --- create //
 
     private final class CreateConnectionTask implements Runnable {
@@ -310,13 +307,25 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     private final class FlushTask implements Runnable {
 
         private final AgroalDataSource.FlushMode mode;
+        private final ConnectionHandler handler;
 
         public FlushTask(AgroalDataSource.FlushMode mode) {
             this.mode = mode;
+            this.handler = null;
+        }
+
+        public FlushTask(ConnectionHandler handler) {
+            this.mode = null;
+            this.handler = handler;
         }
 
         @Override
         public void run() {
+            if ( handler != null ) {
+                fireBeforeConnectionFlush( listeners, handler );
+                flushHandler( handler );
+                return;
+            }
             for ( ConnectionHandler handler : allConnections ) {
                 fireBeforeConnectionFlush( listeners, handler );
                 handlerFlush( mode, handler );
@@ -401,7 +410,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         public void run() {
             housekeepingExecutor.schedule( this, configuration.leakTimeout().toNanos(), NANOSECONDS );
 
-            for ( ConnectionHandler handler : allConnections.getUnderlyingArray() ) {
+            for ( ConnectionHandler handler : allConnections ) {
                 housekeepingExecutor.execute( new LeakConnectionTask( handler ) );
             }
         }

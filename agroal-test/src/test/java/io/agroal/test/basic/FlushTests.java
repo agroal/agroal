@@ -155,6 +155,7 @@ public class FlushTests {
                 fail( format( "{0} connections not created after flush", listener.creationLatch.getCount() ) );
             }
 
+            listener.creationLatch = new CountDownLatch( 1 );
             listener.flushLatch = new CountDownLatch( 1 );
             listener.destroyLatch = new CountDownLatch( 1 );
 
@@ -162,7 +163,7 @@ public class FlushTests {
                 assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
                 assertEquals( MAX_POOL_SIZE - 1, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
                 assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE - 1, listener.creationCount.longValue(), "Unexpected number of created connections" );
-                
+
                 assertEquals( MIN_POOL_SIZE - 1, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
                 assertEquals( 1, dataSource.getMetrics().activeCount(), "Incorrect active count" );
 
@@ -178,6 +179,10 @@ public class FlushTests {
             logger.info( format( "Waiting for destruction of one remaining connection" ) );
             if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
                 fail( format( "{0} flushed connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            }
+            logger.info( format( "Awaiting creation of one additional connections" ) );
+            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created", listener.creationLatch.getCount() ) );
             }
 
             assertAll( () -> {
