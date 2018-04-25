@@ -15,8 +15,11 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
@@ -31,6 +34,10 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -106,11 +113,79 @@ public class BasicConcurrencyTests {
         } );
     }
 
+    @Test
+    @DisplayName( "Concurrent DataSource in closed state" )
+    public void concurrentDataSourceCloseTest() throws SQLException, InterruptedException {
+        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 2, ACQUISITION_TIMEOUT_MS = 2000;
+
+        BasicConcurrencyTestsListener listener = new BasicConcurrencyTestsListener();
+        ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
+        CountDownLatch latch = new CountDownLatch( 1 );
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MAX_POOL_SIZE )
+                        .maxSize( MAX_POOL_SIZE )
+                        .acquisitionTimeout( ofMillis( ACQUISITION_TIMEOUT_MS ) )
+                );
+
+        AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener );
+
+        executor.submit( () -> {
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                try {
+                    Connection connection = dataSource.getConnection();
+                    assertNotNull( connection, "Expected non null connection" );
+                    //connection.close();
+                } catch ( SQLException e ) {
+                    fail( "SQLException", e );
+                }
+            }
+
+            try {
+                assertEquals( 0, dataSource.getMetrics().availableCount(), "Should not be any available connections" );
+
+                logger.info( "Blocked waiting for a connection" );
+                dataSource.getConnection();
+
+                fail( "Expected SQLException" );
+            } catch ( SQLException e ) {
+                // SQLException should not be because of acquisition timeout
+                assertTrue( e.getCause() instanceof RejectedExecutionException || e.getCause() instanceof CancellationException, "Cause for SQLException should be either RejectedExecutionException or CancellationException" );
+                latch.countDown();
+
+                logger.info( "Unblocked after datasource close" );
+            }
+        } );
+
+        Thread.sleep( ACQUISITION_TIMEOUT_MS / 2 );
+        logger.info( "Closing the datasource" );
+
+        dataSource.close();
+
+        if ( !latch.await( ACQUISITION_TIMEOUT_MS, MILLISECONDS ) ) {
+            fail( "Did not execute within the required amount of time" );
+        }
+
+        assertAll( () -> {
+            assertThrows( SQLException.class, dataSource::getConnection );
+            assertFalse( listener.warning.get(), "Unexpected warning" );
+            assertEquals( MAX_POOL_SIZE, listener.creationCount.longValue() );
+            assertEquals( MAX_POOL_SIZE, listener.acquireCount.longValue() );
+            assertEquals( 0, listener.returnCount.longValue() );
+            assertEquals( 0, dataSource.getMetrics().activeCount(), "Active connections" );
+            assertEquals( 0, dataSource.getMetrics().availableCount(), "Should not be any available connections" );
+        } );
+    }
+
     // --- //
 
     private static class BasicConcurrencyTestsListener implements AgroalDataSourceListener {
 
         private final LongAdder creationCount = new LongAdder(), acquireCount = new LongAdder(), returnCount = new LongAdder();
+
+        private final AtomicBoolean warning = new AtomicBoolean( false );
 
         @Override
         public void onConnectionCreation(Connection connection) {
@@ -125,6 +200,16 @@ public class BasicConcurrencyTests {
         @Override
         public void onConnectionReturn(Connection connection) {
             returnCount.increment();
+        }
+
+        @Override
+        public void onWarning(String message) {
+            warning.set( true );
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            warning.set( true );
         }
     }
 }

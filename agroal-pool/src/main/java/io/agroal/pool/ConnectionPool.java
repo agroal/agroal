@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -105,6 +106,9 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         }
         allConnections.clear();
         housekeepingExecutor.shutdown();
+        
+        activeCount.reset();
+        synchronizer.release( synchronizer.getQueueLength() );
     }
 
     // --- //
@@ -191,7 +195,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             throw new SQLException( "Interrupted while acquiring" );
         } catch ( ExecutionException e ) {
             throw new SQLException( "Exception while creating new connection", e );
-        } catch ( CancellationException e ) {
+        } catch ( RejectedExecutionException | CancellationException e ) {
             throw new SQLException( "Can't create new connection as the pool is shutting down", e );
         }
     }
