@@ -49,6 +49,7 @@
         <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
         <version.com.zaxxer>2.7.3</version.com.zaxxer>
+        <version.de.thetaphi.forbiddenapis>2.5</version.de.thetaphi.forbiddenapis>
         <version.eu.somatik.serviceloader-maven-plugin>1.0.7</version.eu.somatik.serviceloader-maven-plugin>
         <version.org.apache.felix>5.4.0</version.org.apache.felix>
         <version.org.apache.servicemix.tooling>1.2</version.org.apache.servicemix.tooling>
@@ -87,6 +88,30 @@
                         <phase>process-classes</phase>
                         <goals>
                             <goal>manifest</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>de.thetaphi</groupId>
+                <artifactId>forbiddenapis</artifactId>
+                <version>${version.de.thetaphi.forbiddenapis}</version>
+                <configuration>
+                    <failOnUnsupportedJava>false</failOnUnsupportedJava>
+                    <bundledSignatures>
+                        <!-- Automatically choose the right signatures based on 'maven.compiler.target' -->
+                        <bundledSignature>jdk-unsafe</bundledSignature>
+                        <!--bundledSignature>jdk-deprecated</bundledSignature-->
+                        <bundledSignature>jdk-non-portable</bundledSignature>
+                        <bundledSignature>jdk-system-out</bundledSignature>
+                        <bundledSignature>jdk-reflection</bundledSignature>
+                    </bundledSignatures>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>

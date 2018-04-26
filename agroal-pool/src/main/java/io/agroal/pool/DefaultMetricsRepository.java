@@ -1,11 +1,12 @@
 package io.agroal.pool;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
+import static java.lang.String.format;
 import static java.lang.System.nanoTime;
-import static java.text.MessageFormat.format;
 import static java.time.Duration.ZERO;
 import static java.time.Duration.ofNanos;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -213,11 +214,11 @@ public final class DefaultMetricsRepository implements MetricsRepository {
         double avgCreationMs = (double) creationTimeAverage().toNanos() / MILLISECONDS.toNanos( 1 );
         double avgBlockingMs = (double) blockingTimeAverage().toNanos() / MILLISECONDS.toNanos( 1 );
 
-        String s1 = format( "Connections: {0} created | {1} invalid | {2} reap | {3} flush | {4} destroyed", creationCount, invalidCount, reapCount, flushCount, destroyCount );
-        String s2 = format( "Pool: {0} available | {1} active | {2} max | {3} acquired | {4} returned", availableCount(), activeCount(), maxUsedCount(), acquireCount, returnCount );
-        String s3 = format( "Created duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgCreationMs, creationTimeMax().toMillis(), creationTimeTotal().toMillis() );
-        String s4 = format( "Acquire duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgBlockingMs, blockingTimeMax().toMillis(), blockingTimeTotal().toMillis() );
-        String s5 = format( "Threads awaiting: {0}", awaitingCount() );
+        String s1 = format( Locale.ROOT, "Connections: {0} created | {1} invalid | {2} reap | {3} flush | {4} destroyed", creationCount, invalidCount, reapCount, flushCount, destroyCount );
+        String s2 = format( Locale.ROOT, "Pool: {0} available | {1} active | {2} max | {3} acquired | {4} returned", availableCount(), activeCount(), maxUsedCount(), acquireCount, returnCount );
+        String s3 = format( Locale.ROOT, "Created duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgCreationMs, creationTimeMax().toMillis(), creationTimeTotal().toMillis() );
+        String s4 = format( Locale.ROOT, "Acquire duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgBlockingMs, blockingTimeMax().toMillis(), blockingTimeTotal().toMillis() );
+        String s5 = format( Locale.ROOT, "Threads awaiting: {0}", awaitingCount() );
 
         String nl = System.lineSeparator();
         return nl + "===" + nl + s1 + nl + s2 + nl + s3 + nl + s4 + nl + s5 + nl + "===";
