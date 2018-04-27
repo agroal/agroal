@@ -64,6 +64,9 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     private Connection wrappedConnection;
 
+    // This boolean prevents the connection to be returned to the pool multiple times
+    private boolean returnedHandler = false;
+
     // Flag to indicate that this ConnectionWrapper is currently enlisted with a transaction
     private boolean inTransaction = false;
 
@@ -174,7 +177,8 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void close() throws SQLException {
         wrappedConnection = CLOSED_CONNECTION;
-        if ( !inTransaction ) {
+        if ( !inTransaction && !returnedHandler ) {
+            returnedHandler = true;
             closeTrackedStatements();
             transactionActiveCheck = NO_ACTIVE_TRANSACTION;
             handler.returnConnection();

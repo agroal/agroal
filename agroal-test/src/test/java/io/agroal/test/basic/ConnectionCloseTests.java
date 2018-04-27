@@ -4,6 +4,7 @@
 package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
+import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
 import org.junit.jupiter.api.AfterAll;
@@ -16,6 +17,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -24,6 +26,7 @@ import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -102,6 +105,34 @@ public class ConnectionCloseTests {
             } );
 
             connection.close();
+        }
+    }
+
+    @Test
+    @DisplayName( "Connection closed multiple times" )
+    public void multipleCloseTest() throws SQLException {
+        ReturnListener returnListener = new ReturnListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled(), returnListener ) ) {
+            try (Connection connection = dataSource.getConnection() ) {
+                // Explicit close. This is a try-with-resources so there is another call to connection.close() after this one.
+                connection.close();
+            }
+
+            assertAll( () -> {
+                assertEquals( 1, returnListener.returnCount.longValue(), "Expecting connection to be returned once to the pool" );
+                assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
+            } );
+        }
+    }
+
+    private static class ReturnListener implements AgroalDataSourceListener {
+
+        private LongAdder returnCount = new LongAdder();
+
+        @Override
+        public void beforeConnectionReturn(Connection connection) {
+            returnCount.increment();
         }
     }
 
