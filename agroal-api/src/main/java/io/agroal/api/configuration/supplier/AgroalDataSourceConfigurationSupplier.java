@@ -8,7 +8,6 @@ import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
 
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -19,7 +18,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
 
     private volatile boolean lock;
 
-    private AgroalConnectionPoolConfiguration connectionPoolConfiguration = new AgroalConnectionPoolConfigurationSupplier().get();
+    private AgroalConnectionPoolConfigurationSupplier connectionPoolConfigurationSupplier = new AgroalConnectionPoolConfigurationSupplier();
     private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
 
     private volatile boolean metrics = false;
@@ -29,16 +28,16 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         this.lock = false;
     }
 
-    private AgroalDataSourceConfigurationSupplier applySetting(Consumer<AgroalDataSourceConfigurationSupplier> consumer) {
+    private void checkLock() {
         if ( lock ) {
             throw new IllegalStateException( "Attempt to modify an immutable configuration" );
         }
-        consumer.accept( this );
-        return this;
     }
 
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(AgroalConnectionPoolConfiguration configuration) {
-        return applySetting( c -> c.connectionPoolConfiguration = configuration );
+        checkLock();
+        connectionPoolConfigurationSupplier = new AgroalConnectionPoolConfigurationSupplier( configuration );
+        return this;
     }
 
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Supplier<AgroalConnectionPoolConfiguration> supplier) {
@@ -46,13 +45,19 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     }
 
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Function<AgroalConnectionPoolConfigurationSupplier, AgroalConnectionPoolConfigurationSupplier> function) {
-        return connectionPoolConfiguration( function.apply( new AgroalConnectionPoolConfigurationSupplier( connectionPoolConfiguration ) ) );
+        return connectionPoolConfiguration( function.apply( connectionPoolConfigurationSupplier ) );
+    }
+
+    public AgroalConnectionPoolConfigurationSupplier connectionPoolConfiguration() {
+        return connectionPoolConfigurationSupplier;
     }
 
     // --- //
 
     public AgroalDataSourceConfigurationSupplier dataSourceImplementation(DataSourceImplementation implementation) {
-        return applySetting( c -> c.dataSourceImplementation = implementation );
+        checkLock();
+        dataSourceImplementation = implementation;
+        return this;
     }
 
     public AgroalDataSourceConfigurationSupplier metricsEnabled() {
@@ -60,13 +65,15 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     }
 
     public AgroalDataSourceConfigurationSupplier metricsEnabled(boolean metricsEnabled) {
-        return applySetting( c -> c.metrics = metricsEnabled );
+        checkLock();
+        metrics = metricsEnabled;
+        return this;
     }
 
     // --- //
 
     private void validate() {
-        if ( connectionPoolConfiguration == null ) {
+        if ( connectionPoolConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection poll configuration not defined" );
         }
     }
@@ -81,7 +88,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
 
             @Override
             public AgroalConnectionPoolConfiguration connectionPoolConfiguration() {
-                return connectionPoolConfiguration;
+                return connectionPoolConfigurationSupplier.get();
             }
 
             @Override

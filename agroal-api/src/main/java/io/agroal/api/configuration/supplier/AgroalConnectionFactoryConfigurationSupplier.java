@@ -10,7 +10,6 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.UNDEFINED;
@@ -53,55 +52,70 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         this.jdbcProperties = existingConfiguration.jdbcProperties();
     }
 
-    private AgroalConnectionFactoryConfigurationSupplier applySetting(Consumer<AgroalConnectionFactoryConfigurationSupplier> consumer) {
+    private void checkLock() {
         if ( lock ) {
             throw new IllegalStateException( "Attempt to modify an immutable configuration" );
         }
-        consumer.accept( this );
-        return this;
     }
 
     // --- //
 
     public AgroalConnectionFactoryConfigurationSupplier autoCommit(boolean autoCommitEnabled) {
-        return applySetting( c -> c.autoCommit = autoCommitEnabled );
+        checkLock();
+        autoCommit = autoCommitEnabled;
+        return this;
     }
 
     public AgroalConnectionFactoryConfigurationSupplier jdbcUrl(String jdbcUrlString) {
-        return applySetting( c -> c.jdbcUrl = jdbcUrlString );
+        checkLock();
+        jdbcUrl = jdbcUrlString;
+        return this;
     }
 
     public AgroalConnectionFactoryConfigurationSupplier initialSql(String initialSqlString) {
-        return applySetting( c -> c.initialSql = initialSqlString );
+        checkLock();
+        initialSql = initialSqlString;
+        return this;
     }
 
     public AgroalConnectionFactoryConfigurationSupplier connectionProviderClass(Class<?> connectionProvider) {
-        return applySetting( c -> c.connectionProviderClass = connectionProvider );
+        checkLock();
+        connectionProviderClass = connectionProvider;
+        return this;
     }
 
     public AgroalConnectionFactoryConfigurationSupplier connectionProviderClassName(String connectionProviderName) {
         try {
-            Class<?> connectionProvider = connectionProviderName == null ? null : Class.forName( connectionProviderName );
-            return applySetting( c -> c.connectionProviderClass = connectionProvider );
+            checkLock();
+            connectionProviderClass = connectionProviderName == null ? null : Class.forName( connectionProviderName );
+            return this;
         } catch ( ClassNotFoundException e ) {
             throw new IllegalArgumentException( "Unable to load class " + connectionProviderName, e );
         }
     }
 
     public AgroalConnectionFactoryConfigurationSupplier jdbcTransactionIsolation(TransactionIsolation transactionIsolationLevel) {
-        return applySetting( c -> c.transactionIsolation = transactionIsolationLevel );
+        checkLock();
+        transactionIsolation = transactionIsolationLevel;
+        return this;
     }
 
     public AgroalConnectionFactoryConfigurationSupplier principal(Principal loginPrincipal) {
-        return applySetting( c -> c.principal = loginPrincipal );
+        checkLock();
+        principal = loginPrincipal;
+        return this;
     }
 
     public AgroalConnectionFactoryConfigurationSupplier credential(Object credential) {
-        return applySetting( c -> c.credentials.add( credential ) );
+        checkLock();
+        credentials.add( credential );
+        return this;
     }
 
     public AgroalConnectionFactoryConfigurationSupplier jdbcProperty(String key, String value) {
-        return applySetting( c -> c.jdbcProperties.put( key, value ) );
+        checkLock();
+        jdbcProperties.put( key, value );
+        return this;
     }
 
     // --- //

@@ -6,6 +6,7 @@ package io.agroal.pool.wrapper;
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
@@ -33,16 +34,19 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  */
 public final class ResultSetWrapper implements ResultSet {
 
-    private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        switch ( method.getName() ) {
-            case "close":
-                return Void.TYPE;
-            case "isClosed":
-                return Boolean.TRUE;
-            case "toString":
-                return ResultSetWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
-            default:
-                throw new SQLException( "ResultSet is closed" );
+    private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            switch ( method.getName() ) {
+                case "close":
+                    return Void.TYPE;
+                case "isClosed":
+                    return Boolean.TRUE;
+                case "toString":
+                    return ResultSetWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
+                default:
+                    throw new SQLException( "ResultSet is closed" );
+            }
         }
     };
 

@@ -8,7 +8,6 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.time.Duration;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -24,7 +23,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     private volatile boolean lock;
 
-    private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = new AgroalConnectionFactoryConfigurationSupplier().get();
+    private AgroalConnectionFactoryConfigurationSupplier connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier();
 
     private TransactionIntegration transactionIntegration = none();
     private int initialSize = 0;
@@ -45,7 +44,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( existingConfiguration == null ) {
             return;
         }
-        this.connectionFactoryConfiguration = existingConfiguration.connectionFactoryConfiguration();
+        this.connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( existingConfiguration.connectionFactoryConfiguration() );
         this.transactionIntegration = existingConfiguration.transactionIntegration();
         this.initialSize = existingConfiguration.initialSize();
         this.minSize = existingConfiguration.minSize();
@@ -57,16 +56,16 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         this.acquisitionTimeout = existingConfiguration.acquisitionTimeout();
     }
 
-    private AgroalConnectionPoolConfigurationSupplier applySetting(Consumer<AgroalConnectionPoolConfigurationSupplier> consumer) {
+    private void checkLock() {
         if ( lock ) {
             throw new IllegalStateException( "Attempt to modify an immutable configuration" );
         }
-        consumer.accept( this );
-        return this;
     }
 
     private AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(AgroalConnectionFactoryConfiguration configuration) {
-        return applySetting( c -> c.connectionFactoryConfiguration = configuration );
+        checkLock();
+        connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( configuration );
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Supplier<AgroalConnectionFactoryConfiguration> supplier) {
@@ -74,45 +73,67 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Function<AgroalConnectionFactoryConfigurationSupplier, AgroalConnectionFactoryConfigurationSupplier> function) {
-        return connectionFactoryConfiguration( function.apply( new AgroalConnectionFactoryConfigurationSupplier( connectionFactoryConfiguration ) ) );
+        return connectionFactoryConfiguration( function.apply( connectionFactoryConfigurationSupplier ) );
+    }
+
+    public AgroalConnectionFactoryConfigurationSupplier connectionFactoryConfiguration() {
+        return connectionFactoryConfigurationSupplier;
     }
 
     // --- //
 
     public AgroalConnectionPoolConfigurationSupplier transactionIntegration(TransactionIntegration integration) {
-        return applySetting( c -> c.transactionIntegration = integration );
+        checkLock();
+        transactionIntegration =  integration;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier initialSize(int size) {
-        return applySetting( c -> c.initialSize = size );
+        checkLock();
+        initialSize = size;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier minSize(int size) {
-        return applySetting( c -> c.minSize = size );
+        checkLock();
+        minSize = size;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier maxSize(int size) {
-        return applySetting( c -> c.maxSize = size );
+        checkLock();
+        maxSize = size;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier connectionValidator(AgroalConnectionPoolConfiguration.ConnectionValidator validator) {
-        return applySetting( c -> c.connectionValidator = validator );
+        checkLock();
+        connectionValidator = validator;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier acquisitionTimeout(Duration timeout) {
-        return applySetting( c -> c.acquisitionTimeout = timeout );
+        checkLock();
+        acquisitionTimeout = timeout;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier leakTimeout(Duration timeout) {
-        return applySetting( c -> c.leakTimeout = timeout );
+        checkLock();
+        leakTimeout = timeout;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier validationTimeout(Duration timeout) {
-        return applySetting( c -> c.validationTimeout = timeout );
+        checkLock();
+        validationTimeout = timeout;
+        return this;
     }
 
     public AgroalConnectionPoolConfigurationSupplier reapTimeout(Duration timeout) {
-        return applySetting( c -> c.reapTimeout = timeout );
+        checkLock();
+        reapTimeout = timeout;
+        return this;
     }
 
     // --- //
@@ -130,7 +151,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( initialSize < minSize || initialSize > maxSize ) {
             throw new IllegalArgumentException( "Invalid value for initial size. Must be between min and max." );
         }
-        if ( connectionFactoryConfiguration == null ) {
+        if ( connectionFactoryConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );
         }
     }
@@ -145,7 +166,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
             @Override
             public AgroalConnectionFactoryConfiguration connectionFactoryConfiguration() {
-                return connectionFactoryConfiguration;
+                return connectionFactoryConfigurationSupplier.get();
             }
 
             @Override

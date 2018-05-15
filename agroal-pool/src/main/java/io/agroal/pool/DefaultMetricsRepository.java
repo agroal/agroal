@@ -4,6 +4,7 @@ import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 
 import static java.lang.System.nanoTime;
@@ -33,19 +34,11 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     private final LongAdder flushCount = new LongAdder();
     private final LongAdder reapCount = new LongAdder();
     private final LongAdder destroyCount = new LongAdder();
-    private final AtomicLong maxCreatedDuration = new AtomicLong( 0 );
-    private final AtomicLong maxAcquireDuration = new AtomicLong( 0 );
+    private final LongAccumulator maxCreatedDuration = new LongAccumulator( Long::max, 0 );
+    private final LongAccumulator maxAcquireDuration = new LongAccumulator( Long::max, 0 );
 
     public DefaultMetricsRepository(ConnectionPool pool) {
         this.connectionPool = pool;
-    }
-
-    private void setMaxValue(AtomicLong field, long value) {
-        for ( long oldMax; value > ( oldMax = field.get() ); ) {
-            if ( field.compareAndSet( oldMax, value ) ) {
-                return;
-            }
-        }
     }
 
     @Override
@@ -58,7 +51,7 @@ public final class DefaultMetricsRepository implements MetricsRepository {
         long duration = nanoTime() - timestamp;
         creationCount.increment();
         creationTotalTime.add( duration );
-        setMaxValue( maxCreatedDuration, duration );
+        maxCreatedDuration.accumulate( duration );
     }
 
     @Override
@@ -71,7 +64,7 @@ public final class DefaultMetricsRepository implements MetricsRepository {
         long duration = nanoTime() - timestamp;
         acquireCount.increment();
         acquireTotalTime.add( duration );
-        setMaxValue( maxAcquireDuration, duration );
+        maxAcquireDuration.accumulate( duration );
     }
 
     @Override
@@ -208,8 +201,8 @@ public final class DefaultMetricsRepository implements MetricsRepository {
         leakDetectionCount.reset();
         invalidCount.reset();
 
-        maxCreatedDuration.set( 0 );
-        maxAcquireDuration.set( 0 );
+        maxCreatedDuration.reset();
+        maxAcquireDuration.reset();
         connectionPool.resetMaxUsedCount();
     }
 

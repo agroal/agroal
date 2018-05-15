@@ -6,6 +6,7 @@ package io.agroal.pool.wrapper;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -20,16 +21,19 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  */
 public class StatementWrapper implements Statement {
 
-    private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        switch ( method.getName() ) {
-            case "close":
-                return Void.TYPE;
-            case "isClosed":
-                return Boolean.TRUE;
-            case "toString":
-                return StatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
-            default:
-                throw new SQLException( "Statement is closed" );
+    private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            switch ( method.getName() ) {
+                case "close":
+                    return Void.TYPE;
+                case "isClosed":
+                    return Boolean.TRUE;
+                case "toString":
+                    return StatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
+                default:
+                    throw new SQLException( "Statement is closed" );
+            }
         }
     };
 

@@ -54,7 +54,12 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     private static final Connection CLOSED_CONNECTION = (Connection) newProxyInstance( Connection.class.getClassLoader(), new Class[]{Connection.class}, CLOSED_HANDLER );
 
-    private static final TransactionAware.SQLCallable<Boolean> NO_ACTIVE_TRANSACTION = () -> false;
+    private static final TransactionAware.SQLCallable<Boolean> NO_ACTIVE_TRANSACTION = new SQLCallable<Boolean>() {
+        @Override
+        public Boolean call() throws SQLException {
+            return false;
+        }
+    };
 
     // --- //
 
