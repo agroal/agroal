@@ -5,11 +5,13 @@ package io.agroal.pool.util;
 
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -17,7 +19,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
-    private static final AtomicLong THREAD_COUNT = new AtomicLong();
     private static final Runnable EMPTY_TASK = new Runnable() {
         @Override
         public void run() {
@@ -27,15 +28,28 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     private final Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
 
     public PriorityScheduledExecutor(int executorSize, String threadPrefix) {
-        super( executorSize, r -> {
-            Thread thread = new Thread( r, threadPrefix + THREAD_COUNT.incrementAndGet() );
-            thread.setDaemon( true );
-            return thread;
+        super( executorSize, new ThreadFactory() {
+
+            private final AtomicLong threadCount = new AtomicLong();
+
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread thread = new Thread( r, threadPrefix + threadCount.incrementAndGet() );
+                thread.setDaemon( true );
+                return thread;
+            }
         } );
     }
 
-    public <T> Future<T> executeNow(Runnable priorityTask) {
-        RunnableFuture<T> priorityFuture = new FutureTask<>( priorityTask, null );
+    public void executeNow(Runnable priorityTask) {
+        executeNow( new FutureTask<>( priorityTask, null ) );
+    }
+
+    public <T> Future<T> executeNow(Callable<T> priorityTask) {
+        return executeNow( new FutureTask<>( priorityTask ) );
+    }
+
+    public <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
         priorityTasks.add( priorityFuture );
         // Submit a task so that the beforeExecute() method gets called
         execute( EMPTY_TASK );

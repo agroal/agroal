@@ -98,4 +98,51 @@ public class ResizeTests {
             fail( "Test fail due to interrupt" );
         }
     }
+
+    // --- //
+
+    @Test
+    @DisplayName( "resize Min" )
+    public void resizeMin() throws SQLException {
+        int INITIAL_SIZE = 10, NEW_MIN_SIZE = 15, TIMEOUT_MS = 1000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( INITIAL_SIZE )
+                );
+
+        CountDownLatch creationLatch = new CountDownLatch( INITIAL_SIZE );
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void onConnectionCreation(Connection connection) {
+                creationLatch.countDown();
+            }
+        };
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", INITIAL_SIZE ) );
+            if ( !creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created", creationLatch.getCount() ) );
+            }
+
+            assertEquals( INITIAL_SIZE, dataSource.getMetrics().availableCount(), "Pool not initialized correctly" );
+            dataSource.getConfiguration().connectionPoolConfiguration().setMinSize( NEW_MIN_SIZE );
+
+            // This should be a new connection and not one from the initial
+            try ( Connection c = dataSource.getConnection() ) {
+                    assertNotNull( c );
+            }
+            assertEquals( INITIAL_SIZE + 1, dataSource.getMetrics().availableCount(), "Pool not resized" );
+
+            // This will come from thread local cache, and unfortunately not increase the size of the pool
+            try ( Connection c = dataSource.getConnection() ) {
+                assertNotNull( c );
+            }
+            assertEquals( INITIAL_SIZE + 1, dataSource.getMetrics().availableCount(), "Pool not resized" );
+
+        } catch ( InterruptedException e ) {
+            fail( "Test fail due to interrupt" );
+        }
+    }
 }

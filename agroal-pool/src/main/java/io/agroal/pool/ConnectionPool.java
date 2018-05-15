@@ -18,6 +18,7 @@ import io.agroal.pool.wrapper.ConnectionWrapper;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -90,7 +91,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
         // fill to the initial size
         for ( int n = configuration.initialSize(); n > 0; n-- ) {
-            housekeepingExecutor.execute( new CreateConnectionTask() );
+            housekeepingExecutor.executeNow( new CreateConnectionTask() );
         }
     }
 
@@ -106,7 +107,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         }
         allConnections.clear();
         housekeepingExecutor.shutdown();
-        
+
         activeCount.reset();
         synchronizer.release( synchronizer.getQueueLength() );
     }
@@ -174,15 +175,29 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         remaining = remaining > 0 ? remaining : Long.MAX_VALUE;
         try {
             for ( ; ; ) {
+                // If min-size increases, create a connection right away
+                if ( allConnections.size() < configuration.minSize() ) {
+                    ConnectionHandler handler = housekeepingExecutor.executeNow( new CreateConnectionTask() ).get();
+                    if ( handler != null && handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
+                        return handler;
+                    }
+                    continue;
+                }
+                // Try to find an available connection in the pool
                 for ( ConnectionHandler handler : allConnections ) {
                     if ( handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
                         return handler;
                     }
                 }
+                // If no connections are available and there is room, create one
                 if ( allConnections.size() < configuration.maxSize() ) {
-                    housekeepingExecutor.executeNow( new CreateConnectionTask() ).get();
+                    ConnectionHandler handler = housekeepingExecutor.executeNow( new CreateConnectionTask() ).get();
+                    if ( handler != null && handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
+                        return handler;
+                    }
                     continue;
                 }
+                // Pool full, will have to wait for a connection to be returned
                 long synchronizationStamp = synchronizer.getStamp();
                 long start = nanoTime();
                 if ( remaining < 0 || !synchronizer.tryAcquireNanos( synchronizationStamp, remaining ) ) {
@@ -283,12 +298,12 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
     // --- create //
 
-    private final class CreateConnectionTask implements Runnable {
+    private final class CreateConnectionTask implements Callable<ConnectionHandler> {
 
         @Override
-        public void run() {
+        public ConnectionHandler call() {
             if ( allConnections.size() >= configuration.maxSize() ) {
-                return;
+                return null;
             }
             fireBeforeConnectionCreation( listeners );
             long metricsStamp = metricsRepository.beforeConnectionCreation();
@@ -300,6 +315,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 maxUsed.accumulate( allConnections.size() );
                 metricsRepository.afterConnectionCreation( metricsStamp );
                 fireOnConnectionCreation( listeners, handler );
+                return handler;
             } catch ( SQLException e ) {
                 fireOnWarning( listeners, e );
                 throw new RuntimeException( "Exception while creating new connection", e );
@@ -406,7 +422,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         @Override
         public void run() {
             for ( int n = configuration.minSize() - allConnections.size(); n > 0; n-- ) {
-                housekeepingExecutor.execute( new CreateConnectionTask() );
+                housekeepingExecutor.executeNow( new CreateConnectionTask() );
             }
         }
     }
