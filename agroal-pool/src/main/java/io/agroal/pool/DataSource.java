@@ -44,11 +44,6 @@ public final class DataSource implements AgroalDataSource {
         return connectionPool.getMetrics();
     }
 
-    @Deprecated
-    public void addListener(AgroalDataSourceListener listener) {
-        throw new UnsupportedOperationException( "Deprecated. Add listeners using the constructor or AgroalDataSource factory methods" );
-    }
-
     @Override
     public void flush(FlushMode mode) {
         connectionPool.flush(mode);

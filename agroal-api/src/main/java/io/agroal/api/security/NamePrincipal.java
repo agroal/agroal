@@ -30,7 +30,7 @@ public class NamePrincipal implements Serializable, Principal {
         if ( this == o ) {
             return true;
         }
-        if ( o == null || !( o instanceof Principal ) ) {
+        if ( !( o instanceof Principal ) ) {
             return false;
         }
         Principal p = (Principal) o;

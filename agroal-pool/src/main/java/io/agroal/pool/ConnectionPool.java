@@ -301,6 +301,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 metricsRepository.afterConnectionCreation( metricsStamp );
                 fireOnConnectionCreation( listeners, handler );
             } catch ( SQLException e ) {
+                fireOnWarning( listeners, e );
                 throw new RuntimeException( "Exception while creating new connection", e );
             } finally {
                 // not strictly needed, but not harmful either
@@ -333,9 +334,9 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 flushHandler( handler );
                 return;
             }
-            for ( ConnectionHandler handler : allConnections ) {
-                fireBeforeConnectionFlush( listeners, handler );
-                handlerFlush( mode, handler );
+            for ( ConnectionHandler connectionHandler : allConnections ) {
+                fireBeforeConnectionFlush( listeners, connectionHandler );
+                handlerFlush( mode, connectionHandler );
             }
             afterFlush( mode );
         }
@@ -370,6 +371,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                         }
                     }
                     break;
+                default:
             }
         }
 
@@ -517,7 +519,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                         housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
                     } else {
                         handler.setState( CHECKED_IN );
-                        // System.out.println( "Connection " + handler.getConnection() + " used recently. Do not reap!" );
+                        // for debug, something like: fireOnWarning( listeners,  "Connection " + handler.getConnection() + " used recently. Do not reap!" );
                     }
                 }
             }

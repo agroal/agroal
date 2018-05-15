@@ -47,7 +47,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     private HikariConfig getHikariConfig(AgroalDataSourceConfiguration dataSourceConfiguration) {
         HikariConfig hikariConfig = new HikariConfig();
 
-        hikariConfig.setDataSourceJNDI( dataSourceConfiguration.jndiName() );
+        // hikariConfig.setDataSourceJNDI( dataSourceConfiguration.jndiName() );
         hikariConfig.setLeakDetectionThreshold( poolConfiguration.leakTimeout().toMillis() );
         hikariConfig.setIdleTimeout( poolConfiguration.reapTimeout().toMillis() );
         hikariConfig.setValidationTimeout( poolConfiguration.validationTimeout().toMillis() );
@@ -89,11 +89,6 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     @Override
     public AgroalDataSourceMetrics getMetrics() {
         throw new UnsupportedOperationException( "Hikari pool does not expose metrics" );
-    }
-
-    @Override
-    public void addListener(AgroalDataSourceListener listener) {
-        throw new UnsupportedOperationException( "Hikari pool does not support listeners" );
     }
 
     @Override

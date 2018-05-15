@@ -19,12 +19,8 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
 
     private volatile boolean lock;
 
-    @Deprecated
-    private String jndiName = "";
     private AgroalConnectionPoolConfiguration connectionPoolConfiguration = new AgroalConnectionPoolConfigurationSupplier().get();
     private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
-    @Deprecated
-    private boolean xa;
 
     private volatile boolean metrics = false;
     private volatile MetricsEnabledListener metricsEnabledListener;
@@ -59,16 +55,6 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         return applySetting( c -> c.dataSourceImplementation = implementation );
     }
 
-    @Deprecated
-    public AgroalDataSourceConfigurationSupplier jndiName(String name) {
-        return applySetting( c -> c.jndiName = name );
-    }
-
-    @Deprecated
-    public AgroalDataSourceConfigurationSupplier xa(boolean xaEnabled) {
-        return applySetting( c -> c.xa = xaEnabled );
-    }
-
     public AgroalDataSourceConfigurationSupplier metricsEnabled() {
         return metricsEnabled( true );
     }
@@ -94,11 +80,6 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         return new AgroalDataSourceConfiguration() {
 
             @Override
-            public String jndiName() {
-                return jndiName;
-            }
-
-            @Override
             public AgroalConnectionPoolConfiguration connectionPoolConfiguration() {
                 return connectionPoolConfiguration;
             }
@@ -106,11 +87,6 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
             @Override
             public DataSourceImplementation dataSourceImplementation() {
                 return dataSourceImplementation;
-            }
-
-            @Override
-            public boolean isXA() {
-                return xa;
             }
 
             @Override

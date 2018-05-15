@@ -13,9 +13,6 @@ import java.time.Duration;
  */
 public interface AgroalConnectionPoolConfiguration {
 
-    @Deprecated
-    PreFillMode preFillMode();
-
     AgroalConnectionFactoryConfiguration connectionFactoryConfiguration();
 
     ConnectionValidator connectionValidator();
@@ -65,10 +62,5 @@ public interface AgroalConnectionPoolConfiguration {
         // --- //
 
         boolean isValid(Connection connection);
-    }
-
-    @Deprecated( )
-    enum PreFillMode {
-        NONE, MIN, MAX
     }
 }

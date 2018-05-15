@@ -21,16 +21,7 @@ public interface AgroalConnectionFactoryConfiguration {
 
     Class<?> connectionProviderClass();
 
-    @Deprecated
-    String driverClassName();
-
-    @Deprecated
-    ClassLoaderProvider classLoaderProvider();
-
     TransactionIsolation jdbcTransactionIsolation();
-
-    @Deprecated
-    InterruptProtection interruptProtection();
 
     Principal principal();
 

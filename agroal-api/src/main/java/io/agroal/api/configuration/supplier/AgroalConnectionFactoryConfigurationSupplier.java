@@ -5,8 +5,6 @@ package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation;
-import io.agroal.api.configuration.ClassLoaderProvider;
-import io.agroal.api.configuration.InterruptProtection;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -16,8 +14,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.UNDEFINED;
-import static io.agroal.api.configuration.ClassLoaderProvider.systemClassloader;
-import static io.agroal.api.configuration.InterruptProtection.none;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -33,13 +29,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private String jdbcUrl = "";
     private String initialSql = "";
     private Class<?> connectionProviderClass;
-    @Deprecated
-    private String driverClassName = "";
-    @Deprecated
-    private ClassLoaderProvider classLoaderProvider = systemClassloader();
     private TransactionIsolation transactionIsolation = UNDEFINED;
-    @Deprecated
-    private InterruptProtection interruptProtection = none();
     private Principal principal;
     private Collection<Object> credentials = new ArrayList<>();
     private Properties jdbcProperties = new Properties();
@@ -57,10 +47,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         this.jdbcUrl = existingConfiguration.jdbcUrl();
         this.initialSql = existingConfiguration.initialSql();
         this.connectionProviderClass = existingConfiguration.connectionProviderClass();
-        this.driverClassName = existingConfiguration.driverClassName();
-        this.classLoaderProvider = existingConfiguration.classLoaderProvider();
         this.transactionIsolation = existingConfiguration.jdbcTransactionIsolation();
-        this.interruptProtection = existingConfiguration.interruptProtection();
         this.principal = existingConfiguration.principal();
         this.credentials = existingConfiguration.credentials();
         this.jdbcProperties = existingConfiguration.jdbcProperties();
@@ -101,28 +88,8 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         }
     }
 
-    @Deprecated
-    public AgroalConnectionFactoryConfigurationSupplier driverClassName(String driverClass) {
-        return applySetting( c -> c.driverClassName = driverClass );
-    }
-
-    @Deprecated
-    public AgroalConnectionFactoryConfigurationSupplier classLoaderProvider(ClassLoaderProvider provider) {
-        return applySetting( c -> c.classLoaderProvider = provider );
-    }
-
-    @Deprecated
-    public AgroalConnectionFactoryConfigurationSupplier classLoader(ClassLoader classLoader) {
-        return applySetting( c -> c.classLoaderProvider = className -> classLoader );
-    }
-
     public AgroalConnectionFactoryConfigurationSupplier jdbcTransactionIsolation(TransactionIsolation transactionIsolationLevel) {
         return applySetting( c -> c.transactionIsolation = transactionIsolationLevel );
-    }
-
-    @Deprecated
-    public AgroalConnectionFactoryConfigurationSupplier interruptHandlingMode(InterruptProtection interruptProtectionEnabled) {
-        return applySetting( c -> c.interruptProtection = interruptProtectionEnabled );
     }
 
     public AgroalConnectionFactoryConfigurationSupplier principal(Principal loginPrincipal) {
@@ -177,23 +144,8 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             }
 
             @Override
-            public String driverClassName() {
-                return driverClassName;
-            }
-
-            @Override
-            public ClassLoaderProvider classLoaderProvider() {
-                return classLoaderProvider;
-            }
-
-            @Override
             public TransactionIsolation jdbcTransactionIsolation() {
                 return transactionIsolation;
-            }
-
-            @Override
-            public InterruptProtection interruptProtection() {
-                return interruptProtection;
             }
 
             @Override

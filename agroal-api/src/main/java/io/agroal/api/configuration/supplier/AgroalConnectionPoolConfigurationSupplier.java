@@ -5,7 +5,6 @@ package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
-import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.time.Duration;
@@ -14,8 +13,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
-import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.MAX;
-import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode.NONE;
 import static io.agroal.api.transaction.TransactionIntegration.none;
 import static java.lang.Integer.MAX_VALUE;
 import static java.time.Duration.ZERO;
@@ -29,8 +26,6 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = new AgroalConnectionFactoryConfigurationSupplier().get();
 
-    @Deprecated
-    private PreFillMode preFillMode = NONE;
     private TransactionIntegration transactionIntegration = none();
     private int initialSize = 0;
     private volatile int minSize = 0;
@@ -51,7 +46,6 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             return;
         }
         this.connectionFactoryConfiguration = existingConfiguration.connectionFactoryConfiguration();
-        this.preFillMode = existingConfiguration.preFillMode();
         this.transactionIntegration = existingConfiguration.transactionIntegration();
         this.initialSize = existingConfiguration.initialSize();
         this.minSize = existingConfiguration.minSize();
@@ -87,11 +81,6 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     public AgroalConnectionPoolConfigurationSupplier transactionIntegration(TransactionIntegration integration) {
         return applySetting( c -> c.transactionIntegration = integration );
-    }
-
-    @Deprecated
-    public AgroalConnectionPoolConfigurationSupplier preFillMode(PreFillMode mode) {
-        return applySetting( c -> c.preFillMode = mode );
     }
 
     public AgroalConnectionPoolConfigurationSupplier initialSize(int size) {
@@ -141,9 +130,6 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( initialSize < minSize || initialSize > maxSize ) {
             throw new IllegalArgumentException( "Invalid value for initial size. Must be between min and max." );
         }
-        if ( maxSize == MAX_VALUE && MAX.equals( preFillMode ) ) {
-            throw new IllegalArgumentException( "Invalid pre-fill mode MAX without specifying max size" );
-        }
         if ( connectionFactoryConfiguration == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );
         }
@@ -165,11 +151,6 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public TransactionIntegration transactionIntegration() {
                 return transactionIntegration;
-            }
-
-            @Override
-            public PreFillMode preFillMode() {
-                return preFillMode;
             }
 
             @Override

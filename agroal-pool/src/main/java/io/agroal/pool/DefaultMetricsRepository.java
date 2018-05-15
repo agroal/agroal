@@ -1,11 +1,11 @@
 package io.agroal.pool;
 
+import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
-import static java.lang.String.format;
 import static java.lang.System.nanoTime;
 import static java.time.Duration.ZERO;
 import static java.time.Duration.ofNanos;
@@ -15,6 +15,12 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public final class DefaultMetricsRepository implements MetricsRepository {
+
+    private static final String FORMAT_1 = "Connections: {0} created | {1} invalid | {2} reap | {3} flush | {4} destroyed";
+    private static final String FORMAT_2 = "Pool: {0} available | {1} active | {2} max | {3} acquired | {4} returned";
+    private static final String FORMAT_3 = "Created duration: {0,number,000.000}ms average | {1}ms max | {2}ms total";
+    private static final String FORMAT_4 = "Acquire duration: {0,number,000.000}ms average | {1}ms max | {2}ms total";
+    private static final String FORMAT_5 = "Threads awaiting: {0}";
 
     private final ConnectionPool connectionPool;
     private final LongAdder creationCount = new LongAdder();
@@ -214,13 +220,15 @@ public final class DefaultMetricsRepository implements MetricsRepository {
         double avgCreationMs = (double) creationTimeAverage().toNanos() / MILLISECONDS.toNanos( 1 );
         double avgBlockingMs = (double) blockingTimeAverage().toNanos() / MILLISECONDS.toNanos( 1 );
 
-        String s1 = format( Locale.ROOT, "Connections: {0} created | {1} invalid | {2} reap | {3} flush | {4} destroyed", creationCount, invalidCount, reapCount, flushCount, destroyCount );
-        String s2 = format( Locale.ROOT, "Pool: {0} available | {1} active | {2} max | {3} acquired | {4} returned", availableCount(), activeCount(), maxUsedCount(), acquireCount, returnCount );
-        String s3 = format( Locale.ROOT, "Created duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgCreationMs, creationTimeMax().toMillis(), creationTimeTotal().toMillis() );
-        String s4 = format( Locale.ROOT, "Acquire duration: {0,number,000.000}ms average | {1}ms max | {2}ms total", avgBlockingMs, blockingTimeMax().toMillis(), blockingTimeTotal().toMillis() );
-        String s5 = format( Locale.ROOT, "Threads awaiting: {0}", awaitingCount() );
-
         String nl = System.lineSeparator();
-        return nl + "===" + nl + s1 + nl + s2 + nl + s3 + nl + s4 + nl + s5 + nl + "===";
+
+        StringBuffer buffer = new StringBuffer( 500 );
+        buffer.append( nl ).append( "===" ).append( nl );
+        new MessageFormat( FORMAT_1, Locale.ROOT ).format( new Object[]{creationCount, invalidCount, reapCount, flushCount, destroyCount}, buffer, null ).append( nl );
+        new MessageFormat( FORMAT_2, Locale.ROOT ).format( new Object[]{availableCount(), activeCount(), maxUsedCount(), acquireCount, returnCount}, buffer, null ).append( nl );
+        new MessageFormat( FORMAT_3, Locale.ROOT ).format( new Object[]{avgCreationMs, creationTimeMax().toMillis(), creationTimeTotal().toMillis()}, buffer, null ).append( nl );
+        new MessageFormat( FORMAT_4, Locale.ROOT ).format( new Object[]{avgBlockingMs, blockingTimeMax().toMillis(), blockingTimeTotal().toMillis()}, buffer, null ).append( nl );
+        new MessageFormat( FORMAT_5, Locale.ROOT ).format( new Object[]{awaitingCount()}, buffer, null ).append( nl );
+        return buffer.append( "===" ).toString();
     }
 }

@@ -49,15 +49,12 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
 
     void flush(FlushMode mode);
 
-    @Deprecated
-    void addListener(AgroalDataSourceListener listener);
-
     @Override
     void close();
 
     // --- //
 
-    enum FlushMode{
+    enum FlushMode {
         ALL, IDLE, INVALID, GRACEFUL, FILL
     }
 }

@@ -4,7 +4,6 @@
 package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation;
-import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.PreFillMode;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation;
 import io.agroal.api.security.NamePrincipal;
@@ -31,19 +30,13 @@ import static java.util.function.Function.identity;
 public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfiguration> {
 
     public static final String IMPLEMENTATION = "implementation";
-    @Deprecated
-    public static final String JNDI_NAME = "jndiName";
     public static final String METRICS_ENABLED = "metricsEnabled";
-    @Deprecated
-    public static final String XA = "xa";
 
     // --- //
 
     public static final String MIN_SIZE = "minSize";
     public static final String MAX_SIZE = "maxSize";
     public static final String INITIAL_SIZE = "initialSize";
-    @Deprecated
-    public static final String PRE_FILL_MODE = "preFillMode";
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
     public static final String ACQUISITION_TIMEOUT_MS = "acquisitionTimeout_ms";
     public static final String ACQUISITION_TIMEOUT_S = "acquisitionTimeout_s";
@@ -124,14 +117,11 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         AgroalConnectionFactoryConfigurationSupplier connectionFactorySupplier = new AgroalConnectionFactoryConfigurationSupplier();
 
         apply( dataSourceSupplier::dataSourceImplementation, DataSourceImplementation::valueOf, properties, IMPLEMENTATION );
-        apply( dataSourceSupplier::jndiName, identity(), properties, JNDI_NAME );
         apply( dataSourceSupplier::metricsEnabled, Boolean::parseBoolean, properties, METRICS_ENABLED );
-        apply( dataSourceSupplier::xa, Boolean::parseBoolean, properties, XA );
 
         apply( connectionPoolSupplier::minSize, Integer::parseInt, properties, MIN_SIZE );
         apply( connectionPoolSupplier::maxSize, Integer::parseInt, properties, MAX_SIZE );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
-        apply( connectionPoolSupplier::preFillMode, PreFillMode::valueOf, properties, PRE_FILL_MODE );
 
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );
         apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationMs, properties, ACQUISITION_TIMEOUT_MS );
@@ -194,5 +184,4 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     private Duration parseDurationM(String value) {
         return Duration.ofMinutes( Long.parseLong( value ) );
     }
-
 }

@@ -67,7 +67,7 @@ public class BasicHikariTests {
                 .connectionPoolConfiguration( cp -> cp
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
                         .connectionFactoryConfiguration( cf -> cf
-                                .driverClassName( fakeDriver.getClass().getName() )
+                                .connectionProviderClassName( fakeDriver.getClass().getName() )
                                 .jdbcUrl( "jdbc://" )
                         )
                 );
@@ -90,7 +90,7 @@ public class BasicHikariTests {
                 .connectionPoolConfiguration( cp -> cp
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
                         .connectionFactoryConfiguration( cf -> cf
-                                .driverClassName( fakeDriver.getClass().getName() )
+                                .connectionProviderClassName( fakeDriver.getClass().getName() )
                                 .jdbcUrl( "jdbc://" )
                         )
                 );
@@ -123,7 +123,7 @@ public class BasicHikariTests {
                         .acquisitionTimeout( ofMillis( ACQUISITION_TIMEOUT_MS ) )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
                         .connectionFactoryConfiguration( cf -> cf
-                                .driverClassName( fakeDriver.getClass().getName() )
+                                .connectionProviderClassName( fakeDriver.getClass().getName() )
                                 .jdbcUrl( "jdbc://" )
                         )
                 );

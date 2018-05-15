@@ -236,7 +236,7 @@ public final class UncheckedArrayList<T> implements List<T> {
 
     // --- //
 
-    private final static class UncheckedIterator<T> implements Iterator<T> {
+    private static final class UncheckedIterator<T> implements Iterator<T> {
 
         private final int size;
 

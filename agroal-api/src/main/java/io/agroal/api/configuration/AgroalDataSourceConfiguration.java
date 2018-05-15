@@ -8,15 +8,9 @@ package io.agroal.api.configuration;
  */
 public interface AgroalDataSourceConfiguration {
 
-    @Deprecated
-    String jndiName();
-
     AgroalConnectionPoolConfiguration connectionPoolConfiguration();
 
     DataSourceImplementation dataSourceImplementation();
-
-    @Deprecated
-    boolean isXA();
 
     // --- //
 

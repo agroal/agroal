@@ -29,7 +29,7 @@ public class SimplePassword implements Serializable {
         if ( this == o ) {
             return true;
         }
-        if ( o == null || !(o instanceof SimplePassword) ) {
+        if ( !( o instanceof SimplePassword ) ) {
             return false;
         }
 
