@@ -148,8 +148,8 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( minSize > maxSize ) {
             throw new IllegalArgumentException( "Invalid min size: greater than max size" );
         }
-        if ( initialSize < minSize || initialSize > maxSize ) {
-            throw new IllegalArgumentException( "Invalid value for initial size. Must be between min and max." );
+        if ( initialSize < 0 ) {
+            throw new IllegalArgumentException( "Invalid value for initial size. Must be positive, and ideally between min size and max size" );
         }
         if ( connectionFactoryConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );
@@ -204,6 +204,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             public void setMaxSize(int size) {
                 if ( size <= 0 ) {
                     throw new IllegalArgumentException( "A Positive max size is required" );
+                }
+                if ( size < minSize ) {
+                    throw new IllegalArgumentException( "Invalid max size: smaller than min size" );
                 }
                 maxSize = size;
             }

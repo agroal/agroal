@@ -90,6 +90,9 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         }
 
         // fill to the initial size
+        if ( configuration.initialSize() < configuration.minSize() || configuration.initialSize() > configuration.maxSize() ) {
+            fireOnWarning( listeners, "Initial size not whithin min / max bounds" );
+        }
         for ( int n = configuration.initialSize(); n > 0; n-- ) {
             housekeepingExecutor.executeNow( new CreateConnectionTask() );
         }
@@ -233,6 +236,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 handler.setState( FLUSH );
                 allConnections.remove( handler );
                 housekeepingExecutor.execute( new FlushTask( handler ) );
+                return;
             }
 
             handler.resetConnection( configuration.connectionFactoryConfiguration() );
