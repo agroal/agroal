@@ -83,10 +83,13 @@ public final class ConnectionHandler {
     }
 
     public void closeConnection() throws SQLException {
-        if ( state != State.FLUSH ) {
-            throw new SQLException( "Closing connection in incorrect state" );
+        try {
+            if ( state != State.FLUSH ) {
+                throw new SQLException( "Closing connection in incorrect state " + state );
+            }
+        } finally {
+            connection.close();
         }
-        connection.close();
     }
 
     public boolean setState(State expected, State newState) {
