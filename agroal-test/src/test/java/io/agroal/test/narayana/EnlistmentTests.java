@@ -114,8 +114,8 @@ public class EnlistmentTests {
     }
 
     @Test
-    @DisplayName( "Lazy enlistment test" )
-    public void lazyEnlistmentTest() throws SQLException {
+    @DisplayName( "Deferred enlistment test" )
+    public void deferredEnlistmentTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
