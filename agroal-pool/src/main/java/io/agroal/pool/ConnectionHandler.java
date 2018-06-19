@@ -44,6 +44,9 @@ public final class ConnectionHandler {
     // for expiration (CHECKED_IN connections) and leak detection (CHECKED_OUT connections)
     private long lastAccess;
 
+    // flag to indicate that this the connection is enlisted to a transaction
+    private boolean enlisted;
+
     public ConnectionHandler(XAConnection xaConnection, ConnectionPool pool) throws SQLException {
         connection = xaConnection.getConnection();
         xaResource = xaConnection.getXAResource();
@@ -132,6 +135,18 @@ public final class ConnectionHandler {
 
     public void setDirtyAttribute(DirtyAttribute attribute) {
         dirtyAttributes.add( attribute );
+    }
+
+    public boolean isEnlisted() {
+        return enlisted;
+    }
+
+    public void setEnlisted() {
+        enlisted = true;
+    }
+
+    public void resetEnlisted() {
+        enlisted = false;
     }
 
     // --- //

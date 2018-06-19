@@ -72,9 +72,6 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     // This boolean prevents the connection to be returned to the pool multiple times
     private boolean returnedHandler = false;
 
-    // Flag to indicate that this ConnectionWrapper is currently enlisted with a transaction
-    private boolean inTransaction = false;
-
     // TODO: make trackStatements configurable
     // Flag to indicate that this ConnectionWrapper should track statements to close them on close()
     private boolean trackStatements = true;
@@ -97,8 +94,10 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void transactionStart() throws SQLException {
-        this.setAutoCommit( false );
-        inTransaction = true;
+        if ( !handler.isEnlisted() ) {
+              handler.setEnlisted();
+              setAutoCommit( false );
+        }
     }
 
     @Override
@@ -113,14 +112,12 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void transactionEnd() throws SQLException {
-        inTransaction = false;
+        handler.resetEnlisted();
     }
 
     @Override
     public Object getConnection() {
-        ConnectionWrapper connection = new ConnectionWrapper( handler );
-        connection.inTransaction = true;
-        return connection;
+        return new ConnectionWrapper( handler );
     }
 
     @Override
@@ -129,7 +126,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     }
 
     private void lazyEnlistmentCheck() throws SQLException {
-        if ( !inTransaction && transactionActiveCheck.call() ) {
+        if ( !handler.isEnlisted() && transactionActiveCheck.call() ) {
             throw new SQLException( "Lazy enlistment not supported" );
         }
     }
@@ -182,7 +179,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
     @Override
     public void close() throws SQLException {
         wrappedConnection = CLOSED_CONNECTION;
-        if ( !inTransaction && !returnedHandler ) {
+        if ( !handler.isEnlisted() && !returnedHandler ) {
             returnedHandler = true;
             closeTrackedStatements();
             transactionActiveCheck = NO_ACTIVE_TRANSACTION;
@@ -198,7 +195,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
-        if ( autoCommit && inTransaction ) {
+        if ( autoCommit && handler.isEnlisted() ) {
             throw new SQLException( "Trying to set autocommit in connection taking part of transaction" );
         }
         lazyEnlistmentCheck();
@@ -214,7 +211,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void commit() throws SQLException {
-        if ( inTransaction ) {
+        if ( handler.isEnlisted() ) {
             throw new SQLException( "Attempting to commit while taking part in a transaction" );
         }
         wrappedConnection.commit();
@@ -222,7 +219,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void rollback() throws SQLException {
-        if ( inTransaction ) {
+        if ( handler.isEnlisted() ) {
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
         lazyEnlistmentCheck();
@@ -231,7 +228,7 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public void rollback(Savepoint savepoint) throws SQLException {
-        if ( inTransaction ) {
+        if ( handler.isEnlisted() ) {
             throw new SQLException( "Attempting to commit while enlisted in a transaction" );
         }
         lazyEnlistmentCheck();
@@ -526,6 +523,6 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
 
     @Override
     public String toString() {
-        return "wrapped[" + wrappedConnection + ( inTransaction ? "]<<enrolled" : "]" );
+        return "wrapped[" + wrappedConnection + ( handler.isEnlisted() ? "]<<enrolled" : "]" );
     }
 }
