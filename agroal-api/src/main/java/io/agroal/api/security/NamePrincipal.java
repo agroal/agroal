@@ -19,6 +19,10 @@ public class NamePrincipal implements Serializable, Principal {
         this.name = name;
     }
 
+    public NamePrincipal(char[] name) {
+        this.name = new String( name );
+    }
+
     public String getName() {
         return name;
     }

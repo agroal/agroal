@@ -18,6 +18,10 @@ public class SimplePassword implements Serializable {
         this.word = password;
     }
 
+    public SimplePassword(char[] password) {
+        this.word = new String( password );
+    }
+
     public String getWord() {
         return word;
     }
