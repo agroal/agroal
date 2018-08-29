@@ -27,6 +27,10 @@ public interface AgroalConnectionFactoryConfiguration {
 
     Collection<Object> credentials();
 
+    Principal recoveryPrincipal();
+
+    Collection<Object> recoveryCredentials();
+
     Properties jdbcProperties();
 
     // --- //

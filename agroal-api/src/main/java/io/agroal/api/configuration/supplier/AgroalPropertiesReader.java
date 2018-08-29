@@ -63,6 +63,8 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String TRANSACTION_ISOLATION = "jdbcTransactionIsolation";
     public static final String PRINCIPAL = "principal";
     public static final String CREDENTIAL = "credential";
+    public static final String RECOVERY_PRINCIPAL = "recoveryPrincipal";
+    public static final String RECOVERY_CREDENTIAL = "recoveryCredential";
     public static final String JDBC_PROPERTIES = "jdbcProperties";
 
     // --- //
@@ -150,6 +152,8 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionFactorySupplier::jdbcTransactionIsolation, TransactionIsolation::valueOf, properties, TRANSACTION_ISOLATION );
         apply( connectionFactorySupplier::principal, NamePrincipal::new, properties, PRINCIPAL );
         apply( connectionFactorySupplier::credential, SimplePassword::new, properties, CREDENTIAL );
+        apply( connectionFactorySupplier::recoveryPrincipal, NamePrincipal::new, properties, RECOVERY_PRINCIPAL );
+        apply( connectionFactorySupplier::recoveryCredential, SimplePassword::new, properties, RECOVERY_CREDENTIAL );
         applyJdbcProperties( connectionFactorySupplier::jdbcProperty, properties, JDBC_PROPERTIES );
 
         dataSourceSupplier.connectionPoolConfiguration( connectionPoolSupplier.connectionFactoryConfiguration( connectionFactorySupplier ) );

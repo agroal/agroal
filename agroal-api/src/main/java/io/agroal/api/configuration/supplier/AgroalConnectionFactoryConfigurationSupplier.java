@@ -31,6 +31,8 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private TransactionIsolation transactionIsolation = UNDEFINED;
     private Principal principal;
     private Collection<Object> credentials = new ArrayList<>();
+    private Principal recoveryPrincipal;
+    private Collection<Object> recoveryCredentials = new ArrayList<>();
     private Properties jdbcProperties = new Properties();
 
     public AgroalConnectionFactoryConfigurationSupplier() {
@@ -49,6 +51,8 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         this.transactionIsolation = existingConfiguration.jdbcTransactionIsolation();
         this.principal = existingConfiguration.principal();
         this.credentials = existingConfiguration.credentials();
+        this.recoveryPrincipal = existingConfiguration.recoveryPrincipal();
+        this.recoveryCredentials = existingConfiguration.recoveryCredentials();
         this.jdbcProperties = existingConfiguration.jdbcProperties();
     }
 
@@ -112,6 +116,18 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         return this;
     }
 
+    public AgroalConnectionFactoryConfigurationSupplier recoveryPrincipal(Principal loginPrincipal) {
+        checkLock();
+        recoveryPrincipal = loginPrincipal;
+        return this;
+    }
+
+    public AgroalConnectionFactoryConfigurationSupplier recoveryCredential(Object credential) {
+        checkLock();
+        recoveryCredentials.add( credential );
+        return this;
+    }
+
     public AgroalConnectionFactoryConfigurationSupplier jdbcProperty(String key, String value) {
         checkLock();
         jdbcProperties.put( key, value );
@@ -170,6 +186,16 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public Collection<Object> credentials() {
                 return credentials;
+            }
+
+            @Override
+            public Principal recoveryPrincipal() {
+                return recoveryPrincipal;
+            }
+
+            @Override
+            public Collection<Object> recoveryCredentials() {
+                return recoveryCredentials;
             }
 
             @Override

@@ -33,6 +33,7 @@ public final class ConnectionFactory {
     private final AgroalConnectionFactoryConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
     private final Properties jdbcProperties;
+    private final Properties recoveryProperties;
     private final Mode factoryMode;
 
     // these are the sources for connections, that will be used depending on the mode
@@ -44,58 +45,64 @@ public final class ConnectionFactory {
         this.configuration = configuration;
         this.listeners = listeners;
         this.jdbcProperties = new Properties();
+        this.recoveryProperties = new Properties();
         configuration.jdbcProperties().forEach( jdbcProperties::put );
+        configuration.jdbcProperties().forEach( recoveryProperties::put );
 
         setupSecurity( configuration );
 
         this.factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
         switch ( factoryMode ) {
             case XA_DATASOURCE:
-                setupXA();
+                this.xaDataSource = newXADataSource( jdbcProperties );
                 break;
             case DATASOURCE:
-                setupDataSource();
+                this.dataSource = newDataSource( jdbcProperties );
                 break;
             case DRIVER:
-                setupDriver();
+                this.driver = newDriver();
                 break;
         }
     }
 
-    private void setupXA() {
+    private javax.sql.XADataSource newXADataSource(Properties properties) {
+        javax.sql.XADataSource newDataSource;
         try {
-            xaDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.XADataSource.class ).newInstance();
+            newDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.XADataSource.class ).newInstance();
         } catch ( IllegalAccessException | InstantiationException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.XADataSource", e );
         }
         PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
 
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectProperty( injector, xaDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+            injectProperty( injector, newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
 
-        injectJdbcProperties( injector, xaDataSource );
+        injectJdbcProperties( injector, newDataSource, properties );
+        return newDataSource;
     }
 
-    private void setupDataSource() {
+    private javax.sql.DataSource newDataSource(Properties properties) {
+        javax.sql.DataSource newDataSource;
         try {
-            dataSource = configuration.connectionProviderClass().asSubclass( javax.sql.DataSource.class ).newInstance();
+            newDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.DataSource.class ).newInstance();
         } catch ( IllegalAccessException | InstantiationException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.DataSource", e );
         }
         PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
 
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectProperty( injector, dataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+            injectProperty( injector, newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
 
-        injectJdbcProperties( injector, dataSource );
+        injectJdbcProperties( injector, newDataSource, properties );
+        return newDataSource;
     }
 
-    private void setupDriver() {
+    private java.sql.Driver newDriver() {
         if ( configuration.connectionProviderClass() == null ) {
             try {
-                driver = java.sql.DriverManager.getDriver( configuration.jdbcUrl() );
+                return driver = java.sql.DriverManager.getDriver( configuration.jdbcUrl() );
             } catch ( SQLException sql ) {
                 throw new RuntimeException( "Unable to get java.sql.Driver from DriverManager", sql );
             }
@@ -105,6 +112,7 @@ public final class ConnectionFactory {
                 if ( !driver.acceptsURL( configuration.jdbcUrl() ) ) {
                     fireOnWarning( listeners, "Driver does not support the provided URL: " + configuration.jdbcUrl() );
                 }
+                return driver;
             } catch ( IllegalAccessException | InstantiationException e ) {
                 throw new RuntimeException( "Unable to instantiate java.sql.Driver", e );
             } catch ( SQLException e ) {
@@ -121,11 +129,11 @@ public final class ConnectionFactory {
         }
     }
 
-    private void injectJdbcProperties(PropertyInjector injector, Object target) {
+    private void injectJdbcProperties(PropertyInjector injector, Object target, Properties properties) {
         boolean ignoring = false;
-        for ( String propertyName : jdbcProperties.stringPropertyNames() ) {
+        for ( String propertyName : properties.stringPropertyNames() ) {
             try {
-                injector.inject( target, propertyName, jdbcProperties.getProperty( propertyName ) );
+                injector.inject( target, propertyName, properties.getProperty( propertyName ) );
             } catch ( IllegalArgumentException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
                 fireOnWarning( listeners, "Ignoring property '" + propertyName + "': " + e.getMessage() );
                 ignoring = true;
@@ -139,12 +147,21 @@ public final class ConnectionFactory {
     // --- //
 
     private void setupSecurity(AgroalConnectionFactoryConfiguration configuration) {
-        Principal principal = configuration.principal();
+        setupSecurity( jdbcProperties, configuration.principal(), configuration.credentials() );
 
+        // use the main credentials when recovery credentials are not provided
+        if ( configuration.recoveryPrincipal() == null && configuration.recoveryCredentials() == null ) {
+            setupSecurity( recoveryProperties, configuration.principal(), configuration.credentials() );
+        } else {
+            setupSecurity( recoveryProperties, configuration.recoveryPrincipal(), configuration.recoveryCredentials() );
+        }
+    }
+
+    private void setupSecurity(Properties properties, Principal principal, Iterable<Object> credentials) {
         if ( principal == null ) {
             // skip!
         } else if ( principal instanceof NamePrincipal ) {
-            jdbcProperties.put( USER_PROPERTY_NAME, principal.getName() );
+            properties.put( USER_PROPERTY_NAME, principal.getName() );
         }
 
         // Add other principal types here
@@ -153,9 +170,9 @@ public final class ConnectionFactory {
             throw new IllegalArgumentException( "Unknown Principal type: " + principal.getClass().getName() );
         }
 
-        for ( Object credential : configuration.credentials() ) {
+        for ( Object credential : credentials ) {
             if ( credential instanceof SimplePassword ) {
-                jdbcProperties.put( PASSWORD_PROPERTY_NAME, ( (SimplePassword) credential ).getWord() );
+                properties.put( PASSWORD_PROPERTY_NAME, ( (SimplePassword) credential ).getWord() );
             }
 
             // Add other credential types here
@@ -207,6 +224,16 @@ public final class ConnectionFactory {
         }
         connectionSetup( xaConnection.getConnection() );
         return xaConnection;
+    }
+
+    // --- //
+
+    public XAConnection recoveryConnection() throws SQLException {
+        if ( factoryMode == Mode.XA_DATASOURCE ) {
+            return xaConnectionSetup( newXADataSource( recoveryProperties ).getXAConnection() );
+        } else {
+            throw new SQLException( "Recovery connections are only available for XADataSource" );
+        }
     }
 
     // --- //
