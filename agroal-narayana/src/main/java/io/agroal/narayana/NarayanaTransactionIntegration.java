@@ -5,6 +5,8 @@ package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
 import io.agroal.api.transaction.TransactionIntegration;
+import org.jboss.tm.XAResourceRecovery;
+import org.jboss.tm.XAResourceRecoveryRegistry;
 
 import javax.transaction.Synchronization;
 import javax.transaction.Transaction;
@@ -14,6 +16,8 @@ import javax.transaction.xa.XAResource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static javax.transaction.Status.STATUS_ACTIVE;
 import static javax.transaction.Status.STATUS_MARKED_ROLLBACK;
@@ -23,6 +27,9 @@ import static javax.transaction.Status.STATUS_MARKED_ROLLBACK;
  */
 public class NarayanaTransactionIntegration implements TransactionIntegration {
 
+    // Use this cache as method references are not stable (they are used as bridge between ResourceRecoveryFactory and XAResourceRecovery)
+    private static final ConcurrentMap<ResourceRecoveryFactory, XAResourceRecovery> resourceRecoveryCache = new ConcurrentHashMap<>();
+
     private final TransactionManager transactionManager;
 
     private final TransactionSynchronizationRegistry transactionSynchronizationRegistry;
@@ -30,6 +37,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     private final String jndiName;
 
     private final boolean connectable;
+
+    private final XAResourceRecoveryRegistry recoveryRegistry;
 
     // In order to construct a UID that is globally unique, simply pair a UID with an InetAddress.
     private final UUID key = UUID.randomUUID();
@@ -43,10 +52,15 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     }
 
     public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable) {
+        this( transactionManager, transactionSynchronizationRegistry, jndiName, false, null );
+    }
+
+    public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable, XAResourceRecoveryRegistry recoveryRegistry) {
         this.transactionManager = transactionManager;
         this.transactionSynchronizationRegistry = transactionSynchronizationRegistry;
         this.jndiName = jndiName;
         this.connectable = connectable;
+        this.recoveryRegistry = recoveryRegistry;
     }
 
     @Override
@@ -76,7 +90,6 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                         xaResourceToEnlist = new LocalXAResource( (TransactionAware) connection, jndiName );
                     }
                     transactionManager.getTransaction().enlistResource( xaResourceToEnlist );
-
                 } else {
                     ( (TransactionAware) connection ).transactionStart();
                 }
@@ -105,6 +118,22 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         }
     }
 
+    // -- //
+
+    @Override
+    public void addResourceRecoveryFactory(ResourceRecoveryFactory factory) {
+        if ( recoveryRegistry != null ) {
+            recoveryRegistry.addXAResourceRecovery( resourceRecoveryCache.computeIfAbsent( factory, f -> f::recoveryResources ) );
+        }
+    }
+
+    @Override
+    public void removeResourceRecoveryFactory(ResourceRecoveryFactory factory) {
+        if ( recoveryRegistry != null ) {
+            recoveryRegistry.removeXAResourceRecovery( resourceRecoveryCache.remove( factory ) );
+        }
+    }
+
     // --- //
 
     private static class InterposedSynchronization implements Synchronization {
@@ -130,5 +159,4 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
             }
         }
     }
-
 }

@@ -89,6 +89,8 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             housekeepingExecutor.schedule( new ReapTask(), configuration.reapTimeout().toNanos(), NANOSECONDS );
         }
 
+        transactionIntegration.addResourceRecoveryFactory( connectionFactory );
+
         // fill to the initial size
         if ( configuration.initialSize() < configuration.minSize() || configuration.initialSize() > configuration.maxSize() ) {
             fireOnWarning( listeners, "Initial size not whithin min / max bounds" );
@@ -104,6 +106,8 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
     @Override
     public void close() {
+        transactionIntegration.removeResourceRecoveryFactory( connectionFactory );
+
         for ( ConnectionHandler handler : allConnections ) {
             handler.setState( FLUSH );
             housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );

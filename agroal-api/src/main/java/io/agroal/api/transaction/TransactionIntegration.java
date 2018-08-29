@@ -29,6 +29,16 @@ public interface TransactionIntegration {
             public boolean disassociate(Connection connection) {
                 return true;
             }
+
+            @Override
+            public void addResourceRecoveryFactory(ResourceRecoveryFactory factory) {
+                // nothing to do
+            }
+
+            @Override
+            public void removeResourceRecoveryFactory(ResourceRecoveryFactory factory) {
+                // nothing to do
+            }
         };
     }
 
@@ -39,4 +49,15 @@ public interface TransactionIntegration {
     void associate(Connection connection, XAResource xaResource) throws SQLException;
 
     boolean disassociate(Connection connection) throws SQLException;
+
+    // --- //
+
+    void addResourceRecoveryFactory(ResourceRecoveryFactory factory);
+
+    void removeResourceRecoveryFactory(ResourceRecoveryFactory factory);
+
+    interface ResourceRecoveryFactory {
+
+        XAResource[] recoveryResources();
+    }
 }

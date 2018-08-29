@@ -7,10 +7,12 @@ import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
+import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
 import io.agroal.pool.util.PropertyInjector;
 import io.agroal.pool.util.XAConnectionAdaptor;
 
 import javax.sql.XAConnection;
+import javax.transaction.xa.XAResource;
 import java.lang.reflect.InvocationTargetException;
 import java.security.Principal;
 import java.sql.Connection;
@@ -24,11 +26,13 @@ import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class ConnectionFactory {
+public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     private static final String URL_PROPERTY_NAME = "url";
     private static final String USER_PROPERTY_NAME = "user";
     private static final String PASSWORD_PROPERTY_NAME = "password";
+
+    private static final XAResource[] NO_RESOURCES = {};
 
     private final AgroalConnectionFactoryConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
@@ -228,12 +232,17 @@ public final class ConnectionFactory {
 
     // --- //
 
-    public XAConnection recoveryConnection() throws SQLException {
-        if ( factoryMode == Mode.XA_DATASOURCE ) {
-            return xaConnectionSetup( newXADataSource( recoveryProperties ).getXAConnection() );
-        } else {
-            throw new SQLException( "Recovery connections are only available for XADataSource" );
+    @Override
+    public XAResource[] recoveryResources() {
+        try {
+            if ( factoryMode == Mode.XA_DATASOURCE ) {
+                return new XAResource[]{newXADataSource( recoveryProperties ).getXAConnection().getXAResource()};
+            }
+            fireOnWarning( listeners, "Recovery connections are only available for XADataSource" );
+        } catch ( SQLException e ) {
+            fireOnWarning( listeners, "Unable to get recovery connection: " + e.getMessage() );
         }
+        return NO_RESOURCES;
     }
 
     // --- //
