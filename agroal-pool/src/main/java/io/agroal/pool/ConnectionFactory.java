@@ -64,9 +64,9 @@ public final class ConnectionFactory {
 
     private void setupXA() {
         try {
-            this.xaDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.XADataSource.class ).newInstance();
+            xaDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.XADataSource.class ).newInstance();
         } catch ( IllegalAccessException | InstantiationException e ) {
-            throw new RuntimeException( "Unable to instantiate XADataSource", e );
+            throw new RuntimeException( "Unable to instantiate javax.sql.XADataSource", e );
         }
         PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
 
@@ -79,9 +79,9 @@ public final class ConnectionFactory {
 
     private void setupDataSource() {
         try {
-            this.dataSource = configuration.connectionProviderClass().asSubclass( javax.sql.DataSource.class ).newInstance();
+            dataSource = configuration.connectionProviderClass().asSubclass( javax.sql.DataSource.class ).newInstance();
         } catch ( IllegalAccessException | InstantiationException e ) {
-            throw new RuntimeException( "Unable to instantiate DataSource", e );
+            throw new RuntimeException( "Unable to instantiate javax.sql.DataSource", e );
         }
         PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
 
@@ -95,15 +95,20 @@ public final class ConnectionFactory {
     private void setupDriver() {
         if ( configuration.connectionProviderClass() == null ) {
             try {
-                this.driver = java.sql.DriverManager.getDriver( configuration.jdbcUrl() );
+                driver = java.sql.DriverManager.getDriver( configuration.jdbcUrl() );
             } catch ( SQLException sql ) {
                 throw new RuntimeException( "Unable to get java.sql.Driver from DriverManager", sql );
             }
         } else {
             try {
-                this.driver = configuration.connectionProviderClass().asSubclass( java.sql.Driver.class ).newInstance();
+                driver = configuration.connectionProviderClass().asSubclass( java.sql.Driver.class ).newInstance();
+                if ( !driver.acceptsURL( configuration.jdbcUrl() ) ) {
+                    fireOnWarning( listeners, "Driver does not support the provided URL: " + configuration.jdbcUrl() );
+                }
             } catch ( IllegalAccessException | InstantiationException e ) {
                 throw new RuntimeException( "Unable to instantiate java.sql.Driver", e );
+            } catch ( SQLException e ) {
+                throw new RuntimeException( "Unable to verify that the java.sql.Driver supports the provided URL", e );
             }
         }
     }
@@ -177,6 +182,11 @@ public final class ConnectionFactory {
     }
 
     private Connection connectionSetup(Connection connection) throws SQLException {
+        if ( connection == null ) {
+            // AG-90: Driver can return null if the URL is not supported (see java.sql.Driver#connect() documentation)
+            throw new SQLException( "Driver does not support the provided URL: " + configuration.jdbcUrl() );
+        }
+
         connection.setAutoCommit( configuration.autoCommit() );
         if ( configuration.jdbcTransactionIsolation().isDefined() ) {
             connection.setTransactionIsolation( configuration.jdbcTransactionIsolation().level() );
@@ -191,7 +201,8 @@ public final class ConnectionFactory {
 
     private XAConnection xaConnectionSetup(XAConnection xaConnection) throws SQLException {
         if ( xaConnection.getXAResource() == null ) {
-            // this ensures that XAConnections are not processed as non-XA connections by the pool
+            // Make sure that XAConnections are not processed as non-XA connections by the pool
+            xaConnection.close();
             throw new SQLException( "null XAResource from XADataSource" );
         }
         connectionSetup( xaConnection.getConnection() );
