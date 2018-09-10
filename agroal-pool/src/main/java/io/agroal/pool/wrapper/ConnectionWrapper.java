@@ -199,8 +199,10 @@ public final class ConnectionWrapper implements Connection, TransactionAware {
             throw new SQLException( "Trying to set autocommit in connection taking part of transaction" );
         }
         deferredEnlistmentCheck();
-        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.AUTOCOMMIT );
-        wrappedConnection.setAutoCommit( autoCommit );
+        if ( wrappedConnection.getAutoCommit() != autoCommit ) {
+            handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.AUTOCOMMIT );
+            wrappedConnection.setAutoCommit( autoCommit );
+        }
     }
 
     @Override
