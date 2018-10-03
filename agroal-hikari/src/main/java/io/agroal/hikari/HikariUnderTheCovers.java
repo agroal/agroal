@@ -14,7 +14,6 @@ import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.security.SimplePassword;
 
 import java.io.PrintWriter;
-import java.security.Principal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
@@ -60,8 +59,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
         hikariConfig.setAutoCommit( factoryConfiguration.autoCommit() );
         hikariConfig.setConnectionInitSql( factoryConfiguration.initialSql() );
 
-        Principal principal = factoryConfiguration.principal();
-        if ( principal != null ) {
+        if ( factoryConfiguration.principal() != null ) {
             hikariConfig.setUsername( factoryConfiguration.principal().getName() );
         }
         for ( Object credential : factoryConfiguration.credentials() ) {

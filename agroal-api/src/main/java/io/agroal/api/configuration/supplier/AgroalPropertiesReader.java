@@ -109,7 +109,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         }
     }
 
-    @SuppressWarnings( {"unchecked", "rawtypes"} )
+    @SuppressWarnings( "unchecked" )
     public AgroalPropertiesReader readProperties(Properties properties) {
         return readProperties( (Map) properties );
     }

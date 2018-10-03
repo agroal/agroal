@@ -46,17 +46,25 @@ public interface AgroalConnectionPoolConfiguration {
     interface ConnectionValidator {
 
         static ConnectionValidator defaultValidator() {
-            return connection -> {
-                try {
-                    return connection.isValid( 0 );
-                } catch ( Exception t ) {
-                    return false;
+            return new ConnectionValidator() {
+                @Override
+                public boolean isValid(Connection connection) {
+                    try {
+                        return connection.isValid( 0 );
+                    } catch ( Exception t ) {
+                        return false;
+                    }
                 }
             };
         }
 
         static ConnectionValidator emptyValidator() {
-            return connection -> true;
+            return new ConnectionValidator() {
+                @Override
+                public boolean isValid(Connection connection) {
+                    return true;
+                }
+            };
         }
 
         // --- //

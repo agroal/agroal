@@ -17,7 +17,7 @@ import java.sql.SQLException;
  */
 public class XAConnectionAdaptor implements XAConnection {
 
-    private Connection connection;
+    private final Connection connection;
 
     public XAConnectionAdaptor(Connection connection) {
         this.connection = connection;

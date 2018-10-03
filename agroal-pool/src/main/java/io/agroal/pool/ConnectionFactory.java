@@ -154,7 +154,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         setupSecurity( jdbcProperties, configuration.principal(), configuration.credentials() );
 
         // use the main credentials when recovery credentials are not provided
-        if ( configuration.recoveryPrincipal() == null && configuration.recoveryCredentials() == null ) {
+        if ( configuration.recoveryPrincipal() == null && ( configuration.recoveryCredentials() == null || configuration.recoveryCredentials().isEmpty() ) ) {
             setupSecurity( recoveryProperties, configuration.principal(), configuration.credentials() );
         } else {
             setupSecurity( recoveryProperties, configuration.recoveryPrincipal(), configuration.recoveryCredentials() );

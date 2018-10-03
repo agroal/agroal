@@ -37,14 +37,7 @@ public class DriverTests {
                         cf -> cf.connectionProviderClass( UnacceptableURLDriver.class ).jdbcUrl( "jdbc:unacceptableURL" )
                 ) );
 
-        boolean[] warning = {false};
-        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
-            @Override
-            public void onWarning(String message) {
-                logger.info( message );
-                warning[0] = true;
-            }
-        };
+        DriverAgroalDataSourceListener listener = new DriverAgroalDataSourceListener();
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configuration, listener ) ) {
             dataSource.getConnection();
@@ -52,10 +45,31 @@ public class DriverTests {
         } catch ( SQLException e ) {
             logger.info( "Expected SQLException: " + e.getMessage() );
         }
-        assertTrue( warning[0], "An warning message should be issued" );
+        assertTrue( listener.hasWarning(), "An warning message should be issued" );
     }
 
     // --- //
+
+    private static class DriverAgroalDataSourceListener implements AgroalDataSourceListener {
+
+        private boolean warning = false;
+
+        @Override
+        public void onWarning(String message) {
+            logger.info( "EXPECTED WARNING: " + message );
+            warning = true;
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            logger.info( "EXPECTED WARNING: " + throwable.getMessage() );
+            warning = true;
+        }
+
+        public boolean hasWarning() {
+            return warning;
+        }
+    }
 
     public static class UnacceptableURLDriver implements MockDriver {
         @Override

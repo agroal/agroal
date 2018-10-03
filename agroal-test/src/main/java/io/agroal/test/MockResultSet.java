@@ -62,12 +62,12 @@ public interface MockResultSet extends ResultSet {
 
     @Override
     default byte getByte(int columnIndex) throws SQLException {
-        return 0;
+        return (byte) 0;
     }
 
     @Override
     default short getShort(int columnIndex) throws SQLException {
-        return 0;
+        return (short) 0;
     }
 
     @Override
@@ -142,12 +142,12 @@ public interface MockResultSet extends ResultSet {
 
     @Override
     default byte getByte(String columnLabel) throws SQLException {
-        return 0;
+        return (byte) 0;
     }
 
     @Override
     default short getShort(String columnLabel) throws SQLException {
-        return 0;
+        return (short) 0;
     }
 
     @Override
