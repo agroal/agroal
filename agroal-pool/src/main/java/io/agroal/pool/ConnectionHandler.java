@@ -67,6 +67,8 @@ public final class ConnectionHandler implements TransactionAware {
     // If there is no transaction integration this should just return false
     private TransactionAware.SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
+    private boolean flush = false;
+
     public ConnectionHandler(XAConnection xaConnection, ConnectionPool pool) throws SQLException {
         connection = xaConnection.getConnection();
         xaResource = xaConnection.getXAResource();
@@ -223,6 +225,24 @@ public final class ConnectionHandler implements TransactionAware {
     public void deferredEnlistmentCheck() throws SQLException {
         if ( !enlisted && transactionActiveCheck.call() ) {
             throw new SQLException( "Deferred enlistment not supported" );
+        }
+    }
+
+    @Override
+    public void setFlushOnly() {
+        setFlushOnly( null );
+    }
+
+    public void setFlushOnly(SQLException se) {
+        if ( !flush ) {
+            if ( se == null ) {
+                // Fatal
+                flush = true;
+            } else {
+                if ( connectionPool.getConfiguration().exceptionSorter() != null ) {
+                    flush = connectionPool.getConfiguration().exceptionSorter().isFatal( se );
+                }
+            }
         }
     }
 

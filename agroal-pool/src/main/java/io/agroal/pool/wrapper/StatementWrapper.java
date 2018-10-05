@@ -18,6 +18,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
+ * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class StatementWrapper implements Statement {
 
@@ -43,7 +44,7 @@ public class StatementWrapper implements Statement {
 
     private final Collection<ResultSet> trackedResultSets = new StampedCopyOnWriteArrayList<>( ResultSet.class );
 
-    private final ConnectionWrapper connection;
+    protected final ConnectionWrapper connection;
 
     private Statement wrappedStatement;
 
@@ -76,138 +77,272 @@ public class StatementWrapper implements Statement {
         trackedResultSets.remove( resultSet );
     }
 
+    ConnectionWrapper getConnectionWrapper() throws SQLException {
+        return connection;
+    }
+
     @Override
     public void close() throws SQLException {
-        connection.releaseTrackedStatement( wrappedStatement );
-        wrappedStatement = CLOSED_STATEMENT;
-        closeTrackedResultSets();
+        try {
+            connection.releaseTrackedStatement( wrappedStatement );
+            wrappedStatement = CLOSED_STATEMENT;
+            closeTrackedResultSets();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     // --- //
 
     @Override
     public final void clearWarnings() throws SQLException {
-        wrappedStatement.clearWarnings();
+        try {
+            wrappedStatement.clearWarnings();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final ResultSet executeQuery(String sql) throws SQLException {
-        return trackResultSet( wrappedStatement.executeQuery( sql ) );
+        try {
+            return trackResultSet( wrappedStatement.executeQuery( sql ) );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int executeUpdate(String sql) throws SQLException {
-        return wrappedStatement.executeUpdate( sql );
+        try {
+            return wrappedStatement.executeUpdate( sql );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getMaxFieldSize() throws SQLException {
-        return wrappedStatement.getMaxFieldSize();
+        try {
+            return wrappedStatement.getMaxFieldSize();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setMaxFieldSize(int max) throws SQLException {
-        wrappedStatement.setMaxFieldSize( max );
+        try {
+            wrappedStatement.setMaxFieldSize( max );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getMaxRows() throws SQLException {
-        return wrappedStatement.getMaxRows();
+        try {
+            return wrappedStatement.getMaxRows();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setMaxRows(int max) throws SQLException {
-        wrappedStatement.setMaxRows( max );
+        try {
+            wrappedStatement.setMaxRows( max );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setEscapeProcessing(boolean enable) throws SQLException {
-        wrappedStatement.setEscapeProcessing( enable );
+        try {
+            wrappedStatement.setEscapeProcessing( enable );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getQueryTimeout() throws SQLException {
-        return wrappedStatement.getQueryTimeout();
+        try {
+            return wrappedStatement.getQueryTimeout();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setQueryTimeout(int seconds) throws SQLException {
-        wrappedStatement.setQueryTimeout( seconds );
+        try {
+            wrappedStatement.setQueryTimeout( seconds );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void cancel() throws SQLException {
-        wrappedStatement.cancel();
+        try {
+            wrappedStatement.cancel();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setCursorName(String name) throws SQLException {
-        wrappedStatement.setCursorName( name );
+        try {
+            wrappedStatement.setCursorName( name );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean execute(String sql) throws SQLException {
-        return wrappedStatement.execute( sql );
+        try {
+            return wrappedStatement.execute( sql );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final ResultSet getResultSet() throws SQLException {
-        return trackResultSet( wrappedStatement.getResultSet() );
+        try {
+            return trackResultSet( wrappedStatement.getResultSet() );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getUpdateCount() throws SQLException {
-        return wrappedStatement.getUpdateCount();
+        try {
+            return wrappedStatement.getUpdateCount();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean getMoreResults() throws SQLException {
-        return wrappedStatement.getMoreResults();
+        try {
+            return wrappedStatement.getMoreResults();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getFetchDirection() throws SQLException {
-        return wrappedStatement.getFetchDirection();
+        try {
+            return wrappedStatement.getFetchDirection();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setFetchDirection(int direction) throws SQLException {
-        wrappedStatement.setFetchDirection( direction );
+        try {
+            wrappedStatement.setFetchDirection( direction );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getFetchSize() throws SQLException {
-        return wrappedStatement.getFetchSize();
+        try {
+            return wrappedStatement.getFetchSize();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setFetchSize(int rows) throws SQLException {
-        wrappedStatement.setFetchSize( rows );
+        try {
+            wrappedStatement.setFetchSize( rows );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getResultSetConcurrency() throws SQLException {
-        return wrappedStatement.getResultSetConcurrency();
+        try {
+            return wrappedStatement.getResultSetConcurrency();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getResultSetType() throws SQLException {
-        return wrappedStatement.getResultSetType();
+        try {
+            return wrappedStatement.getResultSetType();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void addBatch(String sql) throws SQLException {
-        wrappedStatement.addBatch( sql );
+        try {
+            wrappedStatement.addBatch( sql );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void clearBatch() throws SQLException {
-        wrappedStatement.clearBatch();
+        try {
+            wrappedStatement.clearBatch();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int[] executeBatch() throws SQLException {
-        return wrappedStatement.executeBatch();
+        try {
+            return wrappedStatement.executeBatch();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
@@ -217,89 +352,174 @@ public class StatementWrapper implements Statement {
 
     @Override
     public final boolean getMoreResults(int current) throws SQLException {
-        return wrappedStatement.getMoreResults( current );
+        try {
+            return wrappedStatement.getMoreResults( current );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final ResultSet getGeneratedKeys() throws SQLException {
-        return trackResultSet( wrappedStatement.getGeneratedKeys() );
+        try {
+            return trackResultSet( wrappedStatement.getGeneratedKeys() );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
-        return wrappedStatement.executeUpdate( sql, autoGeneratedKeys );
+        try {
+            return wrappedStatement.executeUpdate( sql, autoGeneratedKeys );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
-        return wrappedStatement.executeUpdate( sql, columnIndexes );
+        try {
+            return wrappedStatement.executeUpdate( sql, columnIndexes );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int executeUpdate(String sql, String[] columnNames) throws SQLException {
-        return wrappedStatement.executeUpdate( sql, columnNames );
+        try {
+            return wrappedStatement.executeUpdate( sql, columnNames );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
-        return wrappedStatement.execute( sql, autoGeneratedKeys );
+        try {
+            return wrappedStatement.execute( sql, autoGeneratedKeys );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean execute(String sql, int[] columnIndexes) throws SQLException {
-        return wrappedStatement.execute( sql, columnIndexes );
+        try {
+            return wrappedStatement.execute( sql, columnIndexes );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean execute(String sql, String[] columnNames) throws SQLException {
-        return wrappedStatement.execute( sql, columnNames );
+        try {
+            return wrappedStatement.execute( sql, columnNames );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final int getResultSetHoldability() throws SQLException {
-        return wrappedStatement.getResultSetHoldability();
+        try {
+            return wrappedStatement.getResultSetHoldability();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean isPoolable() throws SQLException {
-        return wrappedStatement.isPoolable();
+        try {
+            return wrappedStatement.isPoolable();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void setPoolable(boolean poolable) throws SQLException {
-        wrappedStatement.setPoolable( poolable );
+        try {
+            wrappedStatement.setPoolable( poolable );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final void closeOnCompletion() throws SQLException {
-        wrappedStatement.closeOnCompletion();
+        try {
+            wrappedStatement.closeOnCompletion();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean isCloseOnCompletion() throws SQLException {
-        return wrappedStatement.isCloseOnCompletion();
+        try {
+            return wrappedStatement.isCloseOnCompletion();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final SQLWarning getWarnings() throws SQLException {
-        return wrappedStatement.getWarnings();
+        try {
+            return wrappedStatement.getWarnings();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean isClosed() throws SQLException {
-        return wrappedStatement.isClosed();
+        try {
+            return wrappedStatement.isClosed();
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     // --- //
 
     @Override
     public final <T> T unwrap(Class<T> target) throws SQLException {
-        return wrappedStatement.unwrap( target );
+        try {
+            return wrappedStatement.unwrap( target );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public final boolean isWrapperFor(Class<?> target) throws SQLException {
-        return wrappedStatement.isWrapperFor( target );
+        try {
+            return wrappedStatement.isWrapperFor( target );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override

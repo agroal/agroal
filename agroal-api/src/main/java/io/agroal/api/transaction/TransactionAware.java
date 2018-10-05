@@ -7,6 +7,7 @@ import java.sql.SQLException;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
+ * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public interface TransactionAware {
 
@@ -21,6 +22,8 @@ public interface TransactionAware {
     void transactionCheckCallback(SQLCallable<Boolean> transactionCheck);
 
     Object getConnection();
+
+    void setFlushOnly();
 
     // --- //
 

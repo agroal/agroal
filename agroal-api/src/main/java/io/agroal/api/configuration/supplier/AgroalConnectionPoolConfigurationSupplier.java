@@ -12,6 +12,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.emptyExceptionSorter;
 import static io.agroal.api.transaction.TransactionIntegration.none;
 import static java.lang.Integer.MAX_VALUE;
 import static java.time.Duration.ZERO;
@@ -30,6 +31,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private volatile int minSize = 0;
     private volatile int maxSize = MAX_VALUE;
     private AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
+    private AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = emptyExceptionSorter();
     private Duration leakTimeout = ZERO;
     private Duration validationTimeout = ZERO;
     private Duration reapTimeout = ZERO;
@@ -50,6 +52,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         this.minSize = existingConfiguration.minSize();
         this.maxSize = existingConfiguration.maxSize();
         this.connectionValidator = existingConfiguration.connectionValidator();
+        this.exceptionSorter = existingConfiguration.exceptionSorter();
         this.leakTimeout = existingConfiguration.leakTimeout();
         this.validationTimeout = existingConfiguration.validationTimeout();
         this.reapTimeout = existingConfiguration.reapTimeout();
@@ -109,6 +112,12 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier connectionValidator(AgroalConnectionPoolConfiguration.ConnectionValidator validator) {
         checkLock();
         connectionValidator = validator;
+        return this;
+    }
+
+    public AgroalConnectionPoolConfigurationSupplier exceptionSorter(AgroalConnectionPoolConfiguration.ExceptionSorter sorter) {
+        checkLock();
+        exceptionSorter = sorter;
         return this;
     }
 
@@ -224,6 +233,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public ConnectionValidator connectionValidator() {
                 return connectionValidator;
+            }
+
+            @Override
+            public ExceptionSorter exceptionSorter() {
+                return exceptionSorter;
             }
 
             @Override

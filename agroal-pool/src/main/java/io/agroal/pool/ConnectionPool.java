@@ -100,6 +100,10 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         }
     }
 
+    public AgroalConnectionPoolConfiguration getConfiguration() {
+        return configuration;
+    }
+
     public void flush(AgroalDataSource.FlushMode mode) {
         housekeepingExecutor.execute( new FlushTask( mode ) );
     }
