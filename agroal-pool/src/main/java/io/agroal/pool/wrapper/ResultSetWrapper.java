@@ -65,8 +65,14 @@ public final class ResultSetWrapper implements ResultSet {
 
     @Override
     public void close() throws SQLException {
-        statement.releaseTrackedResultSet( wrappedResultSet );
-        wrappedResultSet = CLOSED_RESULT_SET;
+        try {
+            wrappedResultSet.close();
+        } catch ( SQLException se ) {
+            throw se;
+        } finally {
+            statement.releaseTrackedResultSet( wrappedResultSet );
+            wrappedResultSet = CLOSED_RESULT_SET;
+        }
     }
 
     // --- //
