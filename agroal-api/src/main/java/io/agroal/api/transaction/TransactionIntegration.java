@@ -16,17 +16,17 @@ public interface TransactionIntegration {
         return new TransactionIntegration() {
 
             @Override
-            public Connection getConnection() {
+            public TransactionAware getTransactionAware() {
                 return null;
             }
 
             @Override
-            public void associate(Connection connection, XAResource xaResource) {
+            public void associate(TransactionAware connection, XAResource xaResource) {
                 // nothing to do
             }
 
             @Override
-            public boolean disassociate(Connection connection) {
+            public boolean disassociate(TransactionAware connection) {
                 return true;
             }
 
@@ -44,11 +44,11 @@ public interface TransactionIntegration {
 
     // --- //
 
-    Connection getConnection() throws SQLException;
+    TransactionAware getTransactionAware() throws SQLException;
 
-    void associate(Connection connection, XAResource xaResource) throws SQLException;
+    void associate(TransactionAware transactionAware, XAResource xaResource) throws SQLException;
 
-    boolean disassociate(Connection connection) throws SQLException;
+    boolean disassociate(TransactionAware transactionAware) throws SQLException;
 
     // --- //
 

@@ -104,6 +104,10 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         housekeepingExecutor.execute( new FlushTask( mode ) );
     }
 
+    public AgroalDataSourceListener[] getListeners() {
+        return listeners;
+    }
+
     @Override
     public void close() {
         transactionIntegration.removeResourceRecoveryFactory( connectionFactory );
@@ -129,21 +133,17 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             throw new SQLException( "This pool is closed and does not handle any more connections!" );
         }
 
-        ConnectionHandler checkedOutHandler = null;
-        ConnectionWrapper connectionWrapper = wrapperFromTransaction();
-        if ( connectionWrapper != null ) {
-            checkedOutHandler = connectionWrapper.getHandler();
-        }
+        ConnectionHandler checkedOutHandler = handlerFromTransaction();
         if ( checkedOutHandler == null ) {
             checkedOutHandler = handlerFromLocalCache();
-        }
-        if ( checkedOutHandler == null ) {
-            checkedOutHandler = handlerFromSharedCache();
+            if ( checkedOutHandler == null ) {
+                checkedOutHandler = handlerFromSharedCache();
+            }
+            activeCount.increment();
         }
 
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
-        activeCount.increment();
 
         if ( leakEnabled || reapEnabled ) {
             checkedOutHandler.setLastAccess( nanoTime() );
@@ -157,13 +157,12 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             checkedOutHandler.setHoldingThread( currentThread() );
         }
 
-        connectionWrapper = new ConnectionWrapper( checkedOutHandler );
-        transactionIntegration.associate( connectionWrapper, checkedOutHandler.getXaResource() );
-        return connectionWrapper;
+        transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
+        return checkedOutHandler.newConnectionWrapper();
     }
 
-    private ConnectionWrapper wrapperFromTransaction() throws SQLException {
-        return (ConnectionWrapper) transactionIntegration.getConnection();
+    private ConnectionHandler handlerFromTransaction() throws SQLException {
+        return (ConnectionHandler) transactionIntegration.getTransactionAware();
     }
 
     private ConnectionHandler handlerFromLocalCache() {
@@ -224,7 +223,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
     // --- //
 
-    public void returnConnection(ConnectionHandler handler) throws SQLException {
+    public void returnConnectionHandler(ConnectionHandler handler) throws SQLException {
         fireBeforeConnectionReturn( listeners, handler );
         if ( leakEnabled ) {
             handler.setHoldingThread( null );
@@ -232,7 +231,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         if ( reapEnabled ) {
             handler.setLastAccess( nanoTime() );
         }
-        if ( transactionIntegration.disassociate( handler.getConnection() ) ) {
+        if ( transactionIntegration.disassociate( handler ) ) {
             activeCount.decrement();
 
             // resize on change of max-size

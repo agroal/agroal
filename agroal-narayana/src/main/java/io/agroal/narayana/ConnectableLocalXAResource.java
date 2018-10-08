@@ -12,12 +12,7 @@ import org.jboss.tm.LastResource;
  */
 public class ConnectableLocalXAResource extends LocalXAResource implements ConnectableResource, LastResource {
 
-    public ConnectableLocalXAResource(TransactionAware connection, String jndiName) {
-        super( connection, jndiName );
-    }
-
-    @Override
-    public Object getConnection() throws Throwable {
-        return getTransactionAware().getConnection();
+    public ConnectableLocalXAResource(TransactionAware transactionAware, String jndiName) {
+        super( transactionAware, jndiName );
     }
 }

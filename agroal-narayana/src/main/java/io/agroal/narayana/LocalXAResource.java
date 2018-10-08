@@ -15,7 +15,7 @@ import javax.transaction.xa.Xid;
  */
 public class LocalXAResource implements XAResourceWrapper {
 
-    private final TransactionAware connection;
+    private final TransactionAware transactionAware;
 
     private static final String PRODUCT_NAME = LocalXAResource.class.getPackage().getImplementationTitle();
 
@@ -25,17 +25,17 @@ public class LocalXAResource implements XAResourceWrapper {
 
     private Xid currentXid;
 
-    public LocalXAResource(TransactionAware connection) {
-        this( connection, "" );
+    public LocalXAResource(TransactionAware transactionAware) {
+        this( transactionAware, "" );
     }
 
-    public LocalXAResource(TransactionAware connection, String jndiName) {
-        this.connection = connection;
+    public LocalXAResource(TransactionAware transactionAware, String jndiName) {
+        this.transactionAware = transactionAware;
         this.jndiName = jndiName;
     }
 
-    protected TransactionAware getTransactionAware() {
-        return connection;
+    public Object getConnection() throws Throwable {
+        return transactionAware.getConnection();
     }
 
     @Override
@@ -45,7 +45,7 @@ public class LocalXAResource implements XAResourceWrapper {
                 throw new XAException( "Starting resource with wrong flags" );
             }
             try {
-                connection.transactionStart();
+                transactionAware.transactionStart();
             } catch ( Exception t ) {
                 throw new XAException( "Error trying to start local transaction: " + t.getMessage() );
             }
@@ -65,8 +65,7 @@ public class LocalXAResource implements XAResourceWrapper {
 
         currentXid = null;
         try {
-            connection.transactionCommit();
-            connection.transactionEnd();
+            transactionAware.transactionCommit();
         } catch ( Exception t ) {
             throw new XAException( "Error trying to transactionCommit local transaction: " + t.getMessage() );
         }
@@ -80,8 +79,7 @@ public class LocalXAResource implements XAResourceWrapper {
 
         currentXid = null;
         try {
-            connection.transactionRollback();
-            connection.transactionEnd();
+            transactionAware.transactionRollback();
         } catch ( Exception t ) {
             throw new XAException( "Error trying to transactionRollback local transaction: " + t.getMessage() );
         }
