@@ -64,7 +64,7 @@ public class BasicTests {
     @Test
     @DisplayName( "Mock driver providing fake connections" )
     public void basicConnectionAcquireTest() throws SQLException {
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getSchema(), FAKE_SCHEMA );
             logger.info( format( "Got schema \"{0}\" from {1}", connection.getSchema(), connection ) );
@@ -77,7 +77,7 @@ public class BasicTests {
     public void basicDataSourceCloseTest() throws SQLException {
         AtomicBoolean warning = new AtomicBoolean( false );
 
-        AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier(), new AgroalDataSourceListener() {
+        AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 2 ) ), new AgroalDataSourceListener() {
             @Override
             public void onWarning(String message) {
                 warning.set( true );

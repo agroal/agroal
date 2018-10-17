@@ -139,6 +139,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     // --- //
 
     private void validate() {
+        if ( maxSize == MAX_VALUE ) {
+            throw new IllegalArgumentException( "max size attribute is mandatory" );
+        }
         if ( minSize < 0 ) {
             throw new IllegalArgumentException( "Invalid min size: smaller than 0" );
         }

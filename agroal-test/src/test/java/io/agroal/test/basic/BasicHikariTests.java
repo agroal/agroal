@@ -65,6 +65,7 @@ public class BasicHikariTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .dataSourceImplementation( HIKARI )
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClassName( fakeDriver.getClass().getName() )
@@ -88,6 +89,7 @@ public class BasicHikariTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .dataSourceImplementation( HIKARI )
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClassName( fakeDriver.getClass().getName() )
