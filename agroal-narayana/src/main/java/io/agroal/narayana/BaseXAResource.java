@@ -19,12 +19,12 @@ public class BaseXAResource implements XAResourceWrapper {
     private static final String PRODUCT_NAME = BaseXAResource.class.getPackage().getImplementationTitle();
     private static final String PRODUCT_VERSION = BaseXAResource.class.getPackage().getImplementationVersion();
 
-    private final TransactionAware connection;
+    private final TransactionAware transactionAware;
     private final XAResource xaResource;
     private final String jndiName;
 
-    public BaseXAResource(TransactionAware connection, XAResource xaResource, String jndiName) {
-        this.connection = connection;
+    public BaseXAResource(TransactionAware transactionAware, XAResource xaResource, String jndiName) {
+        this.transactionAware = transactionAware;
         this.xaResource = xaResource;
         this.jndiName = jndiName;
     }
@@ -56,7 +56,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             xaResource.commit( xid, onePhase );
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -65,9 +65,8 @@ public class BaseXAResource implements XAResourceWrapper {
     public void end(Xid xid, int flags) throws XAException {
         try {
             xaResource.end( xid, flags );
-            connection.transactionEnd();
         } catch ( Exception t ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw new XAException( "Error trying to end xa transaction: " + t.getMessage() );
         }
     }
@@ -77,7 +76,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             xaResource.forget( xid );
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -87,7 +86,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             return xaResource.getTransactionTimeout();
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -97,7 +96,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             return xaResource.isSameRM( xaRes );
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -107,7 +106,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             return xaResource.prepare( xid );
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -117,7 +116,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             return xaResource.recover( flag );
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -127,7 +126,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             xaResource.rollback( xid );
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -137,7 +136,7 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             return xaResource.setTransactionTimeout( seconds );
         } catch ( XAException xe ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             throw xe;
         }
     }
@@ -145,10 +144,10 @@ public class BaseXAResource implements XAResourceWrapper {
     @Override
     public void start(Xid xid, int flags) throws XAException {
         try {
-            connection.transactionStart();
+            transactionAware.transactionStart();
             xaResource.start( xid, flags );
         } catch ( Exception e ) {
-            connection.setFlushOnly();
+            transactionAware.setFlushOnly();
             XAException xe = new XAException( "Error trying to start xa transaction: " + e.getMessage() );
             xe.initCause( e );
             throw xe;
