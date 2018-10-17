@@ -33,7 +33,7 @@ public class DriverTests {
     @DisplayName( "Driver does not accept the provided URL" )
     public void basicUnacceptableURL() throws SQLException {
         AgroalDataSourceConfigurationSupplier configuration = new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
-                cp -> cp.connectionFactoryConfiguration(
+                cp -> cp.maxSize( 1 ).connectionFactoryConfiguration(
                         cf -> cf.connectionProviderClass( UnacceptableURLDriver.class ).jdbcUrl( "jdbc:unacceptableURL" )
                 ) );
 

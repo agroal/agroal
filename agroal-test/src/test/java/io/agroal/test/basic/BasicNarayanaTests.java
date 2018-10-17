@@ -65,6 +65,7 @@ public class BasicNarayanaTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
                         .connectionFactoryConfiguration( cf -> cf.autoCommit( true ) )
                 );
@@ -98,6 +99,7 @@ public class BasicNarayanaTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
                 );
 
@@ -123,6 +125,7 @@ public class BasicNarayanaTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
                 );
 

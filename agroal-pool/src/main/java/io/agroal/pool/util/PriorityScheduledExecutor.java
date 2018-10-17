@@ -28,17 +28,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     private final Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
 
     public PriorityScheduledExecutor(int executorSize, String threadPrefix) {
-        super( executorSize, new ThreadFactory() {
-
-            private final AtomicLong threadCount = new AtomicLong();
-
-            @Override
-            public Thread newThread(Runnable r) {
-                Thread thread = new Thread( r, threadPrefix + threadCount.incrementAndGet() );
-                thread.setDaemon( true );
-                return thread;
-            }
-        } );
+        super( executorSize, new PriorityExecutorThreadFactory( threadPrefix ) );
     }
 
     public void executeNow(Runnable priorityTask) {
@@ -51,8 +41,10 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
 
     public <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
         priorityTasks.add( priorityFuture );
-        // Submit a task so that the beforeExecute() method gets called
-        execute( EMPTY_TASK );
+        if ( !priorityFuture.isDone() ) {
+            // Submit a task so that the beforeExecute() method gets called
+            execute( EMPTY_TASK );
+        }
         return priorityFuture;
     }
 
@@ -71,7 +63,9 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
 
     @Override
     public void shutdown() {
-        executeNow( super::shutdown );
+        if ( !isShutdown() ) {
+            executeNow( super::shutdown );
+        }
     }
 
     @Override
@@ -81,5 +75,25 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
         }
         priorityTasks.clear();
         return super.shutdownNow();
+    }
+
+    // -- //
+
+    private static class PriorityExecutorThreadFactory implements ThreadFactory {
+
+        private final AtomicLong threadCount;
+        private final String threadPrefix;
+
+        public PriorityExecutorThreadFactory(String threadPrefix) {
+            this.threadPrefix = threadPrefix;
+            threadCount = new AtomicLong();
+        }
+
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread thread = new Thread( r, threadPrefix + threadCount.incrementAndGet() );
+            thread.setDaemon( true );
+            return thread;
+        }
     }
 }

@@ -55,7 +55,7 @@ public class ConnectionCloseTests {
     @Test
     @DisplayName( "Connection wrapper in closed state" )
     public void basicConnectionCloseTest() throws SQLException {
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             Connection connection = dataSource.getConnection();
 
             assertAll( () -> {
@@ -77,7 +77,7 @@ public class ConnectionCloseTests {
     @Test
     @DisplayName( "Connection closes Statements and ResultSets" )
     public void statementCloseTest() throws SQLException {
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             Connection connection = dataSource.getConnection();
             logger.info( format( "Creating 2 Statements on Connection {0}", connection ) );
 
@@ -113,7 +113,7 @@ public class ConnectionCloseTests {
     public void multipleCloseTest() throws SQLException {
         ReturnListener returnListener = new ReturnListener();
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled(), returnListener ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), returnListener ) ) {
             try (Connection connection = dataSource.getConnection() ) {
                 // Explicit close. This is a try-with-resources so there is another call to connection.close() after this one.
                 connection.close();

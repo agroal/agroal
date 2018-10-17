@@ -121,9 +121,9 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
         }
         allConnections.clear();
-        housekeepingExecutor.shutdown();
-
         activeCount.reset();
+
+        housekeepingExecutor.shutdown();
         synchronizer.release( synchronizer.getQueueLength() );
     }
 

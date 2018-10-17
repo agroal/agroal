@@ -156,12 +156,16 @@ public class BasicConcurrencyTests {
                 latch.countDown();
 
                 logger.info( "Unblocked after datasource close" );
+            } catch ( Throwable t ) {
+                fail( "Unexpected throwable", t );
             }
         } );
 
-        Thread.sleep( ACQUISITION_TIMEOUT_MS / 2 );
-        logger.info( "Closing the datasource" );
+        do {
+            Thread.sleep( ACQUISITION_TIMEOUT_MS / 10 );
+        } while ( dataSource.getMetrics().awaitingCount() == 0 );
 
+        logger.info( "Closing the datasource" );
         dataSource.close();
 
         if ( !latch.await( ACQUISITION_TIMEOUT_MS, MILLISECONDS ) ) {
@@ -177,6 +181,9 @@ public class BasicConcurrencyTests {
             assertEquals( 0, dataSource.getMetrics().activeCount(), "Active connections" );
             assertEquals( 0, dataSource.getMetrics().availableCount(), "Should not be any available connections" );
         } );
+
+        // Subsequent calls to dataSource.close() should not throw any exception
+        dataSource.close();
     }
 
     // --- //

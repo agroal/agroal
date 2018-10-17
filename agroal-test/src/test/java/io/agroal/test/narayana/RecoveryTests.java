@@ -69,6 +69,7 @@ public class RecoveryTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, xaResourceRecoveryRegistry ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .autoCommit( true ) )
@@ -95,6 +96,7 @@ public class RecoveryTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, xaResourceRecoveryRegistry ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( RecoveryCredentialsXADataSource.class )
@@ -119,6 +121,7 @@ public class RecoveryTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, xaResourceRecoveryRegistry ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( RecoveryCredentialsXADataSource.class )

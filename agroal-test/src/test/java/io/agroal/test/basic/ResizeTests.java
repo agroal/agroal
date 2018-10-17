@@ -104,11 +104,12 @@ public class ResizeTests {
     @Test
     @DisplayName( "resize Min" )
     public void resizeMin() throws SQLException {
-        int INITIAL_SIZE = 10, NEW_MIN_SIZE = 15, TIMEOUT_MS = 1000;
+        int INITIAL_SIZE = 10, NEW_MIN_SIZE = 15, MAX_SIZE = 35, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_SIZE )
                         .initialSize( INITIAL_SIZE )
                 );
 

@@ -60,7 +60,7 @@ public class NewConnectionTests {
     }
 
     private void isolation(AgroalConnectionFactoryConfiguration.TransactionIsolation isolation, int level) throws SQLException {
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( isolation ) ) ) ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( isolation ) ) ) ) ) {
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getTransactionIsolation(), level );
             logger.info( format( "Got isolation \"{0}\" from {1}", connection.getTransactionIsolation(), connection ) );
@@ -76,7 +76,7 @@ public class NewConnectionTests {
     }
 
     private void autocommit(boolean autoCommit) throws SQLException {
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.connectionFactoryConfiguration( cf -> cf.autoCommit( autoCommit ) ) ) ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.autoCommit( autoCommit ) ) ) ) ) {
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getAutoCommit(), autoCommit );
             logger.info( format( "Got autoCommit \"{0}\" from {1}", connection.getAutoCommit(), connection ) );
