@@ -8,25 +8,12 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSo
 import java.sql.SQLException;
 
 /**
- * Microsoft SQLServer
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class MSSQLExceptionSorter implements ExceptionSorter {
 
-    /**
-     * Constructor
-     */
-    public MSSQLExceptionSorter() {
-    }
-
     @Override
     public boolean isFatal(SQLException e) {
-        String sqlState = e.getSQLState();
-
-        if ("08S01".equals(sqlState)) {
-            return true;
-        }
-
-        return false;
+        return "08S01".equals( e.getSQLState() );
     }
 }

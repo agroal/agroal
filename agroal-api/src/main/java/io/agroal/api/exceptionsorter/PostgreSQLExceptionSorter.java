@@ -8,25 +8,12 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSo
 import java.sql.SQLException;
 
 /**
- * PostgreSQL
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class PostgreSQLExceptionSorter implements ExceptionSorter {
 
-    /**
-     * Constructor
-     */
-    public PostgreSQLExceptionSorter() {
-    }
-
     @Override
     public boolean isFatal(SQLException e) {
-        String sqlState = e.getSQLState();
-
-        if ("08006".equals(sqlState)) {
-            return true;
-        }
-
-        return false;
+        return "08006".equals( e.getSQLState() );
     }
 }

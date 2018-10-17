@@ -9,29 +9,15 @@ import java.sql.SQLException;
 import java.util.Locale;
 
 /**
- * Sybase
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class SybaseExceptionSorter implements ExceptionSorter {
 
-    /**
-     * Constructor
-     */
-    public SybaseExceptionSorter() {
-    }
-
     @Override
     public boolean isFatal(SQLException e) {
-        boolean result = false;
+        String errorText = ( e.getMessage() ).toUpperCase( Locale.US );
 
-        String errorText = (e.getMessage()).toUpperCase(Locale.US);
-      
-        if ((errorText.indexOf("JZ0C0") > -1) ||  // ERR_CONNECTION_DEAD
-            (errorText.indexOf("JZ0C1") > -1) ||  // ERR_IOE_KILLED_CONNECTION
-            (errorText.indexOf("JZ006") > -1)) {  // CONNECTION CLOSED
-            result = true;
-        }
-      
-        return result;
+        //     ERR_CONNECTION_DEAD              ERR_IOE_KILLED_CONNECTION        CONNECTION CLOSED
+        return errorText.contains( "JZ0C0" ) || errorText.contains( "JZ0C1" ) || errorText.contains( "JZ006" );
     }
 }

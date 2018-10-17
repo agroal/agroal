@@ -8,26 +8,17 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSo
 import java.sql.SQLException;
 
 /**
- * MySQL
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class MySQLExceptionSorter implements ExceptionSorter {
 
-    /**
-     * Constructor
-     */
-    public MySQLExceptionSorter() {
-    }
-
     @Override
     public boolean isFatal(SQLException e) {
-        if (e.getSQLState() != null) {
-            if (e.getSQLState().startsWith("08")) {
-                return true;
-            }
+        if ( e.getSQLState() != null && e.getSQLState().startsWith( "08" ) ) {
+            return true;
         }
 
-        switch (e.getErrorCode()) {
+        switch ( e.getErrorCode() ) {
             // Communications Errors
             case 1040: // ER_CON_COUNT_ERROR
             case 1042: // ER_BAD_HOST_ERROR
@@ -51,8 +42,10 @@ public class MySQLExceptionSorter implements ExceptionSorter {
             case 1037: // ER_OUTOFMEMORY
             case 1038: // ER_OUT_OF_SORTMEMORY
                 return true;
-        }
 
-        return false;
+            // All other errors
+            default:
+                return false;
+        }
     }
 }

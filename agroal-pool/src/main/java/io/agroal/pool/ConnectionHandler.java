@@ -4,6 +4,7 @@
 package io.agroal.pool;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionAware;
 import io.agroal.pool.wrapper.ConnectionWrapper;
 
@@ -66,8 +67,6 @@ public final class ConnectionHandler implements TransactionAware {
     // If the connection is not associated with a transaction and an operation occurs within the bounds of a transaction, an SQLException is thrown
     // If there is no transaction integration this should just return false
     private TransactionAware.SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
-
-    private boolean flush = false;
 
     public ConnectionHandler(XAConnection xaConnection, ConnectionPool pool) throws SQLException {
         connection = xaConnection.getConnection();
@@ -230,19 +229,15 @@ public final class ConnectionHandler implements TransactionAware {
 
     @Override
     public void setFlushOnly() {
-        setFlushOnly( null );
+        // Assumed currentState == State.CHECKED_OUT (or eventually in FLUSH already)
+        setState( State.FLUSH );
     }
 
     public void setFlushOnly(SQLException se) {
-        if ( !flush ) {
-            if ( se == null ) {
-                // Fatal
-                flush = true;
-            } else {
-                if ( connectionPool.getConfiguration().exceptionSorter() != null ) {
-                    flush = connectionPool.getConfiguration().exceptionSorter().isFatal( se );
-                }
-            }
+        // Assumed currentState == State.CHECKED_OUT (or eventually in FLUSH already)
+        AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
+        if ( exceptionSorter != null && exceptionSorter.isFatal( se ) ) {
+            setState( State.FLUSH );
         }
     }
 
