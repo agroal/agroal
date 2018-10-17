@@ -12,6 +12,7 @@ import javax.transaction.xa.Xid;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
+ * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class LocalXAResource implements XAResourceWrapper {
 
@@ -47,6 +48,7 @@ public class LocalXAResource implements XAResourceWrapper {
             try {
                 transactionAware.transactionStart();
             } catch ( Exception t ) {
+                transactionAware.setFlushOnly();
                 throw new XAException( "Error trying to start local transaction: " + t.getMessage() );
             }
             currentXid = xid;
@@ -67,6 +69,7 @@ public class LocalXAResource implements XAResourceWrapper {
         try {
             transactionAware.transactionCommit();
         } catch ( Exception t ) {
+            transactionAware.setFlushOnly();
             throw new XAException( "Error trying to transactionCommit local transaction: " + t.getMessage() );
         }
     }
@@ -81,6 +84,7 @@ public class LocalXAResource implements XAResourceWrapper {
         try {
             transactionAware.transactionRollback();
         } catch ( Exception t ) {
+            transactionAware.setFlushOnly();
             throw new XAException( "Error trying to transactionRollback local transaction: " + t.getMessage() );
         }
     }
@@ -88,12 +92,14 @@ public class LocalXAResource implements XAResourceWrapper {
     @Override
     public void end(Xid xid, int flags) throws XAException {
         if ( xid == null || !xid.equals( currentXid ) ) {
+            transactionAware.setFlushOnly();
             throw new XAException( "Invalid xid to transactionEnd" );
         }
     }
 
     @Override
     public void forget(Xid xid) throws XAException {
+        transactionAware.setFlushOnly();
         throw new XAException( "Forget not supported in local XA resource" );
     }
 
@@ -114,6 +120,7 @@ public class LocalXAResource implements XAResourceWrapper {
 
     @Override
     public Xid[] recover(int flags) throws XAException {
+        transactionAware.setFlushOnly();
         throw new XAException( "No recover in local XA resource" );
     }
 

@@ -6,6 +6,7 @@ package io.agroal.api.configuration;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 
 /**
@@ -16,6 +17,8 @@ public interface AgroalConnectionPoolConfiguration {
     AgroalConnectionFactoryConfiguration connectionFactoryConfiguration();
 
     ConnectionValidator connectionValidator();
+
+    ExceptionSorter exceptionSorter();
 
     TransactionIntegration transactionIntegration();
 
@@ -70,5 +73,41 @@ public interface AgroalConnectionPoolConfiguration {
         // --- //
 
         boolean isValid(Connection connection);
+    }
+
+    // --- //
+
+    interface ExceptionSorter {
+
+        static ExceptionSorter defaultExceptionSorter() {
+            return new ExceptionSorter() {
+                @Override
+                public boolean isFatal(SQLException se) {
+                    return false;
+                }
+            };
+        }
+
+        static ExceptionSorter emptyExceptionSorter() {
+            return new ExceptionSorter() {
+                @Override
+                public boolean isFatal(SQLException se) {
+                    return false;
+                }
+            };
+        }
+
+        static ExceptionSorter fatalExceptionSorter() {
+            return new ExceptionSorter() {
+                @Override
+                public boolean isFatal(SQLException se) {
+                    return true;
+                }
+            };
+        }
+
+        // --- //
+
+        boolean isFatal(SQLException se);
     }
 }

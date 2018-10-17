@@ -12,6 +12,7 @@ import javax.transaction.xa.Xid;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
+ * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class BaseXAResource implements XAResourceWrapper {
 
@@ -52,62 +53,105 @@ public class BaseXAResource implements XAResourceWrapper {
 
     @Override
     public void commit(Xid xid, boolean onePhase) throws XAException {
-        xaResource.commit( xid, onePhase );
+        try {
+            xaResource.commit( xid, onePhase );
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
-        xaResource.end( xid, flags );
-
         try {
+            xaResource.end( xid, flags );
             connection.transactionEnd();
         } catch ( Exception t ) {
+            connection.setFlushOnly();
             throw new XAException( "Error trying to end xa transaction: " + t.getMessage() );
         }
     }
 
     @Override
     public void forget(Xid xid) throws XAException {
-        xaResource.forget( xid );
+        try {
+            xaResource.forget( xid );
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public int getTransactionTimeout() throws XAException {
-        return xaResource.getTransactionTimeout();
+        try {
+            return xaResource.getTransactionTimeout();
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public boolean isSameRM(XAResource xaRes) throws XAException {
-        return xaResource.isSameRM( xaRes );
+        try {
+            return xaResource.isSameRM( xaRes );
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public int prepare(Xid xid) throws XAException {
-        return xaResource.prepare( xid );
+        try {
+            return xaResource.prepare( xid );
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public Xid[] recover(int flag) throws XAException {
-        return xaResource.recover( flag );
+        try {
+            return xaResource.recover( flag );
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public void rollback(Xid xid) throws XAException {
-        xaResource.rollback( xid );
+        try {
+            xaResource.rollback( xid );
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public boolean setTransactionTimeout(int seconds) throws XAException {
-        return xaResource.setTransactionTimeout( seconds );
+        try {
+            return xaResource.setTransactionTimeout( seconds );
+        } catch ( XAException xe ) {
+            connection.setFlushOnly();
+            throw xe;
+        }
     }
 
     @Override
     public void start(Xid xid, int flags) throws XAException {
         try {
             connection.transactionStart();
-        } catch ( Exception t ) {
-            throw new XAException( "Error trying to start xa transaction: " + t.getMessage() );
+            xaResource.start( xid, flags );
+        } catch ( Exception e ) {
+            connection.setFlushOnly();
+            XAException xe = new XAException( "Error trying to start xa transaction: " + e.getMessage() );
+            xe.initCause( e );
+            throw xe;
         }
-        xaResource.start( xid, flags );
     }
 }

@@ -31,6 +31,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
+ * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public final class ResultSetWrapper implements ResultSet {
 
@@ -68,6 +69,7 @@ public final class ResultSetWrapper implements ResultSet {
         try {
             wrappedResultSet.close();
         } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
             throw se;
         } finally {
             statement.releaseTrackedResultSet( wrappedResultSet );
@@ -79,561 +81,1116 @@ public final class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean next() throws SQLException {
-        return wrappedResultSet.next();
+        try {
+            return wrappedResultSet.next();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean wasNull() throws SQLException {
-        return wrappedResultSet.wasNull();
+        try {
+            return wrappedResultSet.wasNull();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public String getString(int columnIndex) throws SQLException {
-        return wrappedResultSet.getString( columnIndex );
+        try {
+            return wrappedResultSet.getString( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean getBoolean(int columnIndex) throws SQLException {
-        return wrappedResultSet.getBoolean( columnIndex );
+        try {
+            return wrappedResultSet.getBoolean( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public byte getByte(int columnIndex) throws SQLException {
-        return wrappedResultSet.getByte( columnIndex );
+        try {
+            return wrappedResultSet.getByte( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public short getShort(int columnIndex) throws SQLException {
-        return wrappedResultSet.getShort( columnIndex );
+        try {
+            return wrappedResultSet.getShort( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getInt(int columnIndex) throws SQLException {
-        return wrappedResultSet.getInt( columnIndex );
+        try {
+            return wrappedResultSet.getInt( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public long getLong(int columnIndex) throws SQLException {
-        return wrappedResultSet.getLong( columnIndex );
+        try {
+            return wrappedResultSet.getLong( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public float getFloat(int columnIndex) throws SQLException {
-        return wrappedResultSet.getFloat( columnIndex );
+        try {
+            return wrappedResultSet.getFloat( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public double getDouble(int columnIndex) throws SQLException {
-        return wrappedResultSet.getDouble( columnIndex );
+        try {
+            return wrappedResultSet.getDouble( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
-        return wrappedResultSet.getBigDecimal( columnIndex, scale );
+        try {
+            return wrappedResultSet.getBigDecimal( columnIndex, scale );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public byte[] getBytes(int columnIndex) throws SQLException {
-        return wrappedResultSet.getBytes( columnIndex );
+        try {
+            return wrappedResultSet.getBytes( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Date getDate(int columnIndex) throws SQLException {
-        return wrappedResultSet.getDate( columnIndex );
+        try {
+            return wrappedResultSet.getDate( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Time getTime(int columnIndex) throws SQLException {
-        return wrappedResultSet.getTime( columnIndex );
+        try {
+            return wrappedResultSet.getTime( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex) throws SQLException {
-        return wrappedResultSet.getTimestamp( columnIndex );
+        try {
+            return wrappedResultSet.getTimestamp( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public InputStream getAsciiStream(int columnIndex) throws SQLException {
-        return wrappedResultSet.getAsciiStream( columnIndex );
+        try {
+            return wrappedResultSet.getAsciiStream( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public InputStream getUnicodeStream(int columnIndex) throws SQLException {
-        return wrappedResultSet.getUnicodeStream( columnIndex );
+        try {
+            return wrappedResultSet.getUnicodeStream( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public InputStream getBinaryStream(int columnIndex) throws SQLException {
-        return wrappedResultSet.getBinaryStream( columnIndex );
+        try {
+            return wrappedResultSet.getBinaryStream( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public String getString(String columnLabel) throws SQLException {
-        return wrappedResultSet.getString( columnLabel );
+        try {
+            return wrappedResultSet.getString( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean getBoolean(String columnLabel) throws SQLException {
-        return wrappedResultSet.getBoolean( columnLabel );
+        try {
+            return wrappedResultSet.getBoolean( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public byte getByte(String columnLabel) throws SQLException {
-        return wrappedResultSet.getByte( columnLabel );
+        try {
+            return wrappedResultSet.getByte( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public short getShort(String columnLabel) throws SQLException {
-        return wrappedResultSet.getShort( columnLabel );
+        try {
+            return wrappedResultSet.getShort( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getInt(String columnLabel) throws SQLException {
-        return wrappedResultSet.getInt( columnLabel );
+        try {
+            return wrappedResultSet.getInt( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public long getLong(String columnLabel) throws SQLException {
-        return wrappedResultSet.getLong( columnLabel );
+        try {
+            return wrappedResultSet.getLong( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public float getFloat(String columnLabel) throws SQLException {
-        return wrappedResultSet.getFloat( columnLabel );
+        try {
+            return wrappedResultSet.getFloat( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public double getDouble(String columnLabel) throws SQLException {
-        return wrappedResultSet.getDouble( columnLabel );
+        try {
+            return wrappedResultSet.getDouble( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException {
-        return wrappedResultSet.getBigDecimal( columnLabel, scale );
+        try {
+            return wrappedResultSet.getBigDecimal( columnLabel, scale );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public byte[] getBytes(String columnLabel) throws SQLException {
-        return wrappedResultSet.getBytes( columnLabel );
+        try {
+            return wrappedResultSet.getBytes( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Date getDate(String columnLabel) throws SQLException {
-        return wrappedResultSet.getDate( columnLabel );
+        try {
+            return wrappedResultSet.getDate( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Time getTime(String columnLabel) throws SQLException {
-        return wrappedResultSet.getTime( columnLabel );
+        try {
+            return wrappedResultSet.getTime( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Timestamp getTimestamp(String columnLabel) throws SQLException {
-        return wrappedResultSet.getTimestamp( columnLabel );
+        try {
+            return wrappedResultSet.getTimestamp( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public InputStream getAsciiStream(String columnLabel) throws SQLException {
-        return wrappedResultSet.getAsciiStream( columnLabel );
+        try {
+            return wrappedResultSet.getAsciiStream( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public InputStream getUnicodeStream(String columnLabel) throws SQLException {
-        return wrappedResultSet.getUnicodeStream( columnLabel );
+        try {
+            return wrappedResultSet.getUnicodeStream( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public InputStream getBinaryStream(String columnLabel) throws SQLException {
-        return wrappedResultSet.getBinaryStream( columnLabel );
+        try {
+            return wrappedResultSet.getBinaryStream( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
-        return wrappedResultSet.getWarnings();
+        try {
+            return wrappedResultSet.getWarnings();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void clearWarnings() throws SQLException {
-        wrappedResultSet.clearWarnings();
+        try {
+            wrappedResultSet.clearWarnings();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public String getCursorName() throws SQLException {
-        return wrappedResultSet.getCursorName();
+        try {
+            return wrappedResultSet.getCursorName();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
-        return wrappedResultSet.getMetaData();
+        try {
+            return wrappedResultSet.getMetaData();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
-        return wrappedResultSet.getObject( columnIndex );
+        try {
+            return wrappedResultSet.getObject( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Object getObject(String columnLabel) throws SQLException {
-        return wrappedResultSet.getObject( columnLabel );
+        try {
+            return wrappedResultSet.getObject( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int findColumn(String columnLabel) throws SQLException {
-        return wrappedResultSet.findColumn( columnLabel );
+        try {
+            return wrappedResultSet.findColumn( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Reader getCharacterStream(int columnIndex) throws SQLException {
-        return wrappedResultSet.getCharacterStream( columnIndex );
+        try {
+            return wrappedResultSet.getCharacterStream( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Reader getCharacterStream(String columnLabel) throws SQLException {
-        return wrappedResultSet.getCharacterStream( columnLabel );
+        try {
+            return wrappedResultSet.getCharacterStream( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
-        return wrappedResultSet.getBigDecimal( columnIndex );
+        try {
+            return wrappedResultSet.getBigDecimal( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
-        return wrappedResultSet.getBigDecimal( columnLabel );
+        try {
+            return wrappedResultSet.getBigDecimal( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean isBeforeFirst() throws SQLException {
-        return wrappedResultSet.isBeforeFirst();
+        try {
+            return wrappedResultSet.isBeforeFirst();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean isAfterLast() throws SQLException {
-        return wrappedResultSet.isAfterLast();
+        try {
+            return wrappedResultSet.isAfterLast();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean isFirst() throws SQLException {
-        return wrappedResultSet.isFirst();
+        try {
+            return wrappedResultSet.isFirst();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean isLast() throws SQLException {
-        return wrappedResultSet.isLast();
+        try {
+            return wrappedResultSet.isLast();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void beforeFirst() throws SQLException {
-        wrappedResultSet.beforeFirst();
+        try {
+            wrappedResultSet.beforeFirst();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void afterLast() throws SQLException {
-        wrappedResultSet.afterLast();
+        try {
+            wrappedResultSet.afterLast();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean first() throws SQLException {
-        return wrappedResultSet.first();
+        try {
+            return wrappedResultSet.first();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean last() throws SQLException {
-        return wrappedResultSet.last();
+        try {
+            return wrappedResultSet.last();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getRow() throws SQLException {
-        return wrappedResultSet.getRow();
+        try {
+            return wrappedResultSet.getRow();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean absolute(int row) throws SQLException {
-        return wrappedResultSet.absolute( row );
+        try {
+            return wrappedResultSet.absolute( row );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean relative(int rows) throws SQLException {
-        return wrappedResultSet.relative( rows );
+        try {
+            return wrappedResultSet.relative( rows );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean previous() throws SQLException {
-        return wrappedResultSet.previous();
+        try {
+            return wrappedResultSet.previous();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getFetchDirection() throws SQLException {
-        return wrappedResultSet.getFetchDirection();
+        try {
+            return wrappedResultSet.getFetchDirection();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void setFetchDirection(int direction) throws SQLException {
-        wrappedResultSet.setFetchDirection( direction );
+        try {
+            wrappedResultSet.setFetchDirection( direction );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getFetchSize() throws SQLException {
-        return wrappedResultSet.getFetchSize();
+        try {
+            return wrappedResultSet.getFetchSize();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-        wrappedResultSet.setFetchSize( rows );
+        try {
+            wrappedResultSet.setFetchSize( rows );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getType() throws SQLException {
-        return wrappedResultSet.getType();
+        try {
+            return wrappedResultSet.getType();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getConcurrency() throws SQLException {
-        return wrappedResultSet.getConcurrency();
+        try {
+            return wrappedResultSet.getConcurrency();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean rowUpdated() throws SQLException {
-        return wrappedResultSet.rowUpdated();
+        try {
+            return wrappedResultSet.rowUpdated();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean rowInserted() throws SQLException {
-        return wrappedResultSet.rowInserted();
+        try {
+            return wrappedResultSet.rowInserted();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean rowDeleted() throws SQLException {
-        return wrappedResultSet.rowDeleted();
+        try {
+            return wrappedResultSet.rowDeleted();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNull(int columnIndex) throws SQLException {
-        wrappedResultSet.updateNull( columnIndex );
+        try {
+            wrappedResultSet.updateNull( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBoolean(int columnIndex, boolean x) throws SQLException {
-        wrappedResultSet.updateBoolean( columnIndex, x );
+        try {
+            wrappedResultSet.updateBoolean( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateByte(int columnIndex, byte x) throws SQLException {
-        wrappedResultSet.updateByte( columnIndex, x );
+        try {
+            wrappedResultSet.updateByte( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateShort(int columnIndex, short x) throws SQLException {
-        wrappedResultSet.updateShort( columnIndex, x );
+        try {
+            wrappedResultSet.updateShort( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateInt(int columnIndex, int x) throws SQLException {
-        wrappedResultSet.updateInt( columnIndex, x );
+        try {
+            wrappedResultSet.updateInt( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateLong(int columnIndex, long x) throws SQLException {
-        wrappedResultSet.updateLong( columnIndex, x );
+        try {
+            wrappedResultSet.updateLong( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateFloat(int columnIndex, float x) throws SQLException {
-        wrappedResultSet.updateFloat( columnIndex, x );
+        try {
+            wrappedResultSet.updateFloat( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateDouble(int columnIndex, double x) throws SQLException {
-        wrappedResultSet.updateDouble( columnIndex, x );
+        try {
+            wrappedResultSet.updateDouble( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBigDecimal(int columnIndex, BigDecimal x) throws SQLException {
-        wrappedResultSet.updateBigDecimal( columnIndex, x );
+        try {
+            wrappedResultSet.updateBigDecimal( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateString(int columnIndex, String x) throws SQLException {
-        wrappedResultSet.updateString( columnIndex, x );
+        try {
+            wrappedResultSet.updateString( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBytes(int columnIndex, byte[] x) throws SQLException {
-        wrappedResultSet.updateBytes( columnIndex, x );
+        try {
+            wrappedResultSet.updateBytes( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateDate(int columnIndex, Date x) throws SQLException {
-        wrappedResultSet.updateDate( columnIndex, x );
+        try {
+            wrappedResultSet.updateDate( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateTime(int columnIndex, Time x) throws SQLException {
-        wrappedResultSet.updateTime( columnIndex, x );
+        try {
+            wrappedResultSet.updateTime( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateTimestamp(int columnIndex, Timestamp x) throws SQLException {
-        wrappedResultSet.updateTimestamp( columnIndex, x );
+        try {
+            wrappedResultSet.updateTimestamp( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, int length) throws SQLException {
-        wrappedResultSet.updateAsciiStream( columnIndex, x, length );
+        try {
+            wrappedResultSet.updateAsciiStream( columnIndex, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, int length) throws SQLException {
-        wrappedResultSet.updateBinaryStream( columnIndex, x, length );
+        try {
+            wrappedResultSet.updateBinaryStream( columnIndex, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, int length) throws SQLException {
-        wrappedResultSet.updateCharacterStream( columnIndex, x, length );
+        try {
+            wrappedResultSet.updateCharacterStream( columnIndex, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateObject(int columnIndex, Object x, int scaleOrLength) throws SQLException {
-        wrappedResultSet.updateObject( columnIndex, x, scaleOrLength );
+        try {
+            wrappedResultSet.updateObject( columnIndex, x, scaleOrLength );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateObject(int columnIndex, Object x) throws SQLException {
-        wrappedResultSet.updateObject( columnIndex, x );
+        try {
+            wrappedResultSet.updateObject( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNull(String columnLabel) throws SQLException {
-        wrappedResultSet.updateNull( columnLabel );
+        try {
+            wrappedResultSet.updateNull( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBoolean(String columnLabel, boolean x) throws SQLException {
-        wrappedResultSet.updateBoolean( columnLabel, x );
+        try {
+            wrappedResultSet.updateBoolean( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateByte(String columnLabel, byte x) throws SQLException {
-        wrappedResultSet.updateByte( columnLabel, x );
+        try {
+            wrappedResultSet.updateByte( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateShort(String columnLabel, short x) throws SQLException {
-        wrappedResultSet.updateShort( columnLabel, x );
+        try {
+            wrappedResultSet.updateShort( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateInt(String columnLabel, int x) throws SQLException {
-        wrappedResultSet.updateInt( columnLabel, x );
+        try {
+            wrappedResultSet.updateInt( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateLong(String columnLabel, long x) throws SQLException {
-        wrappedResultSet.updateLong( columnLabel, x );
+        try {
+            wrappedResultSet.updateLong( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateFloat(String columnLabel, float x) throws SQLException {
-        wrappedResultSet.updateFloat( columnLabel, x );
+        try {
+            wrappedResultSet.updateFloat( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateDouble(String columnLabel, double x) throws SQLException {
-        wrappedResultSet.updateDouble( columnLabel, x );
+        try {
+            wrappedResultSet.updateDouble( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBigDecimal(String columnLabel, BigDecimal x) throws SQLException {
-        wrappedResultSet.updateBigDecimal( columnLabel, x );
+        try {
+            wrappedResultSet.updateBigDecimal( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateString(String columnLabel, String x) throws SQLException {
-        wrappedResultSet.updateString( columnLabel, x );
+        try {
+            wrappedResultSet.updateString( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBytes(String columnLabel, byte[] x) throws SQLException {
-        wrappedResultSet.updateBytes( columnLabel, x );
+        try {
+            wrappedResultSet.updateBytes( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateDate(String columnLabel, Date x) throws SQLException {
-        wrappedResultSet.updateDate( columnLabel, x );
+        try {
+            wrappedResultSet.updateDate( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateTime(String columnLabel, Time x) throws SQLException {
-        wrappedResultSet.updateTime( columnLabel, x );
+        try {
+            wrappedResultSet.updateTime( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateTimestamp(String columnLabel, Timestamp x) throws SQLException {
-        wrappedResultSet.updateTimestamp( columnLabel, x );
+        try {
+            wrappedResultSet.updateTimestamp( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, int length) throws SQLException {
-        wrappedResultSet.updateAsciiStream( columnLabel, x, length );
+        try {
+            wrappedResultSet.updateAsciiStream( columnLabel, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, int length) throws SQLException {
-        wrappedResultSet.updateBinaryStream( columnLabel, x, length );
+        try {
+            wrappedResultSet.updateBinaryStream( columnLabel, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, int length) throws SQLException {
-        wrappedResultSet.updateCharacterStream( columnLabel, reader, length );
+        try {
+            wrappedResultSet.updateCharacterStream( columnLabel, reader, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateObject(String columnLabel, Object x, int scaleOrLength) throws SQLException {
-        wrappedResultSet.updateObject( columnLabel, x, scaleOrLength );
+        try {
+            wrappedResultSet.updateObject( columnLabel, x, scaleOrLength );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateObject(String columnLabel, Object x) throws SQLException {
-        wrappedResultSet.updateObject( columnLabel, x );
+        try {
+            wrappedResultSet.updateObject( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void insertRow() throws SQLException {
-        wrappedResultSet.insertRow();
+        try {
+            wrappedResultSet.insertRow();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateRow() throws SQLException {
-        wrappedResultSet.updateRow();
+        try {
+            wrappedResultSet.updateRow();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void deleteRow() throws SQLException {
-        wrappedResultSet.deleteRow();
+        try {
+            wrappedResultSet.deleteRow();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void refreshRow() throws SQLException {
-        wrappedResultSet.refreshRow();
+        try {
+            wrappedResultSet.refreshRow();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void cancelRowUpdates() throws SQLException {
-        wrappedResultSet.cancelRowUpdates();
+        try {
+            wrappedResultSet.cancelRowUpdates();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void moveToInsertRow() throws SQLException {
-        wrappedResultSet.moveToInsertRow();
+        try {
+            wrappedResultSet.moveToInsertRow();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void moveToCurrentRow() throws SQLException {
-        wrappedResultSet.moveToCurrentRow();
+        try {
+            wrappedResultSet.moveToCurrentRow();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
@@ -643,391 +1200,781 @@ public final class ResultSetWrapper implements ResultSet {
 
     @Override
     public Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException {
-        return wrappedResultSet.getObject( columnIndex, map );
+        try {
+            return wrappedResultSet.getObject( columnIndex, map );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Ref getRef(int columnIndex) throws SQLException {
-        return wrappedResultSet.getRef( columnIndex );
+        try {
+            return wrappedResultSet.getRef( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Blob getBlob(int columnIndex) throws SQLException {
-        return wrappedResultSet.getBlob( columnIndex );
+        try {
+            return wrappedResultSet.getBlob( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Clob getClob(int columnIndex) throws SQLException {
-        return wrappedResultSet.getClob( columnIndex );
+        try {
+            return wrappedResultSet.getClob( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Array getArray(int columnIndex) throws SQLException {
-        return wrappedResultSet.getArray( columnIndex );
+        try {
+            return wrappedResultSet.getArray( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
-        return wrappedResultSet.getObject( columnLabel, map );
+        try {
+            return wrappedResultSet.getObject( columnLabel, map );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Ref getRef(String columnLabel) throws SQLException {
-        return wrappedResultSet.getRef( columnLabel );
+        try {
+            return wrappedResultSet.getRef( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Blob getBlob(String columnLabel) throws SQLException {
-        return wrappedResultSet.getBlob( columnLabel );
+        try {
+            return wrappedResultSet.getBlob( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Clob getClob(String columnLabel) throws SQLException {
-        return wrappedResultSet.getClob( columnLabel );
+        try {
+            return wrappedResultSet.getClob( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Array getArray(String columnLabel) throws SQLException {
-        return wrappedResultSet.getArray( columnLabel );
+        try {
+            return wrappedResultSet.getArray( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Date getDate(int columnIndex, Calendar cal) throws SQLException {
-        return wrappedResultSet.getDate( columnIndex, cal );
+        try {
+            return wrappedResultSet.getDate( columnIndex, cal );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Date getDate(String columnLabel, Calendar cal) throws SQLException {
-        return wrappedResultSet.getDate( columnLabel, cal );
+        try {
+            return wrappedResultSet.getDate( columnLabel, cal );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Time getTime(int columnIndex, Calendar cal) throws SQLException {
-        return wrappedResultSet.getTime( columnIndex, cal );
+        try {
+            return wrappedResultSet.getTime( columnIndex, cal );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Time getTime(String columnLabel, Calendar cal) throws SQLException {
-        return wrappedResultSet.getTime( columnLabel, cal );
+        try {
+            return wrappedResultSet.getTime( columnLabel, cal );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException {
-        return wrappedResultSet.getTimestamp( columnIndex, cal );
+        try {
+            return wrappedResultSet.getTimestamp( columnIndex, cal );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Timestamp getTimestamp(String columnLabel, Calendar cal) throws SQLException {
-        return wrappedResultSet.getTimestamp( columnLabel, cal );
+        try {
+            return wrappedResultSet.getTimestamp( columnLabel, cal );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public URL getURL(int columnIndex) throws SQLException {
-        return wrappedResultSet.getURL( columnIndex );
+        try {
+            return wrappedResultSet.getURL( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public URL getURL(String columnLabel) throws SQLException {
-        return wrappedResultSet.getURL( columnLabel );
+        try {
+            return wrappedResultSet.getURL( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateRef(int columnIndex, Ref x) throws SQLException {
-        wrappedResultSet.updateRef( columnIndex, x );
+        try {
+            wrappedResultSet.updateRef( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateRef(String columnLabel, Ref x) throws SQLException {
-        wrappedResultSet.updateRef( columnLabel, x );
+        try {
+            wrappedResultSet.updateRef( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBlob(int columnIndex, Blob x) throws SQLException {
-        wrappedResultSet.updateBlob( columnIndex, x );
+        try {
+            wrappedResultSet.updateBlob( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBlob(String columnLabel, Blob x) throws SQLException {
-        wrappedResultSet.updateBlob( columnLabel, x );
+        try {
+            wrappedResultSet.updateBlob( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateClob(int columnIndex, Clob x) throws SQLException {
-        wrappedResultSet.updateClob( columnIndex, x );
+        try {
+            wrappedResultSet.updateClob( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateClob(String columnLabel, Clob x) throws SQLException {
-        wrappedResultSet.updateClob( columnLabel, x );
+        try {
+            wrappedResultSet.updateClob( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateArray(int columnIndex, Array x) throws SQLException {
-        wrappedResultSet.updateArray( columnIndex, x );
+        try {
+            wrappedResultSet.updateArray( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateArray(String columnLabel, Array x) throws SQLException {
-        wrappedResultSet.updateArray( columnLabel, x );
+        try {
+            wrappedResultSet.updateArray( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public RowId getRowId(int columnIndex) throws SQLException {
-        return wrappedResultSet.getRowId( columnIndex );
+        try {
+            return wrappedResultSet.getRowId( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public RowId getRowId(String columnLabel) throws SQLException {
-        return wrappedResultSet.getRowId( columnLabel );
+        try {
+            return wrappedResultSet.getRowId( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateRowId(int columnIndex, RowId x) throws SQLException {
-        wrappedResultSet.updateRowId( columnIndex, x );
+        try {
+            wrappedResultSet.updateRowId( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateRowId(String columnLabel, RowId x) throws SQLException {
-        wrappedResultSet.updateRowId( columnLabel, x );
+        try {
+            wrappedResultSet.updateRowId( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public int getHoldability() throws SQLException {
-        return wrappedResultSet.getHoldability();
+        try {
+            return wrappedResultSet.getHoldability();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean isClosed() throws SQLException {
-        return wrappedResultSet.isClosed();
+        try {
+            return wrappedResultSet.isClosed();
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNString(int columnIndex, String nString) throws SQLException {
-        wrappedResultSet.updateNString( columnIndex, nString );
+        try {
+            wrappedResultSet.updateNString( columnIndex, nString );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNString(String columnLabel, String nString) throws SQLException {
-        wrappedResultSet.updateNString( columnLabel, nString );
+        try {
+            wrappedResultSet.updateNString( columnLabel, nString );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNClob(int columnIndex, NClob nClob) throws SQLException {
-        wrappedResultSet.updateNClob( columnIndex, nClob );
+        try {
+            wrappedResultSet.updateNClob( columnIndex, nClob );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNClob(String columnLabel, NClob nClob) throws SQLException {
-        wrappedResultSet.updateNClob( columnLabel, nClob );
+        try {
+            wrappedResultSet.updateNClob( columnLabel, nClob );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public NClob getNClob(int columnIndex) throws SQLException {
-        return wrappedResultSet.getNClob( columnIndex );
+        try {
+            return wrappedResultSet.getNClob( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public NClob getNClob(String columnLabel) throws SQLException {
-        return wrappedResultSet.getNClob( columnLabel );
+        try {
+            return wrappedResultSet.getNClob( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public SQLXML getSQLXML(int columnIndex) throws SQLException {
-        return wrappedResultSet.getSQLXML( columnIndex );
+        try {
+            return wrappedResultSet.getSQLXML( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public SQLXML getSQLXML(String columnLabel) throws SQLException {
-        return wrappedResultSet.getSQLXML( columnLabel );
+        try {
+            return wrappedResultSet.getSQLXML( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateSQLXML(int columnIndex, SQLXML xmlObject) throws SQLException {
-        wrappedResultSet.updateSQLXML( columnIndex, xmlObject );
+        try {
+            wrappedResultSet.updateSQLXML( columnIndex, xmlObject );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateSQLXML(String columnLabel, SQLXML xmlObject) throws SQLException {
-        wrappedResultSet.updateSQLXML( columnLabel, xmlObject );
+        try {
+            wrappedResultSet.updateSQLXML( columnLabel, xmlObject );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public String getNString(int columnIndex) throws SQLException {
-        return wrappedResultSet.getNString( columnIndex );
+        try {
+            return wrappedResultSet.getNString( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public String getNString(String columnLabel) throws SQLException {
-        return wrappedResultSet.getNString( columnLabel );
+        try {
+            return wrappedResultSet.getNString( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Reader getNCharacterStream(int columnIndex) throws SQLException {
-        return wrappedResultSet.getNCharacterStream( columnIndex );
+        try {
+            return wrappedResultSet.getNCharacterStream( columnIndex );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public Reader getNCharacterStream(String columnLabel) throws SQLException {
-        return wrappedResultSet.getNCharacterStream( columnLabel );
+        try {
+            return wrappedResultSet.getNCharacterStream( columnLabel );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
-        wrappedResultSet.updateNCharacterStream( columnIndex, x, length );
+        try {
+            wrappedResultSet.updateNCharacterStream( columnIndex, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
-        wrappedResultSet.updateNCharacterStream( columnLabel, reader, length );
+        try {
+            wrappedResultSet.updateNCharacterStream( columnLabel, reader, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, long length) throws SQLException {
-        wrappedResultSet.updateAsciiStream( columnIndex, x, length );
+        try {
+            wrappedResultSet.updateAsciiStream( columnIndex, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, long length) throws SQLException {
-        wrappedResultSet.updateBinaryStream( columnIndex, x, length );
+        try {
+            wrappedResultSet.updateBinaryStream( columnIndex, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
-        wrappedResultSet.updateCharacterStream( columnIndex, x, length );
+        try {
+            wrappedResultSet.updateCharacterStream( columnIndex, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, long length) throws SQLException {
-        wrappedResultSet.updateAsciiStream( columnLabel, x, length );
+        try {
+            wrappedResultSet.updateAsciiStream( columnLabel, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, long length) throws SQLException {
-        wrappedResultSet.updateBinaryStream( columnLabel, x, length );
+        try {
+            wrappedResultSet.updateBinaryStream( columnLabel, x, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
-        wrappedResultSet.updateCharacterStream( columnLabel, reader, length );
+        try {
+            wrappedResultSet.updateCharacterStream( columnLabel, reader, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream, long length) throws SQLException {
-        wrappedResultSet.updateBlob( columnIndex, inputStream, length );
+        try {
+            wrappedResultSet.updateBlob( columnIndex, inputStream, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream, long length) throws SQLException {
-        wrappedResultSet.updateBlob( columnLabel, inputStream, length );
+        try {
+            wrappedResultSet.updateBlob( columnLabel, inputStream, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader, long length) throws SQLException {
-        wrappedResultSet.updateClob( columnIndex, reader, length );
+        try {
+            wrappedResultSet.updateClob( columnIndex, reader, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader, long length) throws SQLException {
-        wrappedResultSet.updateClob( columnLabel, reader, length );
+        try {
+            wrappedResultSet.updateClob( columnLabel, reader, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader, long length) throws SQLException {
-        wrappedResultSet.updateNClob( columnIndex, reader, length );
+        try {
+            wrappedResultSet.updateNClob( columnIndex, reader, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader, long length) throws SQLException {
-         wrappedResultSet.updateClob( columnLabel, reader, length );
+        try {
+            wrappedResultSet.updateClob( columnLabel, reader, length );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x) throws SQLException {
-        wrappedResultSet.updateNCharacterStream( columnIndex, x );
+        try {
+            wrappedResultSet.updateNCharacterStream( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader) throws SQLException {
-       wrappedResultSet.updateNCharacterStream( columnLabel, reader );
+        try {
+            wrappedResultSet.updateNCharacterStream( columnLabel, reader );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x) throws SQLException {
-        wrappedResultSet.updateAsciiStream( columnIndex, x );
+        try {
+            wrappedResultSet.updateAsciiStream( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x) throws SQLException {
-       wrappedResultSet.updateBinaryStream( columnIndex, x );
+        try {
+            wrappedResultSet.updateBinaryStream( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x) throws SQLException {
-           wrappedResultSet.updateCharacterStream( columnIndex, x );
+        try {
+            wrappedResultSet.updateCharacterStream( columnIndex, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x) throws SQLException {
-       wrappedResultSet.updateAsciiStream( columnLabel, x );
+        try {
+            wrappedResultSet.updateAsciiStream( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x) throws SQLException {
-       wrappedResultSet.updateBinaryStream( columnLabel, x );
+        try {
+            wrappedResultSet.updateBinaryStream( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader) throws SQLException {
-         wrappedResultSet.updateCharacterStream( columnLabel, reader );
+        try {
+            wrappedResultSet.updateCharacterStream( columnLabel, reader );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream) throws SQLException {
-              wrappedResultSet.updateBlob( columnIndex, inputStream );
+        try {
+            wrappedResultSet.updateBlob( columnIndex, inputStream );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream) throws SQLException {
-             wrappedResultSet.updateBlob( columnLabel, inputStream );
+        try {
+            wrappedResultSet.updateBlob( columnLabel, inputStream );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader) throws SQLException {
-                wrappedResultSet.updateClob( columnIndex, reader );
+        try {
+            wrappedResultSet.updateClob( columnIndex, reader );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader) throws SQLException {
-                   wrappedResultSet.updateClob( columnLabel, reader );
+        try {
+            wrappedResultSet.updateClob( columnLabel, reader );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader) throws SQLException {
-                   wrappedResultSet.updateNClob( columnIndex, reader );
+        try {
+            wrappedResultSet.updateNClob( columnIndex, reader );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader) throws SQLException {
-                   wrappedResultSet.updateNClob( columnLabel, reader );
+        try {
+            wrappedResultSet.updateNClob( columnLabel, reader );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
-        return wrappedResultSet.getObject( columnIndex, type );
+        try {
+            return wrappedResultSet.getObject( columnIndex, type );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public <T> T getObject(String columnLabel, Class<T> type) throws SQLException {
-        return wrappedResultSet.getObject( columnLabel, type );
+        try {
+            return wrappedResultSet.getObject( columnLabel, type );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public <T> T unwrap(Class<T> target) throws SQLException {
-        return wrappedResultSet.unwrap( target );
+        try {
+            return wrappedResultSet.unwrap( target );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 
     @Override
     public boolean isWrapperFor(Class<?> target) throws SQLException {
-        return wrappedResultSet.isWrapperFor( target );
+        try {
+            return wrappedResultSet.isWrapperFor( target );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }            
     }
 }

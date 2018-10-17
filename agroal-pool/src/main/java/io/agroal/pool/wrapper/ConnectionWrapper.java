@@ -31,6 +31,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
+ * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public final class ConnectionWrapper implements Connection {
 
@@ -130,338 +131,607 @@ public final class ConnectionWrapper implements Connection {
 
     @Override
     public void abort(Executor executor) throws SQLException {
-        wrappedConnection = CLOSED_CONNECTION;
-        wrappedConnection.abort( executor );
-    }
-
-    @Override
-    public boolean getAutoCommit() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getAutoCommit();
+        try {
+            wrappedConnection = CLOSED_CONNECTION;
+            wrappedConnection.abort( executor );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
         if ( autoCommit && handler.isEnlisted() ) {
+            handler.setFlushOnly();
             throw new SQLException( "Trying to set autocommit in connection taking part of transaction" );
         }
-        handler.deferredEnlistmentCheck();
-        if ( wrappedConnection.getAutoCommit() != autoCommit ) {
-            handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.AUTOCOMMIT );
-            wrappedConnection.setAutoCommit( autoCommit );
+        try {
+            handler.deferredEnlistmentCheck();
+            if ( wrappedConnection.getAutoCommit() != autoCommit ) {
+                handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.AUTOCOMMIT );
+                wrappedConnection.setAutoCommit( autoCommit );
+            }
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
+    public boolean getAutoCommit() throws SQLException {
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getAutoCommit();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
         }
     }
 
     @Override
     public void commit() throws SQLException {
         if ( handler.isEnlisted() ) {
+            handler.setFlushOnly();
             throw new SQLException( "Attempting to commit while taking part in a transaction" );
         }
-        wrappedConnection.commit();
+        try {
+            wrappedConnection.commit();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void rollback() throws SQLException {
         if ( handler.isEnlisted() ) {
+            handler.setFlushOnly();
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
-        handler.deferredEnlistmentCheck();
-        wrappedConnection.rollback();
+        try {
+            handler.deferredEnlistmentCheck();
+            wrappedConnection.rollback();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void rollback(Savepoint savepoint) throws SQLException {
         if ( handler.isEnlisted() ) {
-            throw new SQLException( "Attempting to commit while enlisted in a transaction" );
+            handler.setFlushOnly();
+            throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
-        handler.deferredEnlistmentCheck();
-        wrappedConnection.rollback( savepoint );
+        try {
+            handler.deferredEnlistmentCheck();
+            wrappedConnection.rollback( savepoint );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     // --- //
 
     @Override
     public void clearWarnings() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        wrappedConnection.clearWarnings();
+        try {
+            handler.deferredEnlistmentCheck();
+            wrappedConnection.clearWarnings();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Clob createClob() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.createClob();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.createClob();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Blob createBlob() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.createBlob();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.createBlob();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public NClob createNClob() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.createNClob();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.createNClob();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public SQLXML createSQLXML() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.createSQLXML();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.createSQLXML();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Array createArrayOf(String typeName, Object[] elements) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.createArrayOf( typeName, elements );
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.createArrayOf( typeName, elements );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Statement createStatement() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackStatement( wrappedConnection.createStatement() );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackStatement( wrappedConnection.createStatement() );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency, resultSetHoldability ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency, resultSetHoldability ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.createStruct( typeName, attributes );
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.createStruct( typeName, attributes );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public String getCatalog() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getCatalog();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getCatalog();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setCatalog(String catalog) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.CATALOG );
-        wrappedConnection.setCatalog( catalog );
+        try {
+            handler.deferredEnlistmentCheck();
+            handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.CATALOG );
+            wrappedConnection.setCatalog( catalog );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public int getHoldability() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getHoldability();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getHoldability();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setHoldability(int holdability) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        wrappedConnection.setHoldability( holdability );
+        try {
+            handler.deferredEnlistmentCheck();
+            wrappedConnection.setHoldability( holdability );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Properties getClientInfo() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getClientInfo();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getClientInfo();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setClientInfo(Properties properties) throws SQLClientInfoException {
-        wrappedConnection.setClientInfo( properties );
+        try {
+            wrappedConnection.setClientInfo( properties );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public String getClientInfo(String name) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getClientInfo( name );
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getClientInfo( name );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getMetaData();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getMetaData();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public int getNetworkTimeout() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getNetworkTimeout();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getNetworkTimeout();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public String getSchema() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getSchema();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getSchema();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setSchema(String schema) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.SCHEMA );
-        wrappedConnection.setSchema( schema );
+        try {
+            handler.deferredEnlistmentCheck();
+            handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.SCHEMA );
+            wrappedConnection.setSchema( schema );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Map<String, Class<?>> getTypeMap() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getTypeMap();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getTypeMap();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        wrappedConnection.setTypeMap( map );
+        try {
+            handler.deferredEnlistmentCheck();
+            wrappedConnection.setTypeMap( map );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public int getTransactionIsolation() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getTransactionIsolation();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getTransactionIsolation();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setTransactionIsolation(int level) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION );
-        wrappedConnection.setTransactionIsolation( level );
+        try {
+            handler.deferredEnlistmentCheck();
+            handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION );
+            wrappedConnection.setTransactionIsolation( level );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.getWarnings();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.getWarnings();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public boolean isClosed() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.isClosed();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.isClosed();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public boolean isReadOnly() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.isReadOnly();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.isReadOnly();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        wrappedConnection.setReadOnly( readOnly );
+        try {
+            handler.deferredEnlistmentCheck();
+            wrappedConnection.setReadOnly( readOnly );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public boolean isValid(int timeout) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.isValid( timeout );
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.isValid( timeout );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public String nativeSQL(String sql) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.nativeSQL( sql );
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.nativeSQL( sql );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public CallableStatement prepareCall(String sql) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackCallableStatement( wrappedConnection.prepareCall( sql ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackCallableStatement( wrappedConnection.prepareCall( sql ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency, resultSetHoldability ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency, resultSetHoldability ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackPreparedStatement( wrappedConnection.prepareStatement( sql ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackPreparedStatement( wrappedConnection.prepareStatement( sql ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency, resultSetHoldability ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency, resultSetHoldability ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackPreparedStatement( wrappedConnection.prepareStatement( sql, autoGeneratedKeys ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, autoGeneratedKeys ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnIndexes ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnIndexes ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnNames ) );
+        try {
+            handler.deferredEnlistmentCheck();
+            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnNames ) );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void releaseSavepoint(Savepoint savepoint) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        wrappedConnection.releaseSavepoint( savepoint );
+        try {
+            handler.deferredEnlistmentCheck();
+            wrappedConnection.releaseSavepoint( savepoint );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setClientInfo(String name, String value) throws SQLClientInfoException {
-        wrappedConnection.setClientInfo( name, value );
+        try {
+            wrappedConnection.setClientInfo( name, value );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Savepoint setSavepoint() throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.setSavepoint();
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.setSavepoint();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public Savepoint setSavepoint(String name) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        return wrappedConnection.setSavepoint( name );
+        try {
+            handler.deferredEnlistmentCheck();
+            return wrappedConnection.setSavepoint( name );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
-        handler.deferredEnlistmentCheck();
-        handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.NETWORK_TIMEOUT );
-        wrappedConnection.setNetworkTimeout( executor, milliseconds );
+        try {
+            handler.deferredEnlistmentCheck();
+            handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.NETWORK_TIMEOUT );
+            wrappedConnection.setNetworkTimeout( executor, milliseconds );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     // --- //
 
     @Override
     public <T> T unwrap(Class<T> target) throws SQLException {
-        return wrappedConnection.unwrap( target );
+        try {
+            return wrappedConnection.unwrap( target );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public boolean isWrapperFor(Class<?> target) throws SQLException {
-        return wrappedConnection.isWrapperFor( target );
+        try {
+            return wrappedConnection.isWrapperFor( target );
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
