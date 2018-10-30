@@ -22,6 +22,8 @@ public interface AgroalConnectionPoolConfiguration {
 
     TransactionIntegration transactionIntegration();
 
+    Duration idleValidationTimeout();
+
     Duration leakTimeout();
 
     Duration validationTimeout();

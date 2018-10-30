@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
@@ -96,9 +97,9 @@ public class BasicTests {
             assertNotNull( connection.getSchema(), "Expected non null value" );
         } );
         connection.close();
-        
+
         dataSource.close();
-        
+
         assertAll( () -> {
             assertThrows( SQLException.class, dataSource::getConnection );
             assertTrue( leaked.isClosed(), "Expected closed connection, but it's open" );
@@ -172,7 +173,7 @@ public class BasicTests {
     @Test
     @DisplayName( "Connection Validation" )
     public void basicValidationTest() throws SQLException {
-        int MAX_POOL_SIZE = 100, CAllS = 1000, VALIDATION_MS = 1000;
+        int MAX_POOL_SIZE = 100, CALLS = 1000, VALIDATION_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
@@ -186,7 +187,7 @@ public class BasicTests {
         AgroalDataSourceListener listener = new ValidationListener( latch );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
-            for ( int i = 0; i < CAllS; i++ ) {
+            for ( int i = 0; i < CALLS; i++ ) {
                 Connection connection = dataSource.getConnection();
                 assertNotNull( connection.getSchema(), "Expected non null value" );
                 connection.close();
@@ -203,9 +204,50 @@ public class BasicTests {
     }
 
     @Test
+    @DisplayName( "Idle Connection Validation" )
+    public void basicIdleValidationTest() throws SQLException {
+        int CALLS = 10, IDLE_VALIDATION_MS = 1000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 2 )
+                        .idleValidationTimeout( ofMillis( IDLE_VALIDATION_MS ) )
+                );
+
+        CountDownLatch latch = new CountDownLatch( 1 );
+
+        AgroalDataSourceListener listener = new ValidationListener( latch );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            for ( int i = 0; i < CALLS; i++ ) {
+                Connection connection = dataSource.getConnection();
+                assertNotNull( connection.getSchema(), "Expected non null value" );
+                connection.close();
+            }
+            assertEquals( 1, latch.getCount(), "Not expected validation to occur before " + IDLE_VALIDATION_MS );
+            Executors.newSingleThreadScheduledExecutor().schedule( () -> {
+                try ( Connection connection = dataSource.getConnection() ) {
+                    assertNotNull( connection.getSchema(), "Expected non null value" );
+                } catch ( SQLException e ) {
+                    fail( e );
+                }
+            }, IDLE_VALIDATION_MS, MILLISECONDS );
+
+            try {
+                logger.info( format( "Awaiting validation of idle connection" ) );
+                if ( !latch.await( 3L * IDLE_VALIDATION_MS, MILLISECONDS ) ) {
+                    fail( format( "Did not validate idle connection", latch.getCount() ) );
+                }
+            } catch ( InterruptedException e ) {
+                fail( "Test fail due to interrupt" );
+            }
+        }
+    }
+
+    @Test
     @DisplayName( "Connection Reap" )
     public void basicReapTest() throws SQLException {
-        int MIN_POOL_SIZE = 40, MAX_POOL_SIZE = 100, CAllS = 1000, REAP_TIMEOUT_MS = 1000;
+        int MIN_POOL_SIZE = 40, MAX_POOL_SIZE = 100, CALLS = 1000, REAP_TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
@@ -222,7 +264,7 @@ public class BasicTests {
         AgroalDataSourceListener listener = new ReapListener( allLatch, reapCount, destroyLatch );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
-            for ( int i = 0; i < CAllS; i++ ) {
+            for ( int i = 0; i < CALLS; i++ ) {
                 Connection connection = dataSource.getConnection();
                 assertNotNull( connection.getSchema(), "Expected non null value" );
                 connection.close();

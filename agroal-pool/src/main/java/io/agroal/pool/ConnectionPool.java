@@ -51,6 +51,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     private final PriorityScheduledExecutor housekeepingExecutor;
     private final TransactionIntegration transactionIntegration;
 
+    private final boolean idleValidationEnabled;
     private final boolean leakEnabled;
     private final boolean validationEnabled;
     private final boolean reapEnabled;
@@ -73,6 +74,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal_" + identityHashCode( this ) );
         transactionIntegration = configuration.transactionIntegration();
 
+        idleValidationEnabled = !configuration.idleValidationTimeout().isZero();
         leakEnabled = !configuration.leakTimeout().isZero();
         validationEnabled = !configuration.validationTimeout().isZero();
         reapEnabled = !configuration.reapTimeout().isZero();
@@ -139,10 +141,12 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
         ConnectionHandler checkedOutHandler = handlerFromTransaction();
         if ( checkedOutHandler == null ) {
-            checkedOutHandler = handlerFromLocalCache();
-            if ( checkedOutHandler == null ) {
-                checkedOutHandler = handlerFromSharedCache();
-            }
+            do {
+                checkedOutHandler = handlerFromLocalCache();
+                if ( checkedOutHandler == null ) {
+                    checkedOutHandler = handlerFromSharedCache();
+                }
+            } while ( idleValidationEnabled && !idleValidation( checkedOutHandler ) );
             activeCount.increment();
         }
 
@@ -225,6 +229,27 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         }
     }
 
+    private boolean idleValidation(ConnectionHandler handler) {
+        if ( nanoTime() - handler.getLastAccess() < configuration.idleValidationTimeout().toNanos() ) {
+            return true;
+        }
+        fireBeforeConnectionValidation( listeners, handler );
+        if ( handler.setState( CHECKED_OUT, VALIDATION ) ) {
+            if ( configuration.connectionValidator().isValid( handler.getConnection() ) ) {
+                handler.setState( CHECKED_OUT );
+                fireOnConnectionValid( listeners, handler );
+                return true;
+            } else {
+                handler.setState( FLUSH );
+                allConnections.remove( handler );
+                metricsRepository.afterConnectionInvalid();
+                fireOnConnectionInvalid( listeners, handler );
+                housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+            }
+        }
+        return false;
+    }
+
     // --- //
 
     public void returnConnectionHandler(ConnectionHandler handler) throws SQLException {
@@ -232,7 +257,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         if ( leakEnabled ) {
             handler.setHoldingThread( null );
         }
-        if ( reapEnabled ) {
+        if ( idleValidationEnabled || reapEnabled ) {
             handler.setLastAccess( nanoTime() );
         }
         if ( transactionIntegration.disassociate( handler ) ) {

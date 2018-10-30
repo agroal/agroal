@@ -32,6 +32,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private volatile int maxSize = MAX_VALUE;
     private AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
     private AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = emptyExceptionSorter();
+    private Duration idleValidationTimeout = ZERO;
     private Duration leakTimeout = ZERO;
     private Duration validationTimeout = ZERO;
     private Duration reapTimeout = ZERO;
@@ -53,6 +54,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         this.maxSize = existingConfiguration.maxSize();
         this.connectionValidator = existingConfiguration.connectionValidator();
         this.exceptionSorter = existingConfiguration.exceptionSorter();
+        this.idleValidationTimeout = existingConfiguration.idleValidationTimeout();
         this.leakTimeout = existingConfiguration.leakTimeout();
         this.validationTimeout = existingConfiguration.validationTimeout();
         this.reapTimeout = existingConfiguration.reapTimeout();
@@ -124,6 +126,12 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier acquisitionTimeout(Duration timeout) {
         checkLock();
         acquisitionTimeout = timeout;
+        return this;
+    }
+
+    public AgroalConnectionPoolConfigurationSupplier idleValidationTimeout(Duration timeout) {
+        checkLock();
+        idleValidationTimeout = timeout;
         return this;
     }
 
@@ -241,6 +249,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public ExceptionSorter exceptionSorter() {
                 return exceptionSorter;
+            }
+
+            @Override
+            public Duration idleValidationTimeout() {
+                return idleValidationTimeout;
             }
 
             @Override
