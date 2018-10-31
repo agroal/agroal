@@ -9,9 +9,11 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -28,7 +30,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     private final Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
 
     public PriorityScheduledExecutor(int executorSize, String threadPrefix) {
-        super( executorSize, new PriorityExecutorThreadFactory( threadPrefix ) );
+        super( executorSize, new PriorityExecutorThreadFactory( threadPrefix ), new ThreadPoolExecutor.CallerRunsPolicy() );
     }
 
     public void executeNow(Runnable priorityTask) {
@@ -40,6 +42,9 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     }
 
     public <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
+        if ( isShutdown() ) {
+            throw new RejectedExecutionException( "Task " + priorityFuture + " rejected from " + this );
+        }
         priorityTasks.add( priorityFuture );
         if ( !priorityFuture.isDone() ) {
             // Submit a task so that the beforeExecute() method gets called
