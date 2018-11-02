@@ -159,17 +159,32 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( maxSize == MAX_VALUE ) {
             throw new IllegalArgumentException( "max size attribute is mandatory" );
         }
-        if ( minSize < 0 ) {
-            throw new IllegalArgumentException( "Invalid min size: smaller than 0" );
-        }
         if ( maxSize <= 0 ) {
             throw new IllegalArgumentException( "A Positive max size is required" );
+        }
+        if ( minSize < 0 ) {
+            throw new IllegalArgumentException( "Invalid min size: smaller than 0" );
         }
         if ( minSize > maxSize ) {
             throw new IllegalArgumentException( "Invalid min size: greater than max size" );
         }
         if ( initialSize < 0 ) {
-            throw new IllegalArgumentException( "Invalid value for initial size. Must be positive, and ideally between min size and max size" );
+            throw new IllegalArgumentException( "Invalid value for initial size. Must not be negative, and ideally between min size and max size" );
+        }
+        if ( acquisitionTimeout.isNegative() ) {
+            throw new IllegalArgumentException( "Acquisition timeout must not be negative" );
+        }
+        if ( idleValidationTimeout.isNegative() ) {
+            throw new IllegalArgumentException( "Idle validation timeout must not be negative" );
+        }
+        if ( leakTimeout.isNegative() ) {
+            throw new IllegalArgumentException( "Leak detection timeout must not be negative" );
+        }
+        if ( reapTimeout.isNegative() ) {
+            throw new IllegalArgumentException( "Reap timeout must not be negative" );
+        }
+        if ( validationTimeout.isNegative() ) {
+            throw new IllegalArgumentException( "Validation timeout must not be negative" );
         }
         if ( connectionFactoryConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );
@@ -238,6 +253,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
             @Override
             public void setAcquisitionTimeout(Duration timeout) {
+                if ( timeout.isNegative() ) {
+                    throw new IllegalArgumentException( "Acquisition timeout must not be negative" );
+                }
                 acquisitionTimeout = timeout;
             }
 
