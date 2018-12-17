@@ -6,7 +6,6 @@ package io.agroal.test.basic;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
-import io.agroal.test.AgroalTestHelper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.CONCURRENCY;
@@ -83,7 +83,7 @@ public class BasicConcurrencyTests {
                     try {
                         Connection connection = dataSource.getConnection();
                         // logger.info( format( "{0} got {1}", Thread.currentThread().getName(), connection ) );
-                        AgroalTestHelper.safeSleep( ofMillis( SLEEP_TIME ) );
+                        LockSupport.parkNanos( ofMillis( SLEEP_TIME ).toNanos() );
                         connection.close();
                     } catch ( SQLException e ) {
                         fail( "Unexpected SQLException " + e.getMessage() );

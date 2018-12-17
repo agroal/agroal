@@ -51,7 +51,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     }
 
     public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable) {
-        this( transactionManager, transactionSynchronizationRegistry, jndiName, false, null );
+        this( transactionManager, transactionSynchronizationRegistry, jndiName, connectable, null );
     }
 
     public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable, XAResourceRecoveryRegistry recoveryRegistry) {

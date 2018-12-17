@@ -4,8 +4,13 @@
 package io.agroal.test.narayana;
 
 import io.agroal.api.AgroalDataSource;
+import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.narayana.BaseXAResource;
+import io.agroal.narayana.ConnectableLocalXAResource;
+import io.agroal.narayana.LocalXAResource;
 import io.agroal.narayana.NarayanaTransactionIntegration;
+import io.agroal.test.MockXADataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -141,6 +146,56 @@ public class EnlistmentTests {
             } catch ( NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException e ) {
                 fail( "Exception: " + e.getMessage() );
             }
+        }
+    }
+
+    @Test
+    @DisplayName( "Test the type of enlisted resource" )
+    public void enlistedResourceTypeTest() throws SQLException, SystemException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfiguration regularConfiguration = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, false ) )
+                ).get();
+
+        AgroalDataSourceConfiguration connectableConfiguration = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, true ) )
+                ).get();
+
+        AgroalDataSourceConfiguration xaConfiguration = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, true ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( MockXADataSource.Empty.class )
+                        )
+                ).get();
+
+        verifyEnlistedResourceType( regularConfiguration, txManager, "regular", LocalXAResource.class );
+
+        verifyEnlistedResourceType( connectableConfiguration, txManager, "connectable", ConnectableLocalXAResource.class );
+
+        verifyEnlistedResourceType( xaConfiguration, txManager, "xa", BaseXAResource.class );
+    }
+
+    private void verifyEnlistedResourceType(AgroalDataSourceConfiguration configuration, TransactionManager txManager, String type, Class<?> resourceClass) throws SQLException, SystemException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configuration ) ) {
+            txManager.begin();
+            try ( Connection connection = dataSource.getConnection() ) {
+                logger.info( format( "Got {0} connection {1}", type, connection ) );
+                com.arjuna.ats.jta.transaction.Transaction tx = (com.arjuna.ats.jta.transaction.Transaction) txManager.getTransaction();
+                assertEquals( 1, tx.getResources().size(), "Expected only one enlisted resource" );
+                assertTrue( tx.getResources().keySet().stream().allMatch( resourceClass::isInstance ) );
+            }
+            txManager.commit();
+        } catch ( HeuristicMixedException | NotSupportedException | HeuristicRollbackException | RollbackException e ) {
+            txManager.rollback();
+            fail( "Exception: " + e.getMessage() );
         }
     }
 }
