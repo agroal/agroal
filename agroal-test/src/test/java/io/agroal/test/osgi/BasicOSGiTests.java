@@ -5,6 +5,10 @@ package io.agroal.test.osgi;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.api.security.NamePrincipal;
+import io.agroal.api.security.SimplePassword;
+import io.agroal.test.MockConnection;
+import io.agroal.test.MockDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -58,7 +62,8 @@ public class BasicOSGiTests {
         ExamSystem examSystem = PaxExamRuntime.createTestSystem(
                 CoreOptions.systemProperty( "org.ops4j.pax.logging.DefaultServiceLog.level" ).value( "WARN" ),
                 CoreOptions.mavenBundle().groupId( "io.agroal" ).artifactId( "agroal-api" ).versionAsInProject(),
-                CoreOptions.mavenBundle().groupId( "io.agroal" ).artifactId( "agroal-pool" ).versionAsInProject()
+                CoreOptions.mavenBundle().groupId( "io.agroal" ).artifactId( "agroal-pool" ).versionAsInProject(),
+                CoreOptions.mavenBundle().groupId( "io.agroal" ).artifactId( "agroal-test" ).versionAsInProject()
         );
         ExamReactor examReactor = new DefaultExamReactor( examSystem, PaxExamRuntime.getTestContainerFactory() );
         examReactor.addProbe( AgroalProbe.getTestProbeBuilder( examSystem ) );
@@ -99,11 +104,51 @@ public class BasicOSGiTests {
         public void probe(BundleReference bundleReference) throws SQLException {
             probeLogger.info( "In OSGi container running from a Bundle named " + bundleReference.getBundle().getSymbolicName() );
 
-            try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier() ) ) {
+            AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                    .connectionPoolConfiguration( cp -> cp
+                            .maxSize( 10 )
+                            .connectionFactoryConfiguration( cf -> cf
+                                    .connectionProviderClass( CredentialsDataSource.class )
+                                    .principal( new NamePrincipal( CredentialsDataSource.DEFAULT_USER ) )
+                                    .credential( new SimplePassword( CredentialsDataSource.DEFAULT_PASSWORD ) )
+                            )
+                    );
+            try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
                 try ( Connection connection = dataSource.getConnection() ) {
                     probeLogger.info( format( "Got connection {0}", connection ) );
                 }
             }
+        }
+    }
+
+    // --- //
+
+    public static class CredentialsDataSource implements MockDataSource {
+
+        private static final String DEFAULT_USER = "def_user";
+        private static final String DEFAULT_PASSWORD = "def_pass";
+
+        private String user;
+        private String password;
+
+        public void setUser(String user) {
+            this.user = user;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            if ( !DEFAULT_USER.equals( user ) ) {
+                throw new RuntimeException( "Expecting user '" + DEFAULT_USER + "' but got '" + user + "' instead" );
+            }
+            if ( !DEFAULT_PASSWORD.equals( password ) ) {
+                throw new RuntimeException( "Expecting password '" + DEFAULT_PASSWORD + "' but got '" + password + "' instead" );
+            }
+            AgroalProbe.probeLogger.info( format( "Connection with username:{0} and password:{1}", user, password ) );
+            return new MockConnection.Empty();
         }
     }
 }

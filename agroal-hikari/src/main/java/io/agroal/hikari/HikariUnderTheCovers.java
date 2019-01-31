@@ -11,6 +11,7 @@ import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
+import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.api.security.SimplePassword;
 
 import java.io.PrintWriter;
@@ -18,6 +19,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.logging.Logger;
+
+import static java.util.ServiceLoader.load;
 
 /**
  * Implementation of the Agroal API wrapping the popular connection pool implementation HikariCP.
@@ -59,12 +62,12 @@ public class HikariUnderTheCovers implements AgroalDataSource {
         hikariConfig.setAutoCommit( factoryConfiguration.autoCommit() );
         hikariConfig.setConnectionInitSql( factoryConfiguration.initialSql() );
 
-        if ( factoryConfiguration.principal() != null ) {
-            hikariConfig.setUsername( factoryConfiguration.principal().getName() );
+        for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
+            hikariConfig.setDataSourceProperties( provider.getSecurityProperties( factoryConfiguration.principal() ) );
         }
         for ( Object credential : factoryConfiguration.credentials() ) {
-            if ( credential instanceof SimplePassword ) {
-                hikariConfig.setPassword( ( (SimplePassword) credential ).getWord() );
+            for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
+                hikariConfig.setDataSourceProperties( provider.getSecurityProperties( credential ) );
             }
         }
 

@@ -5,6 +5,7 @@ package io.agroal.api.security;
 
 import java.io.Serializable;
 import java.security.Principal;
+import java.util.Properties;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -49,5 +50,11 @@ public class NamePrincipal implements Serializable, Principal {
     @Override
     public String toString() {
         return name;
+    }
+
+    public Properties asProperties() {
+        Properties properties = new Properties();
+        properties.setProperty( "user", getName() );
+        return properties;
     }
 }

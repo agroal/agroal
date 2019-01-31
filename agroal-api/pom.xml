@@ -12,6 +12,23 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>eu.somatik.serviceloader-maven-plugin</groupId>
+                <artifactId>serviceloader-maven-plugin</artifactId>
+                <version>${version.eu.somatik.serviceloader-maven-plugin}</version>
+                <configuration>
+                    <services>
+                        <param>io.agroal.api.security.AgroalSecurityProvider</param>
+                    </services>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
                 <configuration>

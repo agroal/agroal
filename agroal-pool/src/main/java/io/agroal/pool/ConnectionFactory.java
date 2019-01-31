@@ -5,8 +5,7 @@ package io.agroal.pool;
 
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
-import io.agroal.api.security.NamePrincipal;
-import io.agroal.api.security.SimplePassword;
+import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
 import io.agroal.pool.util.PropertyInjector;
 import io.agroal.pool.util.XAConnectionAdaptor;
@@ -22,6 +21,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
+import static java.util.ServiceLoader.load;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -29,8 +29,6 @@ import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     private static final String URL_PROPERTY_NAME = "url";
-    private static final String USER_PROPERTY_NAME = "user";
-    private static final String PASSWORD_PROPERTY_NAME = "password";
 
     private static final XAResource[] NO_RESOURCES = {};
 
@@ -162,27 +160,12 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     }
 
     private void setupSecurity(Properties properties, Principal principal, Iterable<Object> credentials) {
-        if ( principal == null ) {
-            // skip!
-        } else if ( principal instanceof NamePrincipal ) {
-            properties.put( USER_PROPERTY_NAME, principal.getName() );
+        for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
+            properties.putAll( provider.getSecurityProperties( principal ) );
         }
-
-        // Add other principal types here
-
-        else {
-            throw new IllegalArgumentException( "Unknown Principal type: " + principal.getClass().getName() );
-        }
-
         for ( Object credential : credentials ) {
-            if ( credential instanceof SimplePassword ) {
-                properties.put( PASSWORD_PROPERTY_NAME, ( (SimplePassword) credential ).getWord() );
-            }
-
-            // Add other credential types here
-
-            else {
-                throw new IllegalArgumentException( "Unknown Credential type: " + credential.getClass().getName() );
+            for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
+                properties.putAll( provider.getSecurityProperties( credential ) );
             }
         }
     }

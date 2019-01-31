@@ -4,6 +4,7 @@
 package io.agroal.api.security;
 
 import java.io.Serializable;
+import java.util.Properties;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -24,6 +25,12 @@ public class SimplePassword implements Serializable {
 
     public String getWord() {
         return word;
+    }
+
+    public Properties asProperties() {
+        Properties properties = new Properties();
+        properties.setProperty( "password", getWord() );
+        return properties;
     }
 
     // --- //
