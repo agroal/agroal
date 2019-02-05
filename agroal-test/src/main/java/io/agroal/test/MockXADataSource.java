@@ -5,6 +5,7 @@ package io.agroal.test;
 
 import javax.sql.XAConnection;
 import javax.sql.XADataSource;
+import java.io.PrintWriter;
 import java.sql.SQLException;
 
 import static java.lang.System.identityHashCode;
@@ -22,6 +23,24 @@ public interface MockXADataSource extends MockDataSource, XADataSource {
     @Override
     default XAConnection getXAConnection(String user, String password) throws SQLException {
         return null;
+    }
+
+    @Override
+    default PrintWriter getLogWriter() throws SQLException {
+        return null;
+    }
+
+    @Override
+    default void setLogWriter(PrintWriter out) throws SQLException {
+    }
+
+    @Override
+    default int getLoginTimeout() throws SQLException {
+        return 0;
+    }
+
+    @Override
+    default void setLoginTimeout(int seconds) throws SQLException {
     }
 
     // --- //

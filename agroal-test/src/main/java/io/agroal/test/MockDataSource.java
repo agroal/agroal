@@ -44,7 +44,6 @@ public interface MockDataSource extends DataSource {
 
     @Override
     default void setLogWriter(PrintWriter out) throws SQLException {
-
     }
 
     @Override
@@ -54,7 +53,6 @@ public interface MockDataSource extends DataSource {
 
     @Override
     default void setLoginTimeout(int seconds) throws SQLException {
-
     }
 
     @Override
