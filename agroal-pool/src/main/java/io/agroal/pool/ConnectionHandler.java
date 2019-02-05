@@ -12,6 +12,7 @@ import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -101,10 +102,12 @@ public final class ConnectionHandler implements TransactionAware {
         return xaResource;
     }
 
-    public void resetConnection(AgroalConnectionFactoryConfiguration connectionFactoryConfiguration) throws SQLException {
+    public void resetConnection() throws SQLException {
         transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
         if ( !dirtyAttributes.isEmpty() ) {
+            AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = connectionPool.getConfiguration().connectionFactoryConfiguration();
+
             if ( dirtyAttributes.contains( AUTOCOMMIT ) ) {
                 connection.setAutoCommit( connectionFactoryConfiguration.autoCommit() );
             }
@@ -115,6 +118,14 @@ public final class ConnectionHandler implements TransactionAware {
 
             dirtyAttributes.clear();
         }
+
+        AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
+        for ( SQLWarning warning = connection.getWarnings(); warning != null; warning = warning.getNextWarning() ) {
+            if ( exceptionSorter != null && exceptionSorter.isFatal( warning ) ) {
+                setState( State.FLUSH );
+            }
+        }
+        connection.clearWarnings();
     }
 
     public void closeConnection() throws SQLException {

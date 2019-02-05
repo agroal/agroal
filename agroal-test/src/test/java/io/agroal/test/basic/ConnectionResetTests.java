@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.util.logging.Logger;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.NONE;
@@ -22,12 +23,15 @@ import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.T
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.READ_UNCOMMITTED;
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.REPEATABLE_READ;
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.SERIALIZABLE;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.emptyExceptionSorter;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.fatalExceptionSorter;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -63,7 +67,6 @@ public class ConnectionResetTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
                 cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( isolation ) )
         ) ) ) {
-
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getTransactionIsolation(), level );
             connection.setTransactionIsolation( Connection.TRANSACTION_NONE );
@@ -76,6 +79,8 @@ public class ConnectionResetTests {
         }
     }
 
+    // --- //
+
     @Test
     @DisplayName( "Test connection autoCommit status remains the same after being changed" )
     public void autoCommitTest() throws SQLException {
@@ -87,7 +92,6 @@ public class ConnectionResetTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
                 cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.autoCommit( autoCommit ) )
         ) ) ) {
-
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getAutoCommit(), autoCommit );
             connection.setAutoCommit( !autoCommit );
@@ -102,10 +106,35 @@ public class ConnectionResetTests {
 
     // --- //
 
+    @Test
+    @DisplayName( "Test connection with warnings" )
+    public void warningsTest() throws SQLException {
+        warnings( false );
+        warnings( true );
+    }
+
+    private void warnings(boolean fatal) throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp.maxSize( 1 ).exceptionSorter( fatal ? fatalExceptionSorter() : emptyExceptionSorter() ) )
+        ) ) {
+            Connection connection = dataSource.getConnection();
+            assertNotNull( connection.getWarnings() );
+            connection.close();
+
+            connection = dataSource.getConnection();
+            assertEquals( fatal ? 2 : 1, dataSource.getMetrics().creationCount() );
+            assertEquals( fatal, connection.getWarnings() != null ); // checks if warnings were cleared
+            connection.close();
+        }
+    }
+
+    // --- //
+
     public static class FakeConnection implements MockConnection {
 
         private int isolation;
         private boolean autoCommit;
+        private boolean warnings = true;
 
         @Override
         public int getTransactionIsolation() {
@@ -125,6 +154,16 @@ public class ConnectionResetTests {
         @Override
         public void setAutoCommit(boolean autoCommit) {
             this.autoCommit = autoCommit;
+        }
+
+        @Override
+        public SQLWarning getWarnings() throws SQLException {
+            return warnings ? new SQLWarning( "SQL Warning" ) : null;
+        }
+
+        @Override
+        public void clearWarnings() throws SQLException {
+            this.warnings = false;
         }
     }
 }

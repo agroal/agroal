@@ -13,7 +13,6 @@ import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 import io.agroal.pool.util.UncheckedArrayList;
-import io.agroal.pool.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -271,7 +270,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 return;
             }
 
-            handler.resetConnection( configuration.connectionFactoryConfiguration() );
+            handler.resetConnection();
             localCache.get().add( handler );
 
             if ( handler.setState( CHECKED_OUT, CHECKED_IN ) ) {
@@ -281,6 +280,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 fireOnConnectionReturn( listeners, handler );
             } else {
                 // handler not in CHECKED_OUT implies FLUSH
+                allConnections.remove( handler );
                 housekeepingExecutor.execute( new FlushTask( handler ) );
                 housekeepingExecutor.execute( new FillTask() );
             }
