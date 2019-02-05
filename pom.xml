@@ -49,8 +49,6 @@
         <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
         <version.com.zaxxer>3.3.0</version.com.zaxxer>
-        <version.de.thetaphi.forbiddenapis>2.6</version.de.thetaphi.forbiddenapis>
-        <version.eu.somatik.serviceloader-maven-plugin>1.1.0</version.eu.somatik.serviceloader-maven-plugin>
         <version.org.apache.felix>6.0.2</version.org.apache.felix>
         <version.org.apache.servicemix.tooling>1.4.0</version.org.apache.servicemix.tooling>
         <version.org.jboss.jboss-transaction-spi>7.6.0.Final</version.org.jboss.jboss-transaction-spi>
@@ -61,6 +59,11 @@
         <version.org.ops4j.pax.exam>4.13.1</version.org.ops4j.pax.exam>
         <version.org.ops4j.pax.url>2.6.1</version.org.ops4j.pax.url>
         <version.org.slf4j>1.7.25</version.org.slf4j>
+        <!-- Maven plugins -->
+        <version.de.thetaphi.forbiddenapis>2.6</version.de.thetaphi.forbiddenapis>
+        <version.eu.somatik.serviceloader-maven-plugin>1.1.0</version.eu.somatik.serviceloader-maven-plugin>
+        <version.org.apache.maven.plugins.maven-surefire-plugin>2.22.1</version.org.apache.maven.plugins.maven-surefire-plugin>
+        <version.org.netbeans.tools.sigtest-maven-plugin>1.1</version.org.netbeans.tools.sigtest-maven-plugin>
     </properties>
     <build>
         <plugins>

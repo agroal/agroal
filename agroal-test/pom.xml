@@ -41,6 +41,12 @@
             <version>${version.org.junit.jupiter}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${version.org.junit.jupiter}</version>
+            <scope>test</scope>
+        </dependency>
         <!-- OSGi -->
         <dependency>
             <groupId>org.ops4j.pax.exam</groupId>
@@ -97,6 +103,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>${version.org.apache.maven.plugins.maven-surefire-plugin}</version>
                 <configuration>
                     <properties>
                         <groups>functional</groups>
@@ -110,18 +117,6 @@
                         <java.util.logging.SimpleFormatter.format>[%4$s] %1$tT.%1$tL %5$s %6$s%n</java.util.logging.SimpleFormatter.format>
                     </systemPropertyVariables>
                 </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.junit.platform</groupId>
-                        <artifactId>junit-platform-surefire-provider</artifactId>
-                        <version>${version.org.junit.platform}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.junit.jupiter</groupId>
-                        <artifactId>junit-jupiter-engine</artifactId>
-                        <version>${version.org.junit.jupiter}</version>
-                    </dependency>
-                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.apache.servicemix.tooling</groupId>

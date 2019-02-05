@@ -47,7 +47,7 @@
             <plugin>
                 <groupId>org.netbeans.tools</groupId>
                 <artifactId>sigtest-maven-plugin</artifactId>
-                <version>1.0</version>
+                <version>${version.org.netbeans.tools.sigtest-maven-plugin}</version>
                 <executions>
                     <execution>
                         <goals>
