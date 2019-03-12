@@ -36,6 +36,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private Duration leakTimeout = ZERO;
     private Duration validationTimeout = ZERO;
     private Duration reapTimeout = ZERO;
+    private Duration maxLifetime = ZERO;
     private volatile Duration acquisitionTimeout = ZERO;
 
     public AgroalConnectionPoolConfigurationSupplier() {
@@ -58,6 +59,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         this.leakTimeout = existingConfiguration.leakTimeout();
         this.validationTimeout = existingConfiguration.validationTimeout();
         this.reapTimeout = existingConfiguration.reapTimeout();
+        this.maxLifetime = existingConfiguration.maxLifetime();
         this.acquisitionTimeout = existingConfiguration.acquisitionTimeout();
     }
 
@@ -153,6 +155,12 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         return this;
     }
 
+    public AgroalConnectionPoolConfigurationSupplier maxLifetime(Duration time) {
+        checkLock();
+        maxLifetime = time;
+        return this;
+    }
+
     // --- //
 
     private void validate() {
@@ -182,6 +190,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         }
         if ( reapTimeout.isNegative() ) {
             throw new IllegalArgumentException( "Reap timeout must not be negative" );
+        }
+        if ( maxLifetime.isNegative() ) {
+            throw new IllegalArgumentException( "Max Lifetime must not be negative" );
         }
         if ( validationTimeout.isNegative() ) {
             throw new IllegalArgumentException( "Validation timeout must not be negative" );
@@ -287,6 +298,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public Duration reapTimeout() {
                 return reapTimeout;
+            }
+
+            @Override
+            public Duration maxLifetime() {
+                return maxLifetime;
             }
         };
     }

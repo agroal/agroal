@@ -24,6 +24,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 
+import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
+import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
@@ -266,7 +268,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             if ( allConnections.size() > configuration.maxSize() ) {
                 handler.setState( FLUSH );
                 allConnections.remove( handler );
-                housekeepingExecutor.execute( new FlushTask( handler ) );
+                housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
                 return;
             }
 
@@ -281,7 +283,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             } else {
                 // handler not in CHECKED_OUT implies FLUSH
                 allConnections.remove( handler );
-                housekeepingExecutor.execute( new FlushTask( handler ) );
+                housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
                 housekeepingExecutor.execute( new FillTask() );
             }
         }
@@ -346,11 +348,14 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
             try {
                 ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
+                metricsRepository.afterConnectionCreation( metricsStamp );
+                if ( !configuration.maxLifetime().isZero() ) {
+                    handler.setMaxLifetimeTask( housekeepingExecutor.schedule( new FlushTask( GRACEFUL, handler ), configuration.maxLifetime().toNanos(), NANOSECONDS ) );
+                }
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
-                maxUsed.accumulate( allConnections.size() );
-                metricsRepository.afterConnectionCreation( metricsStamp );
                 fireOnConnectionCreation( listeners, handler );
+                maxUsed.accumulate( allConnections.size() );
                 return handler;
             } catch ( SQLException e ) {
                 fireOnWarning( listeners, e );
@@ -374,8 +379,8 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             this.handler = null;
         }
 
-        public FlushTask(ConnectionHandler handler) {
-            this.mode = null;
+        public FlushTask(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
+            this.mode = mode;
             this.handler = handler;
         }
 
@@ -383,14 +388,14 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         public void run() {
             if ( handler != null ) {
                 fireBeforeConnectionFlush( listeners, handler );
-                flushHandler( handler );
-                return;
+                handlerFlush( mode, handler );
+            } else {
+                for ( ConnectionHandler connectionHandler : allConnections ) {
+                    fireBeforeConnectionFlush( listeners, connectionHandler );
+                    handlerFlush( mode, connectionHandler );
+                }
+                afterFlush( mode );
             }
-            for ( ConnectionHandler connectionHandler : allConnections ) {
-                fireBeforeConnectionFlush( listeners, connectionHandler );
-                handlerFlush( mode, connectionHandler );
-            }
-            afterFlush( mode );
         }
 
         private void handlerFlush(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
@@ -446,7 +451,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 case IDLE:
                     break;
                 default:
-                    fireOnWarning( listeners, "Unsupported afterFlush mode " + mode );
+                    fireOnWarning( listeners, "Unsupported Flush mode " + mode );
             }
         }
     }
