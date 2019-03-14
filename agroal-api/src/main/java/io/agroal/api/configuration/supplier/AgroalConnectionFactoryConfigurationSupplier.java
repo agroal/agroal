@@ -4,6 +4,7 @@
 package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.IsolationLevel;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation;
 
 import java.security.Principal;
@@ -28,7 +29,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private String jdbcUrl = "";
     private String initialSql = "";
     private Class<?> connectionProviderClass;
-    private TransactionIsolation transactionIsolation = UNDEFINED;
+    private IsolationLevel transactionIsolation = UNDEFINED;
     private Principal principal;
     private Collection<Object> credentials = new ArrayList<>();
     private Principal recoveryPrincipal;
@@ -104,6 +105,12 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         return this;
     }
 
+    public AgroalConnectionFactoryConfigurationSupplier jdbcTransactionIsolation(int customValue) {
+        checkLock();
+        transactionIsolation = new CustomIsolationLevel( customValue );
+        return this;
+    }
+
     public AgroalConnectionFactoryConfigurationSupplier principal(Principal loginPrincipal) {
         checkLock();
         principal = loginPrincipal;
@@ -174,7 +181,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             }
 
             @Override
-            public TransactionIsolation jdbcTransactionIsolation() {
+            public IsolationLevel jdbcTransactionIsolation() {
                 return transactionIsolation;
             }
 
@@ -203,5 +210,31 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
                 return jdbcProperties;
             }
         };
+    }
+
+    // --- //
+
+    private static class CustomIsolationLevel implements IsolationLevel {
+
+        private final int customValue;
+
+        public CustomIsolationLevel(int customValue) {
+            this.customValue = customValue;
+        }
+
+        @Override
+        public boolean isDefined() {
+            return true;
+        }
+
+        @Override
+        public int level() {
+            return customValue;
+        }
+
+        @Override
+        public String toString() {
+            return "CUSTOM";
+        }
     }
 }

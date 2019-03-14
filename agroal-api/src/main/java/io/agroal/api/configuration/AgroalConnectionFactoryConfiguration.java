@@ -21,7 +21,7 @@ public interface AgroalConnectionFactoryConfiguration {
 
     Class<?> connectionProviderClass();
 
-    TransactionIsolation jdbcTransactionIsolation();
+    IsolationLevel jdbcTransactionIsolation();
 
     Principal principal();
 
@@ -35,7 +35,7 @@ public interface AgroalConnectionFactoryConfiguration {
 
     // --- //
 
-    enum TransactionIsolation {
+    enum TransactionIsolation implements IsolationLevel {
         UNDEFINED, NONE, READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE;
 
         public static TransactionIsolation fromLevel(int level) {
@@ -75,6 +75,12 @@ public interface AgroalConnectionFactoryConfiguration {
         public boolean isDefined() {
             return this != UNDEFINED;
         }
+    }
 
+    interface IsolationLevel {
+
+        boolean isDefined();
+
+        int level();
     }
 }
