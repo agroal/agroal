@@ -63,7 +63,7 @@ public class ResizeTests {
         CountDownLatch destroyLatch = new CountDownLatch( MAX_POOL_SIZE - NEW_MAX_SIZE );
         AgroalDataSourceListener listener = new AgroalDataSourceListener() {
             @Override
-            public void onConnectionCreation(Connection connection) {
+            public void onConnectionPooled(Connection connection) {
                 creationLatch.countDown();
             }
 
@@ -116,7 +116,7 @@ public class ResizeTests {
         CountDownLatch creationLatch = new CountDownLatch( INITIAL_SIZE );
         AgroalDataSourceListener listener = new AgroalDataSourceListener() {
             @Override
-            public void onConnectionCreation(Connection connection) {
+            public void onConnectionPooled(Connection connection) {
                 creationLatch.countDown();
             }
         };

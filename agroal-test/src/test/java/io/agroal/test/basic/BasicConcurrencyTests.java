@@ -195,7 +195,7 @@ public class BasicConcurrencyTests {
         private final AtomicBoolean warning = new AtomicBoolean( false );
 
         @Override
-        public void onConnectionCreation(Connection connection) {
+        public void onConnectionPooled(Connection connection) {
             creationCount.increment();
         }
 

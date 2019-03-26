@@ -348,14 +348,19 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
             try {
                 ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
-                metricsRepository.afterConnectionCreation( metricsStamp );
                 if ( !configuration.maxLifetime().isZero() ) {
                     handler.setMaxLifetimeTask( housekeepingExecutor.schedule( new FlushTask( GRACEFUL, handler ), configuration.maxLifetime().toNanos(), NANOSECONDS ) );
                 }
+
+                fireOnConnectionCreation( listeners, handler );
+                metricsRepository.afterConnectionCreation( metricsStamp );
+
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
-                fireOnConnectionCreation( listeners, handler );
+
                 maxUsed.accumulate( allConnections.size() );
+                fireOnConnectionPooled( listeners, handler );
+
                 return handler;
             } catch ( SQLException e ) {
                 fireOnWarning( listeners, e );
