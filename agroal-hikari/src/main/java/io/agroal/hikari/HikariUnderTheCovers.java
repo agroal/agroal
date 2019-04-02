@@ -55,7 +55,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
         hikariConfig.setValidationTimeout( poolConfiguration.validationTimeout().toMillis() );
 
         if ( factoryConfiguration.jdbcTransactionIsolation().isDefined() ) {
-            hikariConfig.setTransactionIsolation( "TRANSACTION_" + factoryConfiguration.jdbcTransactionIsolation().name() );
+            hikariConfig.setTransactionIsolation( "TRANSACTION_" + factoryConfiguration.jdbcTransactionIsolation() );
         }
 
         hikariConfig.setJdbcUrl( factoryConfiguration.jdbcUrl() );

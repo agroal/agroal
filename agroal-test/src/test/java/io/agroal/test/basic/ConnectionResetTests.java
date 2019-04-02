@@ -82,6 +82,21 @@ public class ConnectionResetTests {
     // --- //
 
     @Test
+    @DisplayName( "Test connection with custom transaction isolation level" )
+    public void customIsolationTest() throws SQLException {
+        int level = 42;
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
+                cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( level ) )
+        ) ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertEquals( connection.getTransactionIsolation(), level );
+            }
+        }
+    }
+
+    // --- //
+
+    @Test
     @DisplayName( "Test connection autoCommit status remains the same after being changed" )
     public void autoCommitTest() throws SQLException {
         autocommit( false );
