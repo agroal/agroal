@@ -5,6 +5,7 @@ package io.agroal.pool;
 
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+import io.agroal.api.security.AgroalDefaultSecurityProvider;
 import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
 import io.agroal.pool.util.PropertyInjector;
@@ -21,7 +22,6 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
-import static java.util.ServiceLoader.load;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -31,6 +31,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private static final String URL_PROPERTY_NAME = "url";
 
     private static final XAResource[] NO_RESOURCES = {};
+
+    private static final Properties EMPTY_PROPERTIES = new Properties();
 
     private final AgroalConnectionFactoryConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
@@ -160,14 +162,25 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     }
 
     private void setupSecurity(Properties properties, Principal principal, Iterable<Object> credentials) {
-        for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
-            properties.putAll( provider.getSecurityProperties( principal ) );
-        }
+        properties.putAll( securityProperties( principal ) );
         for ( Object credential : credentials ) {
-            for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
-                properties.putAll( provider.getSecurityProperties( credential ) );
+            properties.putAll( securityProperties( credential ) );
+        }
+    }
+
+    private Properties securityProperties(Object securityObject) {
+        if ( securityObject == null ) {
+            return EMPTY_PROPERTIES;
+        }
+
+        for ( AgroalSecurityProvider provider : configuration.securityProviders() ) {
+            Properties properties = provider.getSecurityProperties( securityObject );
+            if ( properties != null ) {
+                return properties;
             }
         }
+        fireOnWarning( listeners, "Unknown security object of type: " + securityObject.getClass().getName() );
+        return EMPTY_PROPERTIES;
     }
 
     // --- //

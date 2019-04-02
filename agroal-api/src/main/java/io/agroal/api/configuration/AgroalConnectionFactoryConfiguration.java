@@ -3,6 +3,8 @@
 
 package io.agroal.api.configuration;
 
+import io.agroal.api.security.AgroalSecurityProvider;
+
 import java.security.Principal;
 import java.sql.Connection;
 import java.util.Collection;
@@ -22,6 +24,8 @@ public interface AgroalConnectionFactoryConfiguration {
     Class<?> connectionProviderClass();
 
     IsolationLevel jdbcTransactionIsolation();
+
+    Collection<AgroalSecurityProvider> securityProviders();
 
     Principal principal();
 

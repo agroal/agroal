@@ -17,9 +17,8 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Properties;
 import java.util.logging.Logger;
-
-import static java.util.ServiceLoader.load;
 
 /**
  * Implementation of the Agroal API wrapping the popular connection pool implementation HikariCP.
@@ -61,19 +60,26 @@ public class HikariUnderTheCovers implements AgroalDataSource {
         hikariConfig.setAutoCommit( factoryConfiguration.autoCommit() );
         hikariConfig.setConnectionInitSql( factoryConfiguration.initialSql() );
 
-        for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
-            hikariConfig.setDataSourceProperties( provider.getSecurityProperties( factoryConfiguration.principal() ) );
+        for ( AgroalSecurityProvider provider : configuration.connectionPoolConfiguration().connectionFactoryConfiguration().securityProviders() ) {
+            Properties properties = provider.getSecurityProperties( factoryConfiguration.principal() );
+            if ( properties != null ) {
+                hikariConfig.setDataSourceProperties( properties );
+            }
         }
         for ( Object credential : factoryConfiguration.credentials() ) {
-            for ( AgroalSecurityProvider provider : load( AgroalSecurityProvider.class, AgroalSecurityProvider.class.getClassLoader() ) ) {
-                hikariConfig.setDataSourceProperties( provider.getSecurityProperties( credential ) );
+            for ( AgroalSecurityProvider provider : configuration.connectionPoolConfiguration().connectionFactoryConfiguration().securityProviders() ) {
+                Properties properties = provider.getSecurityProperties( credential );
+                if ( properties != null ) {
+                    hikariConfig.setDataSourceProperties( properties );
+                }
             }
         }
 
         hikariConfig.setMaximumPoolSize( poolConfiguration.maxSize() );
         hikariConfig.setConnectionTimeout( poolConfiguration.acquisitionTimeout().toMillis() );
         hikariConfig.setMaxLifetime( poolConfiguration.maxLifetime().toMillis() );
-        if ( factoryConfiguration.connectionProviderClass() != null) {
+
+        if ( factoryConfiguration.connectionProviderClass() != null ) {
             hikariConfig.setDriverClassName( factoryConfiguration.connectionProviderClass().getName() );
         }
 
