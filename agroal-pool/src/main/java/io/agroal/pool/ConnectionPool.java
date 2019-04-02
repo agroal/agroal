@@ -14,6 +14,7 @@ import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 import io.agroal.pool.util.UncheckedArrayList;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -224,7 +225,13 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             currentThread().interrupt();
             throw new SQLException( "Interrupted while acquiring" );
         } catch ( ExecutionException e ) {
-            throw new SQLException( "Exception while creating new connection", e );
+            try {
+                throw e.getCause();
+            } catch ( RuntimeException | Error | SQLException e2 ) {
+                throw e2;
+            } catch ( Throwable t ) {
+                throw new SQLException( "Exception while creating new connection", t );
+            }
         } catch ( RejectedExecutionException | CancellationException e ) {
             throw new SQLException( "Can't create new connection as the pool is shutting down", e );
         }
@@ -339,7 +346,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     private final class CreateConnectionTask implements Callable<ConnectionHandler> {
 
         @Override
-        public ConnectionHandler call() {
+        public ConnectionHandler call() throws SQLException {
             if ( allConnections.size() >= configuration.maxSize() ) {
                 return null;
             }
@@ -364,7 +371,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
                 return handler;
             } catch ( SQLException e ) {
                 fireOnWarning( listeners, e );
-                throw new RuntimeException( "Exception while creating new connection", e );
+                throw e;
             } finally {
                 // not strictly needed, but not harmful either
                 synchronizer.releaseConditional();
