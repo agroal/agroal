@@ -16,6 +16,7 @@ import java.sql.SQLWarning;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
@@ -60,6 +61,9 @@ public final class ConnectionHandler implements TransactionAware {
 
     // flag to indicate that this the connection is enlisted to a transaction
     private boolean enlisted;
+
+    // reference to the task that flushes this connection when it gets over it's maxLifetime
+    private Future<?> maxLifetimeTask;
 
     // collection of wrappers created while enlisted in the current transaction
     private Collection<ConnectionWrapper> enlistedOpenWrappers = new CopyOnWriteArrayList<>();
@@ -129,6 +133,10 @@ public final class ConnectionHandler implements TransactionAware {
     }
 
     public void closeConnection() throws SQLException {
+        if ( maxLifetimeTask != null && !maxLifetimeTask.isDone() ) {
+            maxLifetimeTask.cancel( false );
+        }
+        maxLifetimeTask = null;
         try {
             if ( state != State.FLUSH ) {
                 throw new SQLException( "Closing connection in incorrect state " + state );
@@ -172,6 +180,10 @@ public final class ConnectionHandler implements TransactionAware {
 
     public void setLastAccess(long lastAccess) {
         this.lastAccess = lastAccess;
+    }
+
+    public void setMaxLifetimeTask(Future<?> maxLifetimeTask) {
+        this.maxLifetimeTask = maxLifetimeTask;
     }
 
     public Thread getHoldingThread() {

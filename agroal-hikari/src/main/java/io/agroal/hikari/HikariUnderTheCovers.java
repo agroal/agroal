@@ -12,7 +12,6 @@ import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.security.AgroalSecurityProvider;
-import io.agroal.api.security.SimplePassword;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
@@ -73,6 +72,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
 
         hikariConfig.setMaximumPoolSize( poolConfiguration.maxSize() );
         hikariConfig.setConnectionTimeout( poolConfiguration.acquisitionTimeout().toMillis() );
+        hikariConfig.setMaxLifetime( poolConfiguration.maxLifetime().toMillis() );
         if ( factoryConfiguration.connectionProviderClass() != null) {
             hikariConfig.setDriverClassName( factoryConfiguration.connectionProviderClass().getName() );
         }

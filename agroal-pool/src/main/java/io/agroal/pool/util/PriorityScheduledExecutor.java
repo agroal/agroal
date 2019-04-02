@@ -31,6 +31,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
 
     public PriorityScheduledExecutor(int executorSize, String threadPrefix) {
         super( executorSize, new PriorityExecutorThreadFactory( threadPrefix ), new ThreadPoolExecutor.CallerRunsPolicy() );
+        setRemoveOnCancelPolicy( true );
     }
 
     public void executeNow(Runnable priorityTask) {

@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static java.lang.Long.parseLong;
 import static java.util.function.Function.identity;
 
 /**
@@ -53,6 +54,10 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String REAP_TIMEOUT_MS = "reapTimeout_ms";
     public static final String REAP_TIMEOUT_S = "reapTimeout_s";
     public static final String REAP_TIMEOUT_M = "reapTimeout_m";
+    public static final String MAX_LIFETIME = "maxLifetime";
+    public static final String MAX_LIFETIME_MS = "maxLifetime_ms";
+    public static final String MAX_LIFETIME_S = "maxLifetime_s";
+    public static final String MAX_LIFETIME_M = "maxLifetime_m";
 
     // --- //
 
@@ -129,21 +134,26 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationMs, properties, ACQUISITION_TIMEOUT_MS );
         apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationS, properties, ACQUISITION_TIMEOUT_S );
         apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationM, properties, ACQUISITION_TIMEOUT_M );
-        apply( connectionPoolSupplier::validationTimeout, Duration::parse, properties, VALIDATION_TIMEOUT );
 
+        apply( connectionPoolSupplier::validationTimeout, Duration::parse, properties, VALIDATION_TIMEOUT );
         apply( connectionPoolSupplier::validationTimeout, this::parseDurationMs, properties, VALIDATION_TIMEOUT_MS );
         apply( connectionPoolSupplier::validationTimeout, this::parseDurationS, properties, VALIDATION_TIMEOUT_S );
         apply( connectionPoolSupplier::validationTimeout, this::parseDurationM, properties, VALIDATION_TIMEOUT_M );
-        apply( connectionPoolSupplier::leakTimeout, Duration::parse, properties, LEAK_TIMEOUT );
 
+        apply( connectionPoolSupplier::leakTimeout, Duration::parse, properties, LEAK_TIMEOUT );
         apply( connectionPoolSupplier::leakTimeout, this::parseDurationMs, properties, LEAK_TIMEOUT_MS );
         apply( connectionPoolSupplier::leakTimeout, this::parseDurationS, properties, LEAK_TIMEOUT_S );
         apply( connectionPoolSupplier::leakTimeout, this::parseDurationM, properties, LEAK_TIMEOUT_M );
-        apply( connectionPoolSupplier::reapTimeout, Duration::parse, properties, REAP_TIMEOUT );
 
+        apply( connectionPoolSupplier::reapTimeout, Duration::parse, properties, REAP_TIMEOUT );
         apply( connectionPoolSupplier::reapTimeout, this::parseDurationMs, properties, REAP_TIMEOUT_MS );
         apply( connectionPoolSupplier::reapTimeout, this::parseDurationS, properties, REAP_TIMEOUT_S );
         apply( connectionPoolSupplier::reapTimeout, this::parseDurationM, properties, REAP_TIMEOUT_M );
+
+        apply( connectionPoolSupplier::maxLifetime, Duration::parse, properties, MAX_LIFETIME );
+        apply( connectionPoolSupplier::maxLifetime, this::parseDurationMs, properties, MAX_LIFETIME_MS );
+        apply( connectionPoolSupplier::maxLifetime, this::parseDurationS, properties, MAX_LIFETIME_S );
+        apply( connectionPoolSupplier::maxLifetime, this::parseDurationM, properties, MAX_LIFETIME_M );
 
         apply( connectionFactorySupplier::jdbcUrl, identity(), properties, JDBC_URL );
         apply( connectionFactorySupplier::autoCommit, Boolean::parseBoolean, properties, AUTO_COMMIT );
@@ -178,14 +188,14 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     }
 
     private Duration parseDurationMs(String value) {
-        return Duration.ofMillis( Long.parseLong( value ) );
+        return Duration.ofMillis( parseLong( value ) );
     }
 
     private Duration parseDurationS(String value) {
-        return Duration.ofSeconds( Long.parseLong( value ) );
+        return Duration.ofSeconds( parseLong( value ) );
     }
 
     private Duration parseDurationM(String value) {
-        return Duration.ofMinutes( Long.parseLong( value ) );
+        return Duration.ofMinutes( parseLong( value ) );
     }
 }
