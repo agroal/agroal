@@ -68,10 +68,7 @@ public class FlushTests {
                         .maxSize( MAX_POOL_SIZE )
                 );
 
-        FlushListener listener = new FlushListener();
-        listener.creationLatch = new CountDownLatch( MAX_POOL_SIZE );
-        listener.flushLatch = new CountDownLatch( MAX_POOL_SIZE );
-        listener.destroyLatch = new CountDownLatch( MAX_POOL_SIZE );
+        FlushListener listener = new FlushListener( new CountDownLatch( MAX_POOL_SIZE ), new CountDownLatch( MAX_POOL_SIZE ), new CountDownLatch( MAX_POOL_SIZE ) );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
 
@@ -124,10 +121,7 @@ public class FlushTests {
                         .maxSize( MAX_POOL_SIZE )
                 );
 
-        FlushListener listener = new FlushListener();
-        listener.creationLatch = new CountDownLatch( MAX_POOL_SIZE );
-        listener.flushLatch = new CountDownLatch( MAX_POOL_SIZE - 1 );
-        listener.destroyLatch = new CountDownLatch( MAX_POOL_SIZE - 1 );
+        FlushListener listener = new FlushListener( new CountDownLatch( MAX_POOL_SIZE ), new CountDownLatch( MAX_POOL_SIZE - 1 ), new CountDownLatch( MAX_POOL_SIZE - 1 ) );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
 
@@ -209,10 +203,8 @@ public class FlushTests {
                         .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
                 );
 
-        FlushListener listener = new FlushListener();
-        listener.creationLatch = new CountDownLatch( MAX_POOL_SIZE );
+        FlushListener listener = new FlushListener( new CountDownLatch( MAX_POOL_SIZE ), new CountDownLatch( MAX_POOL_SIZE ), new CountDownLatch( MAX_POOL_SIZE ) );
         listener.validationLatch = new CountDownLatch( MAX_POOL_SIZE );
-        listener.destroyLatch = new CountDownLatch( MAX_POOL_SIZE );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
 
@@ -260,8 +252,10 @@ public class FlushTests {
                         .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
                 );
 
-        FlushListener listener = new FlushListener();
-        listener.destroyLatch = new CountDownLatch( MAX_POOL_SIZE - max( MIN_POOL_SIZE, CALLS ) );
+        FlushListener listener = new FlushListener(
+                new CountDownLatch( MAX_POOL_SIZE ),
+                new CountDownLatch( MAX_POOL_SIZE ),
+                new CountDownLatch( MAX_POOL_SIZE - max( MIN_POOL_SIZE, CALLS ) ) );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             Collection<Connection> connections = new ArrayList<>();
@@ -288,12 +282,13 @@ public class FlushTests {
                 connection.close();
             }
 
-            listener.destroyLatch = new CountDownLatch( max( MIN_POOL_SIZE, CALLS ) - min( MIN_POOL_SIZE, CALLS ) );
+            int remaining = max( MIN_POOL_SIZE, CALLS ) - min( MIN_POOL_SIZE, CALLS );
+            listener.destroyLatch = new CountDownLatch( remaining );
 
             // Flush to MIN_SIZE
             dataSource.flush( AgroalDataSource.FlushMode.IDLE );
 
-            logger.info( format( "Waiting for destruction of {0} remaining connection", max( MIN_POOL_SIZE, CALLS ) - min( MIN_POOL_SIZE, CALLS ) ) );
+            logger.info( format( "Waiting for destruction of {0} remaining connection", remaining ) );
             if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
                 fail( format( "{0} flushed connections not sent for destruction", listener.destroyLatch.getCount() ) );
             }
@@ -316,27 +311,25 @@ public class FlushTests {
         private final LongAdder creationCount = new LongAdder(), flushCount = new LongAdder(), destroyCount = new LongAdder();
         private CountDownLatch creationLatch, validationLatch, flushLatch, destroyLatch;
 
+        public FlushListener(CountDownLatch creationLatch, CountDownLatch flushLatch, CountDownLatch destroyLatch) {
+            this.creationLatch = creationLatch;
+            this.flushLatch = flushLatch;
+            this.destroyLatch = destroyLatch;
+        }
+
         @Override
         public void beforeConnectionCreation() {
             creationCount.increment();
         }
 
         @Override
-        public void onConnectionCreation(Connection connection) {
-            try {
-                creationLatch.countDown();
-            } catch ( NullPointerException npe ) {
-                // ignore
-            }
+        public void onConnectionPooled(Connection connection) {
+            creationLatch.countDown();
         }
 
         @Override
         public void beforeConnectionValidation(Connection connection) {
-            try {
-                validationLatch.countDown();
-            } catch ( NullPointerException npe ) {
-                // ignore
-            }
+            validationLatch.countDown();
         }
 
         @Override
@@ -346,11 +339,7 @@ public class FlushTests {
 
         @Override
         public void onConnectionFlush(Connection connection) {
-            try {
-                flushLatch.countDown();
-            } catch ( NullPointerException npe ) {
-                // ignore
-            }
+            flushLatch.countDown();
         }
 
         @Override
@@ -360,11 +349,7 @@ public class FlushTests {
 
         @Override
         public void onConnectionDestroy(Connection connection) {
-            try {
-                destroyLatch.countDown();
-            } catch ( NullPointerException npe ) {
-                // ignore
-            }
+            destroyLatch.countDown();
         }
     }
 

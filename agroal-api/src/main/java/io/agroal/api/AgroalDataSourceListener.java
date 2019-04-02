@@ -14,6 +14,8 @@ public interface AgroalDataSourceListener {
 
     default void onConnectionCreation(Connection connection) {}
 
+    default void onConnectionPooled(Connection connection) {}
+
     default void beforeConnectionAcquire() {}
 
     default void onConnectionAcquire(Connection connection) {}

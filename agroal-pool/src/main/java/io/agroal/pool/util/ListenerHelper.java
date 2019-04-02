@@ -26,6 +26,12 @@ public final class ListenerHelper {
         }
     }
 
+    public static void fireOnConnectionPooled(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
+        for ( AgroalDataSourceListener listener : listeners ) {
+            listener.onConnectionPooled( handler.getConnection() );
+        }
+    }
+
     public static void fireBeforeConnectionAcquire(AgroalDataSourceListener[] listeners) {
         for ( AgroalDataSourceListener listener : listeners ) {
             listener.beforeConnectionAcquire();
