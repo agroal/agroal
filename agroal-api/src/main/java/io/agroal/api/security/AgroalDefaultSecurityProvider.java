@@ -3,14 +3,13 @@
 
 package io.agroal.api.security;
 
+import java.security.Principal;
 import java.util.Properties;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalDefaultSecurityProvider implements AgroalSecurityProvider {
-
-    private static final Properties EMPTY_PROPERTIES = new Properties();
 
     @Override
     public Properties getSecurityProperties(Object securityObject) {
@@ -20,6 +19,12 @@ public class AgroalDefaultSecurityProvider implements AgroalSecurityProvider {
         if ( securityObject instanceof SimplePassword ) {
             return ( (SimplePassword) securityObject ).asProperties();
         }
-        return EMPTY_PROPERTIES;
+        if ( securityObject instanceof Principal ) {
+            Properties properties = new Properties();
+            properties.setProperty( "user", ( (Principal) securityObject ).getName() );
+            return properties;
+        }
+
+        return null;
     }
 }

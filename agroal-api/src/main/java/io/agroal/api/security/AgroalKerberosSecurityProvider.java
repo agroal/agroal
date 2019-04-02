@@ -7,6 +7,7 @@ import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.Oid;
 
+import javax.security.auth.kerberos.KerberosTicket;
 import java.util.Properties;
 
 /**
@@ -27,8 +28,12 @@ public class AgroalKerberosSecurityProvider implements AgroalSecurityProvider {
                 return properties;
             } catch ( GSSException e ) {
                 // nothing we can do
+                return EMPTY_PROPERTIES;
             }
         }
-        return EMPTY_PROPERTIES;
+        if ( securityObject instanceof KerberosTicket ) {
+            return EMPTY_PROPERTIES;
+        }
+        return null;
     }
 }

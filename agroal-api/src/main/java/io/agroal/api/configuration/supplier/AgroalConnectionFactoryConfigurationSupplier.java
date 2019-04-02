@@ -6,6 +6,9 @@ package io.agroal.api.configuration.supplier;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.IsolationLevel;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation;
+import io.agroal.api.security.AgroalDefaultSecurityProvider;
+import io.agroal.api.security.AgroalKerberosSecurityProvider;
+import io.agroal.api.security.AgroalSecurityProvider;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -30,6 +33,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private String initialSql = "";
     private Class<?> connectionProviderClass;
     private IsolationLevel transactionIsolation = UNDEFINED;
+    private Collection<AgroalSecurityProvider> securityProviders = new ArrayList<>();
     private Principal principal;
     private Collection<Object> credentials = new ArrayList<>();
     private Principal recoveryPrincipal;
@@ -38,6 +42,8 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
 
     public AgroalConnectionFactoryConfigurationSupplier() {
         this.lock = false;
+        this.securityProviders.add( new AgroalDefaultSecurityProvider() );
+        this.securityProviders.add( new AgroalKerberosSecurityProvider() );
     }
 
     public AgroalConnectionFactoryConfigurationSupplier(AgroalConnectionFactoryConfiguration existingConfiguration) {
@@ -108,6 +114,12 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     public AgroalConnectionFactoryConfigurationSupplier jdbcTransactionIsolation(int customValue) {
         checkLock();
         transactionIsolation = new CustomIsolationLevel( customValue );
+        return this;
+    }
+
+    public AgroalConnectionFactoryConfigurationSupplier addSecurityProvider(AgroalSecurityProvider provider) {
+        checkLock();
+        this.securityProviders.add( provider );
         return this;
     }
 
@@ -183,6 +195,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public IsolationLevel jdbcTransactionIsolation() {
                 return transactionIsolation;
+            }
+
+            @Override
+            public Collection<AgroalSecurityProvider> securityProviders() {
+                return securityProviders;
             }
 
             @Override
