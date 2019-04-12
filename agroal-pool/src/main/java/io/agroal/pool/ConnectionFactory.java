@@ -70,8 +70,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private javax.sql.XADataSource newXADataSource(Properties properties) {
         javax.sql.XADataSource newDataSource;
         try {
-            newDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.XADataSource.class ).newInstance();
-        } catch ( IllegalAccessException | InstantiationException e ) {
+            newDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.XADataSource.class ).getDeclaredConstructor().newInstance();
+        } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.XADataSource", e );
         }
         PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
@@ -87,8 +87,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private javax.sql.DataSource newDataSource(Properties properties) {
         javax.sql.DataSource newDataSource;
         try {
-            newDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.DataSource.class ).newInstance();
-        } catch ( IllegalAccessException | InstantiationException e ) {
+            newDataSource = configuration.connectionProviderClass().asSubclass( javax.sql.DataSource.class ).getDeclaredConstructor().newInstance();
+        } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.DataSource", e );
         }
         PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
@@ -110,12 +110,12 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
             }
         } else {
             try {
-                driver = configuration.connectionProviderClass().asSubclass( java.sql.Driver.class ).newInstance();
+                driver = configuration.connectionProviderClass().asSubclass( java.sql.Driver.class ).getDeclaredConstructor().newInstance();
                 if ( !driver.acceptsURL( configuration.jdbcUrl() ) ) {
                     fireOnWarning( listeners, "Driver does not support the provided URL: " + configuration.jdbcUrl() );
                 }
                 return driver;
-            } catch ( IllegalAccessException | InstantiationException e ) {
+            } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
                 throw new RuntimeException( "Unable to instantiate java.sql.Driver", e );
             } catch ( SQLException e ) {
                 throw new RuntimeException( "Unable to verify that the java.sql.Driver supports the provided URL", e );

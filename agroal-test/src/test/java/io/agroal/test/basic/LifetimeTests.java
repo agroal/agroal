@@ -149,7 +149,7 @@ public class LifetimeTests {
         }
 
         @Override
-        public void onConnectionCreation(Connection connection) {
+        public void onConnectionPooled(Connection connection) {
             allLatch.countDown();
         }
 

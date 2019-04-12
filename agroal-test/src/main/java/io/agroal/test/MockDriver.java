@@ -3,6 +3,7 @@
 
 package io.agroal.test;
 
+import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverPropertyInfo;
@@ -31,8 +32,8 @@ public interface MockDriver extends Driver {
                         @Override
                         public Connection connect(String url, Properties info) throws SQLException {
                             try {
-                                return connectionType.newInstance();
-                            } catch ( InstantiationException | IllegalAccessException e ) {
+                                return connectionType.getDeclaredConstructor().newInstance();
+                            } catch ( InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
                                 throw new SQLException( "Cannot create mock connection", e );
                             }
                         }
