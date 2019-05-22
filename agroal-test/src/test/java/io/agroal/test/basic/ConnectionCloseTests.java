@@ -7,6 +7,7 @@ import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
+import io.agroal.test.MockStatement;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -114,7 +115,7 @@ public class ConnectionCloseTests {
         ReturnListener returnListener = new ReturnListener();
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), returnListener ) ) {
-            try (Connection connection = dataSource.getConnection() ) {
+            try ( Connection connection = dataSource.getConnection() ) {
                 // Explicit close. This is a try-with-resources so there is another call to connection.close() after this one.
                 connection.close();
             }
@@ -123,6 +124,20 @@ public class ConnectionCloseTests {
                 assertEquals( 1, returnListener.returnCount.longValue(), "Expecting connection to be returned once to the pool" );
                 assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
             } );
+        }
+    }
+
+    @Test
+    @DisplayName( "Statement close" )
+    public void statementClose() throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                try ( Statement statement = connection.createStatement() ) {
+                    Statement underlyingStatement = statement.unwrap( ClosableStatement.class );
+                    statement.close();
+                    assertTrue( underlyingStatement.isClosed() );
+                }
+            }
         }
     }
 
@@ -145,6 +160,31 @@ public class ConnectionCloseTests {
         @Override
         public String getSchema() {
             return FAKE_SCHEMA;
+        }
+
+        @Override
+        public Statement createStatement() throws SQLException {
+            return new ClosableStatement();
+        }
+    }
+
+    public static class ClosableStatement implements MockStatement {
+
+        private boolean closed;
+
+        @Override
+        public void close() throws SQLException {
+            this.closed = true;
+        }
+
+        @Override
+        public boolean isClosed() throws SQLException {
+            return this.closed;
+        }
+
+        @Override
+        public <T> T unwrap(Class<T> iface) throws SQLException {
+            return iface.cast( this );
         }
     }
 }

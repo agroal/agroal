@@ -3,6 +3,7 @@
 
 package io.agroal.pool.util;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -18,7 +19,6 @@ import java.util.stream.Stream;
 
 import static java.lang.System.arraycopy;
 import static java.lang.reflect.Array.newInstance;
-import static java.util.Arrays.copyOf;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -98,7 +98,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     public boolean add(T element) {
         long stamp = lock.writeLock();
         try {
-            data = copyOf( data, data.length + 1 );
+            data = Arrays.copyOf( data, data.length + 1 );
             data[data.length - 1] = element;
             return true;
         } finally {
@@ -110,7 +110,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
         long stamp = lock.writeLock();
         try {
             T element = data[data.length - 1];
-            data = copyOf( data, data.length - 1 );
+            data = Arrays.copyOf( data, data.length - 1 );
             return element;
         } finally {
             optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
@@ -135,7 +135,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
                         if ( writeStamp != 0 ) {
                             stamp = writeStamp;
 
-                            T[] newData = copyOf( data, data.length - 1 );
+                            T[] newData = Arrays.copyOf( data, data.length - 1 );
                             arraycopy( data, index + 1, newData, index, data.length - index - 1 );
                             data = newData;
                             return true;
@@ -156,7 +156,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
         long stamp = lock.writeLock();
         try {
             T old = data[index];
-            T[] array = copyOf( data, data.length - 1 );
+            T[] array = Arrays.copyOf( data, data.length - 1 );
             if ( data.length - index - 1 != 0 ) {
                 arraycopy( data, index + 1, array, index, data.length - index - 1 );
             }
@@ -171,7 +171,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     public void clear() {
         long stamp = lock.writeLock();
         try {
-            data = copyOf( data, 0 );
+            data = Arrays.copyOf( data, 0 );
         } finally {
             optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
         }
@@ -193,7 +193,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
         long stamp = lock.writeLock();
         try {
             int oldSize = data.length;
-            data = copyOf( data, oldSize + c.size() );
+            data = Arrays.copyOf( data, oldSize + c.size() );
             for ( T element : c ) {
                 data[oldSize++] = element;
             }

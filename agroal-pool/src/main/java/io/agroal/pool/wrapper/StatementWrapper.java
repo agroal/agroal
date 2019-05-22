@@ -84,12 +84,16 @@ public class StatementWrapper implements Statement {
     @Override
     public void close() throws SQLException {
         try {
-            connection.releaseTrackedStatement( wrappedStatement );
-            wrappedStatement = CLOSED_STATEMENT;
-            closeTrackedResultSets();
+            if ( wrappedStatement != CLOSED_STATEMENT ) {
+                closeTrackedResultSets();
+                wrappedStatement.close();
+            }
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            connection.releaseTrackedStatement( this );
+            wrappedStatement = CLOSED_STATEMENT;
         }
     }
 
