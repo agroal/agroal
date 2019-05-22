@@ -83,14 +83,17 @@ public final class ConnectionHandler implements TransactionAware {
     }
 
     public ConnectionWrapper newConnectionWrapper() {
-        ConnectionWrapper newWrapper = new ConnectionWrapper( this );
+        ConnectionWrapper newWrapper = new ConnectionWrapper( this, connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() );
         if ( enlisted ) {
             enlistedOpenWrappers.add( newWrapper );
         }
         return newWrapper;
     }
 
-    public void onConnectionWrapperClose(ConnectionWrapper wrapper) throws SQLException {
+    public void onConnectionWrapperClose(ConnectionWrapper wrapper, ConnectionWrapper.JdbcResourcesLeakReport leakReport) throws SQLException {
+        if ( leakReport.hasLeak() ) {
+            fireOnWarning( connectionPool.getListeners(), "JDBC resources leaked: " + leakReport.resultSetCount() + " ResultSet on " + leakReport.resultSetCount() + " Statement" );
+        }
         if ( enlisted ) {
             enlistedOpenWrappers.remove( wrapper );
         } else {

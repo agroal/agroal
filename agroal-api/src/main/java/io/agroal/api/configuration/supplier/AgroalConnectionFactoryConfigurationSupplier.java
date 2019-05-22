@@ -29,6 +29,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private volatile boolean lock;
 
     private boolean autoCommit = true;
+    private boolean trackJdbcResources = true;
     private String jdbcUrl = "";
     private String initialSql = "";
     private Class<?> connectionProviderClass;
@@ -62,6 +63,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         this.recoveryCredentials = existingConfiguration.recoveryCredentials();
         this.jdbcProperties = existingConfiguration.jdbcProperties();
         this.securityProviders = existingConfiguration.securityProviders();
+        this.trackJdbcResources = existingConfiguration.trackJdbcResources();
     }
 
     private void checkLock() {
@@ -75,6 +77,12 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     public AgroalConnectionFactoryConfigurationSupplier autoCommit(boolean autoCommitEnabled) {
         checkLock();
         autoCommit = autoCommitEnabled;
+        return this;
+    }
+
+    public AgroalConnectionFactoryConfigurationSupplier trackJdbcResources(boolean trackJdbcResourcesEnabled) {
+        checkLock();
+        trackJdbcResources = trackJdbcResourcesEnabled;
         return this;
     }
 
@@ -176,6 +184,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public boolean autoCommit() {
                 return autoCommit;
+            }
+
+            @Override
+            public boolean trackJdbcResources() {
+                return trackJdbcResources;
             }
 
             @Override

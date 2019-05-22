@@ -17,6 +17,8 @@ public interface AgroalConnectionFactoryConfiguration {
 
     boolean autoCommit();
 
+    boolean trackJdbcResources();
+
     String jdbcUrl();
 
     String initialSql();
