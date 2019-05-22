@@ -42,30 +42,32 @@ public class StatementWrapper implements Statement {
 
     // --- //
 
-    private final Collection<ResultSet> trackedResultSets = new StampedCopyOnWriteArrayList<>( ResultSet.class );
-
     protected final ConnectionWrapper connection;
+
+    // Collection of ResultSet to close them on close(). If null ResultSet are not tracked.
+    private final Collection<ResultSet> trackedResultSets;
 
     private Statement wrappedStatement;
 
-    public StatementWrapper(ConnectionWrapper connectionWrapper, Statement statement) {
+    public StatementWrapper(ConnectionWrapper connectionWrapper, Statement statement, boolean trackResources) {
         connection = connectionWrapper;
         wrappedStatement = statement;
+        trackedResultSets = trackResources ? new StampedCopyOnWriteArrayList<>( ResultSet.class ) : null;
     }
 
     // --- //
 
     protected ResultSet trackResultSet(ResultSet resultSet) {
-        if ( resultSet == null ) {
-            return null;
+        if ( trackedResultSets != null && resultSet != null ) {
+            ResultSet wrappedResultSet = new ResultSetWrapper( this, resultSet );
+            trackedResultSets.add( wrappedResultSet );
+            return wrappedResultSet;
         }
-        ResultSet wrappedResultSet = new ResultSetWrapper( this, resultSet );
-        trackedResultSets.add( wrappedResultSet );
-        return wrappedResultSet;
+        return resultSet;
     }
 
     protected void closeTrackedResultSets() throws SQLException {
-        if ( !trackedResultSets.isEmpty() ) {
+        if ( trackedResultSets != null && !trackedResultSets.isEmpty() ) {
             for ( ResultSet resultSet : trackedResultSets ) {
                 resultSet.close();
             }
@@ -74,7 +76,13 @@ public class StatementWrapper implements Statement {
     }
 
     public void releaseTrackedResultSet(ResultSet resultSet) {
-        trackedResultSets.remove( resultSet );
+        if ( trackedResultSets != null ) {
+            trackedResultSets.remove( resultSet );
+        }
+    }
+
+    public int trackedResultSetSize() {
+        return trackedResultSets != null ? trackedResultSets.size() : 0;
     }
 
     ConnectionWrapper getConnectionWrapper() throws SQLException {

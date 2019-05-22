@@ -57,8 +57,8 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
 
     private CallableStatement wrappedStatement;
 
-    public CallableStatementWrapper(ConnectionWrapper connectionWrapper, CallableStatement statement) {
-        super( connectionWrapper, statement );
+    public CallableStatementWrapper(ConnectionWrapper connectionWrapper, CallableStatement statement, boolean trackJdbcResources) {
+        super( connectionWrapper, statement, trackJdbcResources );
         wrappedStatement = statement;
     }
 

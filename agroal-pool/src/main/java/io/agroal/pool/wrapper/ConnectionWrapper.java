@@ -54,21 +54,21 @@ public final class ConnectionWrapper implements Connection {
 
     private static final Connection CLOSED_CONNECTION = (Connection) newProxyInstance( Connection.class.getClassLoader(), new Class[]{Connection.class}, CLOSED_HANDLER );
 
+    private static final JdbcResourcesLeakReport JDBC_RESOURCES_NOT_LEAKED = new JdbcResourcesLeakReport( 0, 0 );
+
     // --- //
 
-    private final Collection<Statement> trackedStatements = new StampedCopyOnWriteArrayList<>( Statement.class );
+    // Collection of Statements to close them on close(). If null Statements are not tracked.
+    private final Collection<Statement> trackedStatements;
 
     private final ConnectionHandler handler;
 
     private Connection wrappedConnection;
 
-    // TODO: make trackStatements configurable
-    // Flag to indicate that this ConnectionWrapper should track statements to close them on close()
-    private boolean trackStatements = true;
-
-    public ConnectionWrapper(ConnectionHandler connectionHandler) {
+    public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources) {
         handler = connectionHandler;
         wrappedConnection = connectionHandler.getConnection();
+        trackedStatements = trackResources ? new StampedCopyOnWriteArrayList<>( Statement.class ) : null;
     }
 
     public ConnectionHandler getHandler() {
@@ -78,8 +78,8 @@ public final class ConnectionWrapper implements Connection {
     // --- //
 
     private Statement trackStatement(Statement statement) {
-        if ( trackStatements && statement != null ) {
-            Statement wrappedStatement = new StatementWrapper( this, statement );
+        if ( trackedStatements != null && statement != null ) {
+            Statement wrappedStatement = new StatementWrapper( this, statement, true );
             trackedStatements.add( wrappedStatement );
             return wrappedStatement;
         }
@@ -87,8 +87,8 @@ public final class ConnectionWrapper implements Connection {
     }
 
     private CallableStatement trackCallableStatement(CallableStatement statement) {
-        if ( trackStatements && statement != null ) {
-            CallableStatement wrappedStatement = new CallableStatementWrapper( this, statement );
+        if ( trackedStatements != null && statement != null ) {
+            CallableStatement wrappedStatement = new CallableStatementWrapper( this, statement, true );
             trackedStatements.add( wrappedStatement );
             return wrappedStatement;
         }
@@ -96,26 +96,33 @@ public final class ConnectionWrapper implements Connection {
     }
 
     private PreparedStatement trackPreparedStatement(PreparedStatement statement) {
-        if ( trackStatements && statement != null ) {
-            PreparedStatement wrappedStatement = new PreparedStatementWrapper( this, statement );
+        if ( trackedStatements != null && statement != null ) {
+            PreparedStatement wrappedStatement = new PreparedStatementWrapper( this, statement, true );
             trackedStatements.add( wrappedStatement );
             return wrappedStatement;
         }
         return statement;
     }
 
-    private void closeTrackedStatements() throws SQLException {
-        if ( !trackedStatements.isEmpty() ) {
+    private JdbcResourcesLeakReport closeTrackedStatements() throws SQLException {
+        if ( trackedStatements != null && !trackedStatements.isEmpty() ) {
+            int statementCount = trackedStatements.size();
+            int resultSetCount = 0;
             for ( Statement statement : trackedStatements ) {
+                resultSetCount += ( (StatementWrapper) statement ).trackedResultSetSize();
                 statement.close();
             }
             // Statements remove themselves, but clear the collection anyway
             trackedStatements.clear();
+            return new JdbcResourcesLeakReport( statementCount, resultSetCount );
         }
+        return JDBC_RESOURCES_NOT_LEAKED;
     }
 
     public void releaseTrackedStatement(Statement statement) {
-        trackedStatements.remove( statement );
+        if ( trackedStatements != null ) {
+            trackedStatements.remove( statement );
+        }
     }
 
     // --- //
@@ -124,8 +131,8 @@ public final class ConnectionWrapper implements Connection {
     public void close() throws SQLException {
         if ( wrappedConnection != CLOSED_CONNECTION ) {
             wrappedConnection = CLOSED_CONNECTION;
-            closeTrackedStatements();
-            handler.onConnectionWrapperClose( this );
+            JdbcResourcesLeakReport leakReport = closeTrackedStatements();
+            handler.onConnectionWrapperClose( this, leakReport );
         }
     }
 
@@ -737,5 +744,31 @@ public final class ConnectionWrapper implements Connection {
     @Override
     public String toString() {
         return "wrapped[" + wrappedConnection + ( handler.isEnlisted() ? "]<<enrolled" : "]" );
+    }
+
+    // --- //
+
+    public static class JdbcResourcesLeakReport {
+
+        private final int statementCount;
+
+        private final int resultSetCount;
+
+        public JdbcResourcesLeakReport(int statementCount, int resultSetCount) {
+            this.statementCount = statementCount;
+            this.resultSetCount = resultSetCount;
+        }
+
+        public int statementCount() {
+            return statementCount;
+        }
+
+        public int resultSetCount() {
+            return resultSetCount;
+        }
+
+        public boolean hasLeak() {
+            return statementCount != 0 || resultSetCount != 0;
+        }
     }
 }

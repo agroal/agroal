@@ -56,8 +56,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
 
     private PreparedStatement wrappedStatement;
 
-    public PreparedStatementWrapper(ConnectionWrapper connectionWrapper, PreparedStatement statement) {
-        super( connectionWrapper, statement );
+    public PreparedStatementWrapper(ConnectionWrapper connectionWrapper, PreparedStatement statement, boolean trackJdbcResources) {
+        super( connectionWrapper, statement, trackJdbcResources );
         wrappedStatement = statement;
     }
 

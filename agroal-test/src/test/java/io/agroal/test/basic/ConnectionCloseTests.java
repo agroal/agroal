@@ -6,6 +6,7 @@ package io.agroal.test.basic;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.pool.wrapper.StatementWrapper;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockStatement;
 import org.junit.jupiter.api.AfterAll;
@@ -18,6 +19,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
@@ -130,7 +132,7 @@ public class ConnectionCloseTests {
     @Test
     @DisplayName( "Statement close" )
     public void statementClose() throws SQLException {
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             try ( Connection connection = dataSource.getConnection() ) {
                 try ( Statement statement = connection.createStatement() ) {
                     Statement underlyingStatement = statement.unwrap( ClosableStatement.class );
@@ -139,6 +141,38 @@ public class ConnectionCloseTests {
                 }
             }
         }
+    }
+
+    @Test
+    @DisplayName( "ResultSet leak" )
+    public void resultSetLeak() throws SQLException {
+        ResultSet resultSet;
+        OnWarningListener listener = new OnWarningListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), listener ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                Statement statement = connection.createStatement();
+                resultSet = statement.getResultSet();
+            }
+        }
+        assertTrue( resultSet.isClosed(), "Leaked ResultSet not closed" );
+        assertTrue( listener.warning.get(), "No warning message on ResultSet leak" );
+        resultSet.close();
+    }
+
+    @Test
+    @DisplayName( "JDBC resources tracking disabled" )
+    public void jdbcResourcesTrackingDisabled() throws SQLException {
+        Statement statement;
+        OnWarningListener listener = new OnWarningListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.trackJdbcResources( false ) ) ), listener ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                statement = connection.createStatement();
+                assertTrue( statement instanceof ClosableStatement, "Wrapped Statement when tracking is disabled" );
+                assertThrows( ClassCastException.class, () -> statement.unwrap( StatementWrapper.class ), "Wrapped Statement when tracking is disabled" );
+            }
+        }
+        assertFalse( listener.warning.get(), "Leak warning when tracking is disabled " );
+        assertFalse( statement.isClosed(), "Tracking is disabled, but acted to clean leak!" );
     }
 
     private static class ReturnListener implements AgroalDataSourceListener {
@@ -185,6 +219,16 @@ public class ConnectionCloseTests {
         @Override
         public <T> T unwrap(Class<T> iface) throws SQLException {
             return iface.cast( this );
+        }
+    }
+
+    private static class OnWarningListener implements AgroalDataSourceListener {
+
+        private final AtomicBoolean warning = new AtomicBoolean( false );
+
+        @Override
+        public void onWarning(String message) {
+            warning.set( true );
         }
     }
 }
