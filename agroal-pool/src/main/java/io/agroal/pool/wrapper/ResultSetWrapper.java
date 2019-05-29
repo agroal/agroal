@@ -72,7 +72,7 @@ public final class ResultSetWrapper implements ResultSet {
             statement.getConnectionWrapper().getHandler().setFlushOnly( se );
             throw se;
         } finally {
-            statement.releaseTrackedResultSet( wrappedResultSet );
+            statement.releaseTrackedResultSet( this );
             wrappedResultSet = CLOSED_RESULT_SET;
         }
     }
