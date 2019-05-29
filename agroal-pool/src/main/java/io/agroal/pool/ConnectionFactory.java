@@ -5,7 +5,6 @@ package io.agroal.pool;
 
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
-import io.agroal.api.security.AgroalDefaultSecurityProvider;
 import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
 import io.agroal.pool.util.PropertyInjector;
@@ -45,6 +44,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private javax.sql.DataSource dataSource;
     private javax.sql.XADataSource xaDataSource;
 
+    private PropertyInjector injector;
+
     public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
         this.listeners = listeners;
@@ -53,14 +54,14 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         configuration.jdbcProperties().forEach( jdbcProperties::put );
         configuration.jdbcProperties().forEach( recoveryProperties::put );
 
-        setupSecurity( configuration );
-
         this.factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
         switch ( factoryMode ) {
             case XA_DATASOURCE:
+                this.injector = new PropertyInjector( configuration.connectionProviderClass() );
                 this.xaDataSource = newXADataSource( jdbcProperties );
                 break;
             case DATASOURCE:
+                this.injector = new PropertyInjector( configuration.connectionProviderClass() );
                 this.dataSource = newDataSource( jdbcProperties );
                 break;
             case DRIVER:
@@ -76,13 +77,11 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.XADataSource", e );
         }
-        PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
-
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectProperty( injector, newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+            injectProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
 
-        injectJdbcProperties( injector, newDataSource, properties );
+        injectJdbcProperties( newDataSource, properties );
         return newDataSource;
     }
 
@@ -93,13 +92,12 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.DataSource", e );
         }
-        PropertyInjector injector = new PropertyInjector( configuration.connectionProviderClass() );
 
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectProperty( injector, newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+            injectProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
 
-        injectJdbcProperties( injector, newDataSource, properties );
+        injectJdbcProperties( newDataSource, properties );
         return newDataSource;
     }
 
@@ -125,7 +123,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
-    private void injectProperty(PropertyInjector injector, Object target, String propertyName, String propertyValue) {
+    private void injectProperty(Object target, String propertyName, String propertyValue) {
         try {
             injector.inject( target, propertyName, propertyValue );
         } catch ( IllegalArgumentException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
@@ -133,7 +131,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
-    private void injectJdbcProperties(PropertyInjector injector, Object target, Properties properties) {
+    private void injectJdbcProperties(Object target, Properties properties) {
         boolean ignoring = false;
         for ( String propertyName : properties.stringPropertyNames() ) {
             try {
@@ -150,22 +148,33 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     // --- //
 
-    private void setupSecurity(AgroalConnectionFactoryConfiguration configuration) {
-        setupSecurity( jdbcProperties, configuration.principal(), configuration.credentials() );
+    private Properties recoveryProperties() {
+        Properties properties = new Properties();
+        properties.putAll( recoveryProperties );
 
         // use the main credentials when recovery credentials are not provided
         if ( configuration.recoveryPrincipal() == null && ( configuration.recoveryCredentials() == null || configuration.recoveryCredentials().isEmpty() ) ) {
-            setupSecurity( recoveryProperties, configuration.principal(), configuration.credentials() );
+            properties.putAll( securityProperties( configuration.principal(), configuration.credentials() ) );
         } else {
-            setupSecurity( recoveryProperties, configuration.recoveryPrincipal(), configuration.recoveryCredentials() );
+            properties.putAll( securityProperties( configuration.recoveryPrincipal(), configuration.recoveryCredentials() ) );
         }
+        return properties;
     }
 
-    private void setupSecurity(Properties properties, Principal principal, Iterable<Object> credentials) {
+    private Properties jdbcProperties() {
+        Properties properties = new Properties();
+        properties.putAll( jdbcProperties );
+        properties.putAll( securityProperties( configuration.principal(), configuration.credentials() ) );
+        return properties;
+    }
+
+    private Properties securityProperties(Principal principal, Iterable<Object> credentials) {
+        Properties properties = new Properties();
         properties.putAll( securityProperties( principal ) );
         for ( Object credential : credentials ) {
             properties.putAll( securityProperties( credential ) );
         }
+        return properties;
     }
 
     private Properties securityProperties(Object securityObject) {
@@ -188,10 +197,12 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     public XAConnection createConnection() throws SQLException {
         switch ( factoryMode ) {
             case DRIVER:
-                return new XAConnectionAdaptor( connectionSetup( driver.connect( configuration.jdbcUrl(), jdbcProperties ) ) );
+                return new XAConnectionAdaptor( connectionSetup( driver.connect( configuration.jdbcUrl(), jdbcProperties() ) ) );
             case DATASOURCE:
+                injectJdbcProperties( dataSource, securityProperties( configuration.principal(), configuration.credentials() ) );
                 return new XAConnectionAdaptor( connectionSetup( dataSource.getConnection() ) );
             case XA_DATASOURCE:
+                injectJdbcProperties( xaDataSource, securityProperties( configuration.principal(), configuration.credentials() ) );
                 return xaConnectionSetup( xaDataSource.getXAConnection() );
             default:
                 throw new SQLException( "Unknown connection factory mode" );
@@ -232,7 +243,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     public XAResource[] recoveryResources() {
         try {
             if ( factoryMode == Mode.XA_DATASOURCE ) {
-                return new XAResource[]{newXADataSource( recoveryProperties ).getXAConnection().getXAResource()};
+                return new XAResource[]{newXADataSource( recoveryProperties() ).getXAConnection().getXAResource()};
             }
             fireOnWarning( listeners, "Recovery connections are only available for XADataSource" );
         } catch ( SQLException e ) {

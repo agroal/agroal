@@ -61,6 +61,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         this.recoveryPrincipal = existingConfiguration.recoveryPrincipal();
         this.recoveryCredentials = existingConfiguration.recoveryCredentials();
         this.jdbcProperties = existingConfiguration.jdbcProperties();
+        this.securityProviders = existingConfiguration.securityProviders();
     }
 
     private void checkLock() {
