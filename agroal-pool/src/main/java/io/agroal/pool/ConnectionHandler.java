@@ -123,13 +123,17 @@ public final class ConnectionHandler implements TransactionAware {
             dirtyAttributes.clear();
         }
 
-        AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
-        for ( SQLWarning warning = connection.getWarnings(); warning != null; warning = warning.getNextWarning() ) {
-            if ( exceptionSorter != null && exceptionSorter.isFatal( warning ) ) {
-                setState( State.FLUSH );
+        SQLWarning warning = connection.getWarnings();
+        if ( warning != null ) {
+            AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
+            while ( warning != null ) {
+                if ( exceptionSorter != null && exceptionSorter.isFatal( warning ) ) {
+                    setState( State.FLUSH );
+                }
+                warning = warning.getNextWarning();
             }
+            connection.clearWarnings();
         }
-        connection.clearWarnings();
     }
 
     public void closeConnection() throws SQLException {
