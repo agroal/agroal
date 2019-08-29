@@ -1,6 +1,10 @@
 language: java
+addons:
+  apt:
+    packages:
+      - openjdk-8-jdk
 jdk:
-  - oraclejdk8
+  - openjdk8
   - openjdk11
 notifications:
   email: false
