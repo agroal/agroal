@@ -4,7 +4,6 @@
 package io.agroal.api.transaction;
 
 import javax.transaction.xa.XAResource;
-import java.sql.Connection;
 import java.sql.SQLException;
 
 /**

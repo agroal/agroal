@@ -14,7 +14,6 @@ import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 import io.agroal.pool.util.UncheckedArrayList;
 
-import java.lang.reflect.UndeclaredThrowableException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;

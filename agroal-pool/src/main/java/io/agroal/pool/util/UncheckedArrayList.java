@@ -3,6 +3,7 @@
 
 package io.agroal.pool.util;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -17,7 +18,6 @@ import java.util.stream.Stream;
 
 import static java.lang.System.arraycopy;
 import static java.lang.reflect.Array.newInstance;
-import static java.util.Arrays.copyOf;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -58,7 +58,7 @@ public final class UncheckedArrayList<T> implements List<T> {
     @Override
     public boolean add(T element) {
         if ( size >= data.length ) {
-            data = copyOf( data, data.length << 1 );
+            data = Arrays.copyOf( data, data.length << 1 );
         }
         data[size] = element;
         size++;
