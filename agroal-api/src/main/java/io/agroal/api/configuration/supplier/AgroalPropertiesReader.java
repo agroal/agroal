@@ -38,6 +38,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String MIN_SIZE = "minSize";
     public static final String MAX_SIZE = "maxSize";
     public static final String INITIAL_SIZE = "initialSize";
+    public static final String FLUSH_ON_CLOSE = "flushOnClose";
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
     public static final String ACQUISITION_TIMEOUT_MS = "acquisitionTimeout_ms";
     public static final String ACQUISITION_TIMEOUT_S = "acquisitionTimeout_s";
@@ -129,6 +130,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
 
         apply( connectionPoolSupplier::minSize, Integer::parseInt, properties, MIN_SIZE );
         apply( connectionPoolSupplier::maxSize, Integer::parseInt, properties, MAX_SIZE );
+        apply( connectionPoolSupplier::flushOnClose, Boolean::parseBoolean, properties, FLUSH_ON_CLOSE );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
 
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );

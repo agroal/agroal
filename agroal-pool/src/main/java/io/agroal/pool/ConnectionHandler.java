@@ -44,7 +44,7 @@ public final class ConnectionHandler implements TransactionAware {
     //used in XA mode, otherwise null
     private final XAResource xaResource;
 
-    private final ConnectionPool connectionPool;
+    private final Pool connectionPool;
 
     // attributes that need to be reset when the connection is returned
     private final Set<DirtyAttribute> dirtyAttributes = noneOf( DirtyAttribute.class );
@@ -73,7 +73,7 @@ public final class ConnectionHandler implements TransactionAware {
     // If there is no transaction integration this should just return false
     private TransactionAware.SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
-    public ConnectionHandler(XAConnection xaConnection, ConnectionPool pool) throws SQLException {
+    public ConnectionHandler(XAConnection xaConnection, Pool pool) throws SQLException {
         connection = xaConnection.getConnection();
         xaResource = xaConnection.getXAResource();
 

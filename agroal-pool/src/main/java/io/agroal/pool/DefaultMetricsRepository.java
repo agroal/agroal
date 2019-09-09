@@ -22,7 +22,7 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     private static final String FORMAT_4 = "Acquire duration: {0,number,000.000}ms average | {1}ms max | {2}ms total";
     private static final String FORMAT_5 = "Threads awaiting: {0}";
 
-    private final ConnectionPool connectionPool;
+    private final Pool connectionPool;
     private final LongAdder creationCount = new LongAdder();
     private final LongAdder creationTotalTime = new LongAdder();
     private final LongAdder acquireCount = new LongAdder();
@@ -36,7 +36,7 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     private final LongAccumulator maxCreatedDuration = new LongAccumulator( Long::max, 0 );
     private final LongAccumulator maxAcquireDuration = new LongAccumulator( Long::max, 0 );
 
-    public DefaultMetricsRepository(ConnectionPool pool) {
+    public DefaultMetricsRepository(Pool pool) {
         this.connectionPool = pool;
     }
 
