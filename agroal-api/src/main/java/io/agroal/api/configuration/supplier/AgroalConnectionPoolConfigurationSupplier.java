@@ -27,6 +27,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private AgroalConnectionFactoryConfigurationSupplier connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier();
 
     private TransactionIntegration transactionIntegration = none();
+    private boolean flushOnClose = false;
     private int initialSize = 0;
     private volatile int minSize = 0;
     private volatile int maxSize = MAX_VALUE;
@@ -50,6 +51,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         }
         this.connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( existingConfiguration.connectionFactoryConfiguration() );
         this.transactionIntegration = existingConfiguration.transactionIntegration();
+        this.flushOnClose = existingConfiguration.flushOnClose();
         this.initialSize = existingConfiguration.initialSize();
         this.minSize = existingConfiguration.minSize();
         this.maxSize = existingConfiguration.maxSize();
@@ -92,6 +94,16 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier transactionIntegration(TransactionIntegration integration) {
         checkLock();
         transactionIntegration =  integration;
+        return this;
+    }
+
+    public AgroalConnectionPoolConfigurationSupplier flushOnClose() {
+        return flushOnClose( true );
+    }
+    
+    public AgroalConnectionPoolConfigurationSupplier flushOnClose(boolean flush) {
+        checkLock();
+        flushOnClose = flush;
         return this;
     }
 
@@ -218,6 +230,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public TransactionIntegration transactionIntegration() {
                 return transactionIntegration;
+            }
+
+            @Override
+            public boolean flushOnClose() {
+                return flushOnClose;
             }
 
             @Override

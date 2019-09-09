@@ -25,6 +25,7 @@ public interface AgroalDataSourceConfiguration {
     enum DataSourceImplementation {
 
         AGROAL( "io.agroal.pool.DataSource" ),
+        AGROAL_POOLLESS( "io.agroal.pool.DataSource" ),
         HIKARI( "io.agroal.hikari.HikariUnderTheCovers" );
 
         private final String className;

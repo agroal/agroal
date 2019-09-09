@@ -40,7 +40,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class ConnectionPool implements MetricsEnabledListener, AutoCloseable {
+public final class ConnectionPool implements Pool {
 
     private final AgroalConnectionPoolConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
@@ -107,12 +107,12 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         return configuration;
     }
 
-    public void flush(AgroalDataSource.FlushMode mode) {
-        housekeepingExecutor.execute( new FlushTask( mode ) );
-    }
-
     public AgroalDataSourceListener[] getListeners() {
         return listeners;
+    }
+
+    public void flushPool(AgroalDataSource.FlushMode mode) {
+        housekeepingExecutor.execute( new FlushTask( mode ) );
     }
 
     @Override
@@ -270,10 +270,12 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         if ( transactionIntegration.disassociate( handler ) ) {
             activeCount.decrement();
 
-            // resize on change of max-size
-            if ( allConnections.size() > configuration.maxSize() ) {
+            // resize on change of max-size, or flush on close
+            int currentSize = allConnections.size();
+            if ( currentSize > configuration.maxSize() || configuration.flushOnClose() && currentSize > configuration.minSize() ) {
                 handler.setState( FLUSH );
                 allConnections.remove( handler );
+                synchronizer.releaseConditional();
                 housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
                 return;
             }
@@ -399,17 +401,17 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
         public void run() {
             if ( handler != null ) {
                 fireBeforeConnectionFlush( listeners, handler );
-                handlerFlush( mode, handler );
+                flush( mode, handler );
             } else {
-                for ( ConnectionHandler connectionHandler : allConnections ) {
-                    fireBeforeConnectionFlush( listeners, connectionHandler );
-                    handlerFlush( mode, connectionHandler );
+                for ( ConnectionHandler handler : allConnections ) {
+                    fireBeforeConnectionFlush( listeners, handler );
+                    flush( mode, handler );
                 }
                 afterFlush( mode );
             }
         }
 
-        private void handlerFlush(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
+        private void flush(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
             switch ( mode ) {
                 case ALL:
                     handler.setState( FLUSH );

@@ -22,11 +22,16 @@ public final class DataSource implements AgroalDataSource {
     private static final long serialVersionUID = 6485903416474487024L;
 
     private final AgroalDataSourceConfiguration configuration;
-    private final ConnectionPool connectionPool;
+    private final Pool connectionPool;
 
     public DataSource(AgroalDataSourceConfiguration dataSourceConfiguration, AgroalDataSourceListener... listeners) {
         configuration = dataSourceConfiguration;
-        connectionPool = new ConnectionPool( dataSourceConfiguration.connectionPoolConfiguration(), listeners );
+        if ( configuration.dataSourceImplementation() == AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS ) {
+            connectionPool = new Poolless( dataSourceConfiguration.connectionPoolConfiguration(), listeners );
+        } else {
+            connectionPool = new ConnectionPool( dataSourceConfiguration.connectionPoolConfiguration(), listeners );
+        }
+
         dataSourceConfiguration.registerMetricsEnabledListener( connectionPool );
         connectionPool.onMetricsEnabled( dataSourceConfiguration.metricsEnabled() );
         connectionPool.init();
@@ -46,7 +51,7 @@ public final class DataSource implements AgroalDataSource {
 
     @Override
     public void flush(FlushMode mode) {
-        connectionPool.flush(mode);
+        connectionPool.flushPool(mode);
     }
 
     @Override
