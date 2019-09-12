@@ -29,6 +29,7 @@ import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.time.Duration.ofMillis;
+import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.logging.Logger.getLogger;
@@ -177,6 +178,8 @@ public class BasicConcurrencyTests {
             assertFalse( listener.warning.get(), "Unexpected warning" );
             assertEquals( MAX_POOL_SIZE, listener.creationCount.longValue() );
             assertEquals( MAX_POOL_SIZE, listener.acquireCount.longValue() );
+            assertEquals( MAX_POOL_SIZE, listener.destroyCount.longValue() );
+            assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().destroyCount(), "Destroy count" );
             assertEquals( 0, listener.returnCount.longValue() );
             assertEquals( 0, dataSource.getMetrics().activeCount(), "Active connections" );
             assertEquals( 0, dataSource.getMetrics().availableCount(), "Should not be any available connections" );
@@ -186,11 +189,51 @@ public class BasicConcurrencyTests {
         dataSource.close();
     }
 
+    @Test
+    @DisplayName( "DataSource close" )
+    public void dataSourceCloseTest() throws SQLException, InterruptedException {
+        int MAX_POOL_SIZE = 10, TIMEOUT_MS = 1000;
+
+        ShutdownListener listener = new ShutdownListener( MAX_POOL_SIZE );
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MAX_POOL_SIZE )
+                        .maxSize( MAX_POOL_SIZE )
+                        // Add periodic tasks that should be cancelled on close
+                        .reapTimeout( ofSeconds( 10 ) )
+                        .validationTimeout( ofSeconds( 2 ) )
+                );
+
+        AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener );
+
+        if ( !listener.startupLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
+            fail( "Did not execute within the required amount of time" );
+        }
+
+        assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().availableCount() );
+
+        Connection c = dataSource.getConnection();
+        assertEquals( 1, dataSource.getMetrics().activeCount() );
+        assertFalse( c.isClosed() );
+
+        dataSource.close();
+
+        // Connections take a while to be destroyed because the executor has to wait on the listener.
+        // We check right after close() to make sure all were destroyed when the method returns.
+        assertAll( () -> {
+            assertFalse( listener.warning, "Datasource closed but there are tasks to run" );
+            assertEquals( 0, dataSource.getMetrics().availableCount() );
+            assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().destroyCount() );
+        } );
+    }
+
     // --- //
 
     private static class BasicConcurrencyTestsListener implements AgroalDataSourceListener {
 
-        private final LongAdder creationCount = new LongAdder(), acquireCount = new LongAdder(), returnCount = new LongAdder();
+        private final LongAdder creationCount = new LongAdder(), acquireCount = new LongAdder(), returnCount = new LongAdder(), destroyCount = new LongAdder();
 
         private final AtomicBoolean warning = new AtomicBoolean( false );
 
@@ -210,6 +253,11 @@ public class BasicConcurrencyTests {
         }
 
         @Override
+        public void beforeConnectionDestroy(Connection connection) {
+            destroyCount.increment();
+        }
+
+        @Override
         public void onWarning(String message) {
             warning.set( true );
         }
@@ -217,6 +265,35 @@ public class BasicConcurrencyTests {
         @Override
         public void onWarning(Throwable throwable) {
             warning.set( true );
+        }
+    }
+
+    private static class ShutdownListener implements AgroalDataSourceListener {
+        private boolean warning = false;
+        private CountDownLatch startupLatch;
+
+        private ShutdownListener(int poolSize) {
+            startupLatch = new CountDownLatch( poolSize );
+        }
+
+        @Override
+        public void onConnectionPooled(Connection connection) {
+            startupLatch.countDown();
+        }
+
+        @Override
+        public void onConnectionDestroy(Connection connection) {
+            try {
+                // sleep for 1 ms
+                Thread.sleep( 1 );
+            } catch ( InterruptedException e ) {
+                fail( "Interrupted" );
+            }
+        }
+
+        @Override
+        public void onWarning(String message) {
+            warning = true;
         }
     }
 }

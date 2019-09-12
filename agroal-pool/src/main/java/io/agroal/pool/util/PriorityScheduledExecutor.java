@@ -3,6 +3,7 @@
 
 package io.agroal.pool.util;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -71,6 +72,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     public void shutdown() {
         if ( !isShutdown() ) {
             executeNow( super::shutdown );
+            execute( this::shutdownNow );
         }
     }
 
@@ -79,8 +81,11 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
         for ( RunnableFuture<?> runnableFuture : priorityTasks ) {
             runnableFuture.cancel( true );
         }
+        List<Runnable> allTasks = new ArrayList<>( priorityTasks );
         priorityTasks.clear();
-        return super.shutdownNow();
+
+        allTasks.addAll( super.shutdownNow() );
+        return allTasks;
     }
 
     // -- //

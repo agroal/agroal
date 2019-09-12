@@ -119,14 +119,19 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
     public void close() {
         transactionIntegration.removeResourceRecoveryFactory( connectionFactory );
 
+        for ( Runnable task : housekeepingExecutor.shutdownNow() ) {
+            if ( task instanceof DestroyConnectionTask ) {
+                task.run();
+            }
+        }
+
         for ( ConnectionHandler handler : allConnections ) {
             handler.setState( FLUSH );
-            housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
+            new DestroyConnectionTask( handler ).run();
         }
         allConnections.clear();
         activeCount.reset();
 
-        housekeepingExecutor.shutdown();
         synchronizer.release( synchronizer.getQueueLength() );
     }
 
