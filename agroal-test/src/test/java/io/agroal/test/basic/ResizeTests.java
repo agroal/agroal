@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
+import static java.lang.Integer.max;
 import static java.text.MessageFormat.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.logging.Logger.getLogger;
@@ -50,17 +51,17 @@ public class ResizeTests {
     @Test
     @DisplayName( "resize Max" )
     public void resizeMax() throws SQLException {
-        int MAX_POOL_SIZE = 10, NEW_MAX_SIZE = 6, TIMEOUT_MS = 1000;
+        int INITIAL_SIZE = 10, MAX_SIZE = 6, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
-                        .initialSize( MAX_POOL_SIZE )
-                        .maxSize( MAX_POOL_SIZE )
+                        .initialSize( INITIAL_SIZE )
+                        .maxSize( MAX_SIZE )
                 );
 
-        CountDownLatch creationLatch = new CountDownLatch( MAX_POOL_SIZE );
-        CountDownLatch destroyLatch = new CountDownLatch( MAX_POOL_SIZE - NEW_MAX_SIZE );
+        CountDownLatch creationLatch = new CountDownLatch( INITIAL_SIZE );
+        CountDownLatch destroyLatch = new CountDownLatch( INITIAL_SIZE - MAX_SIZE );
         AgroalDataSourceListener listener = new AgroalDataSourceListener() {
             @Override
             public void onConnectionPooled(Connection connection) {
@@ -74,26 +75,26 @@ public class ResizeTests {
         };
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
-            logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", MAX_POOL_SIZE ) );
+            logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", INITIAL_SIZE ) );
             if ( !creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
                 fail( format( "{0} connections not created", creationLatch.getCount() ) );
             }
+            assertEquals( INITIAL_SIZE, dataSource.getMetrics().availableCount(), "Pool not initialized correctly" );
 
-            assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().availableCount(), "Pool not initialized correctly" );
-            dataSource.getConfiguration().connectionPoolConfiguration().setMaxSize( NEW_MAX_SIZE );
+            for ( int i = INITIAL_SIZE; i > 0; i-- ) {
+                assertEquals( max( MAX_SIZE, i ), dataSource.getMetrics().availableCount(), "Pool not resized" );
 
-            for ( int i = MAX_POOL_SIZE; i > 0; i-- ) {
                 try ( Connection c = dataSource.getConnection() ) {
                     assertNotNull( c );
                 }
             }
 
-            logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE - NEW_MAX_SIZE ) );
+            logger.info( format( "Waiting for destruction of {0} connections ", INITIAL_SIZE - MAX_SIZE ) );
             if ( !destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
                 fail( format( "{0} flushed connections not sent for destruction", destroyLatch.getCount() ) );
             }
 
-            assertEquals( NEW_MAX_SIZE, dataSource.getMetrics().availableCount(), "Pool not resized" );
+            assertEquals( MAX_SIZE, dataSource.getMetrics().availableCount(), "Pool not resized" );
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );
         }
@@ -132,7 +133,7 @@ public class ResizeTests {
 
             // This should be a new connection and not one from the initial
             try ( Connection c = dataSource.getConnection() ) {
-                    assertNotNull( c );
+                assertNotNull( c );
             }
             assertEquals( INITIAL_SIZE + 1, dataSource.getMetrics().availableCount(), "Pool not resized" );
 
@@ -141,7 +142,6 @@ public class ResizeTests {
                 assertNotNull( c );
             }
             assertEquals( INITIAL_SIZE + 1, dataSource.getMetrics().availableCount(), "Pool not resized" );
-
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );
         }

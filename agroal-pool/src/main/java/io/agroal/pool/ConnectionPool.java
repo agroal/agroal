@@ -99,7 +99,7 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
             fireOnWarning( listeners, "Initial size not whithin min / max bounds" );
         }
         for ( int n = configuration.initialSize(); n > 0; n-- ) {
-            housekeepingExecutor.executeNow( new CreateConnectionTask() );
+            housekeepingExecutor.executeNow( new CreateConnectionTask().initial() );
         }
     }
 
@@ -349,9 +349,16 @@ public final class ConnectionPool implements MetricsEnabledListener, AutoCloseab
 
     private final class CreateConnectionTask implements Callable<ConnectionHandler> {
 
+        private boolean initial;
+
+        private CreateConnectionTask initial() {
+            initial = true;
+            return this;
+        }
+
         @Override
         public ConnectionHandler call() throws SQLException {
-            if ( allConnections.size() >= configuration.maxSize() ) {
+            if ( !initial && allConnections.size() >= configuration.maxSize() ) {
                 return null;
             }
             fireBeforeConnectionCreation( listeners );
