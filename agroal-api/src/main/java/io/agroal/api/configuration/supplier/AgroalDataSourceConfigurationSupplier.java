@@ -19,8 +19,9 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     private volatile boolean lock;
 
     private AgroalConnectionPoolConfigurationSupplier connectionPoolConfigurationSupplier = new AgroalConnectionPoolConfigurationSupplier();
-    private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
+    private AgroalConnectionPoolConfiguration connectionPoolConfiguration = null;
 
+    private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
     private volatile boolean metrics = false;
     private volatile MetricsEnabledListener metricsEnabledListener;
 
@@ -74,8 +75,9 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
 
     private void validate() {
         if ( connectionPoolConfigurationSupplier == null ) {
-            throw new IllegalArgumentException( "Connection poll configuration not defined" );
+            throw new IllegalArgumentException( "Connection pool configuration not defined" );
         }
+        connectionPoolConfiguration = connectionPoolConfigurationSupplier.get();
     }
 
     @Override
@@ -88,7 +90,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
 
             @Override
             public AgroalConnectionPoolConfiguration connectionPoolConfiguration() {
-                return connectionPoolConfigurationSupplier.get();
+                return connectionPoolConfiguration;
             }
 
             @Override

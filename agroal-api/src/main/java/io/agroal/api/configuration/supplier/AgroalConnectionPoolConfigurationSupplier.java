@@ -25,6 +25,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private volatile boolean lock;
 
     private AgroalConnectionFactoryConfigurationSupplier connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier();
+    private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = null;
 
     private TransactionIntegration transactionIntegration = none();
     private boolean flushOnClose = false;
@@ -93,7 +94,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     public AgroalConnectionPoolConfigurationSupplier transactionIntegration(TransactionIntegration integration) {
         checkLock();
-        transactionIntegration =  integration;
+        transactionIntegration = integration;
         return this;
     }
 
@@ -212,6 +213,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( connectionFactoryConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );
         }
+        connectionFactoryConfiguration = connectionFactoryConfigurationSupplier.get();
     }
 
     @Override
@@ -224,7 +226,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
             @Override
             public AgroalConnectionFactoryConfiguration connectionFactoryConfiguration() {
-                return connectionFactoryConfigurationSupplier.get();
+                return connectionFactoryConfiguration;
             }
 
             @Override
