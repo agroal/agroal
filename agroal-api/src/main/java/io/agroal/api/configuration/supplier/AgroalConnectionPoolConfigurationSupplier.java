@@ -18,6 +18,8 @@ import static java.lang.Integer.MAX_VALUE;
 import static java.time.Duration.ZERO;
 
 /**
+ * Builder of AgroalConnectionPoolConfiguration.
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalConnectionPoolConfigurationSupplier implements Supplier<AgroalConnectionPoolConfiguration> {
@@ -72,102 +74,156 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         }
     }
 
+    /**
+     * Sets the configuration for the connection factory.
+     */
     private AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(AgroalConnectionFactoryConfiguration configuration) {
         checkLock();
         connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( configuration );
         return this;
     }
 
+    /**
+     * Sets the configuration for the connection factory.
+     */
     public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Supplier<AgroalConnectionFactoryConfiguration> supplier) {
         return connectionFactoryConfiguration( supplier.get() );
     }
 
+    /**
+     * Modifies the configuration of the connection pool.
+     */
     public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Function<AgroalConnectionFactoryConfigurationSupplier, AgroalConnectionFactoryConfigurationSupplier> function) {
         return connectionFactoryConfiguration( function.apply( connectionFactoryConfigurationSupplier ) );
     }
 
+    /**
+     * Allows access to the configuration builder for the connection pool.
+     */
     public AgroalConnectionFactoryConfigurationSupplier connectionFactoryConfiguration() {
         return connectionFactoryConfigurationSupplier;
     }
 
     // --- //
 
+    /**
+     * Sets the transaction integration instance to use. Default is {@link TransactionIntegration#none()}.
+     */
     public AgroalConnectionPoolConfigurationSupplier transactionIntegration(TransactionIntegration integration) {
         checkLock();
         transactionIntegration = integration;
         return this;
     }
 
+    /**
+     * Enables flushing of connections on close.
+     */
     public AgroalConnectionPoolConfigurationSupplier flushOnClose() {
         return flushOnClose( true );
     }
-    
+
+    /**
+     * Enables or disables flushing of connections on close. Default is false.
+     */
     public AgroalConnectionPoolConfigurationSupplier flushOnClose(boolean flush) {
         checkLock();
         flushOnClose = flush;
         return this;
     }
 
+    /**
+     * Sets the number of connections when the pool starts. Must not be negative. Default is zero.
+     */
     public AgroalConnectionPoolConfigurationSupplier initialSize(int size) {
         checkLock();
         initialSize = size;
         return this;
     }
 
+    /**
+     * Sets the minimum number of connections on the pool. Must not be negative and smaller than max. Default is zero.
+     */
     public AgroalConnectionPoolConfigurationSupplier minSize(int size) {
         checkLock();
         minSize = size;
         return this;
     }
 
+    /**
+     * Sets the maximum number of connections on the pool. Must not be negative. Required.
+     */
     public AgroalConnectionPoolConfigurationSupplier maxSize(int size) {
         checkLock();
         maxSize = size;
         return this;
     }
 
+    /**
+     * Sets the connection validation method. Default {@link AgroalConnectionPoolConfiguration.ConnectionValidator#emptyValidator()}
+     */
     public AgroalConnectionPoolConfigurationSupplier connectionValidator(AgroalConnectionPoolConfiguration.ConnectionValidator validator) {
         checkLock();
         connectionValidator = validator;
         return this;
     }
 
+    /**
+     * Sets the exception sorter. Default {@link AgroalConnectionPoolConfiguration.ExceptionSorter#emptyExceptionSorter()}
+     */
     public AgroalConnectionPoolConfigurationSupplier exceptionSorter(AgroalConnectionPoolConfiguration.ExceptionSorter sorter) {
         checkLock();
         exceptionSorter = sorter;
         return this;
     }
 
+    /**
+     * Sets the duration of the acquisition timeout. Default is {@link Duration#ZERO} meaning that a thread will wait indefinitely.
+     */
     public AgroalConnectionPoolConfigurationSupplier acquisitionTimeout(Duration timeout) {
         checkLock();
         acquisitionTimeout = timeout;
         return this;
     }
 
+    /**
+     * Sets the duration of idle time for foreground validation to be executed. Default is {@link Duration#ZERO} meaning that this feature is disabled.
+     */
     public AgroalConnectionPoolConfigurationSupplier idleValidationTimeout(Duration timeout) {
         checkLock();
         idleValidationTimeout = timeout;
         return this;
     }
 
+    /**
+     * Sets the duration of the leak timeout detection. Default is {@link Duration#ZERO} meaning that this feature is disabled.
+     */
     public AgroalConnectionPoolConfigurationSupplier leakTimeout(Duration timeout) {
         checkLock();
         leakTimeout = timeout;
         return this;
     }
 
+    /**
+     * Sets the duration of background validation interval. Default is {@link Duration#ZERO} meaning that this feature is disabled.
+     */
     public AgroalConnectionPoolConfigurationSupplier validationTimeout(Duration timeout) {
         checkLock();
         validationTimeout = timeout;
         return this;
     }
 
+    /**
+     * Sets the duration for eviction of idle connections. Default is {@link Duration#ZERO} meaning that this feature is disabled.
+     */
     public AgroalConnectionPoolConfigurationSupplier reapTimeout(Duration timeout) {
         checkLock();
         reapTimeout = timeout;
         return this;
     }
 
+    /**
+     * Sets the duration for the lifetime of connections. Default is {@link Duration#ZERO} meaning that this feature is disabled.
+     */
     public AgroalConnectionPoolConfigurationSupplier maxLifetime(Duration time) {
         checkLock();
         maxLifetime = time;

@@ -8,6 +8,8 @@ import java.security.Principal;
 import java.util.Properties;
 
 /**
+ * A string that identifies an user account.
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class NamePrincipal implements Serializable, Principal {

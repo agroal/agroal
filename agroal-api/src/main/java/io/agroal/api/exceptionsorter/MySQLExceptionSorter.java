@@ -8,6 +8,8 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSo
 import java.sql.SQLException;
 
 /**
+ * Exception sorter for MySQL / MariaDB databases.
+ *
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class MySQLExceptionSorter implements ExceptionSorter {

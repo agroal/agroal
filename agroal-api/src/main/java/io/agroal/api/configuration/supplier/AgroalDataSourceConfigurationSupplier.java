@@ -12,6 +12,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
+ * Builder of AgroalDataSourceConfiguration.
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDataSourceConfiguration> {
@@ -35,36 +37,57 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
         }
     }
 
+    /**
+     * Sets the configuration of the connection pool.
+     */
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(AgroalConnectionPoolConfiguration configuration) {
         checkLock();
         connectionPoolConfigurationSupplier = new AgroalConnectionPoolConfigurationSupplier( configuration );
         return this;
     }
 
+    /**
+     * Sets the configuration of the connection pool.
+     */
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Supplier<AgroalConnectionPoolConfiguration> supplier) {
         return connectionPoolConfiguration( supplier.get() );
     }
 
+    /**
+     * Modifies the configuration of the connection pool.
+     */
     public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Function<AgroalConnectionPoolConfigurationSupplier, AgroalConnectionPoolConfigurationSupplier> function) {
         return connectionPoolConfiguration( function.apply( connectionPoolConfigurationSupplier ) );
     }
 
+    /**
+     * Allows access to the configuration builder for the connection pool.
+     */
     public AgroalConnectionPoolConfigurationSupplier connectionPoolConfiguration() {
         return connectionPoolConfigurationSupplier;
     }
 
     // --- //
 
+    /**
+     * Selects the AgroalDataSource implementation. The default is AGROAL.
+     */
     public AgroalDataSourceConfigurationSupplier dataSourceImplementation(DataSourceImplementation implementation) {
         checkLock();
         dataSourceImplementation = implementation;
         return this;
     }
 
+    /**
+     * Enables the collection of metrics.
+     */
     public AgroalDataSourceConfigurationSupplier metricsEnabled() {
         return metricsEnabled( true );
     }
 
+    /**
+     * Enables or disables the collection of metrics. The default is false.
+     */
     public AgroalDataSourceConfigurationSupplier metricsEnabled(boolean metricsEnabled) {
         checkLock();
         metrics = metricsEnabled;

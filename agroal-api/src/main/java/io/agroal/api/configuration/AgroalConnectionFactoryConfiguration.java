@@ -11,36 +11,79 @@ import java.util.Collection;
 import java.util.Properties;
 
 /**
+ * The configuration of the connection factory.
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public interface AgroalConnectionFactoryConfiguration {
 
+    /**
+     * If connections should have the auto-commit mode on by default. The transaction integration may disable auto-commit when a connection in enrolled in a transaction.
+     */
     boolean autoCommit();
 
+    /**
+     * If JDBC resources ({@link java.sql.Statement} and {@link java.sql.ResultSet}) should be tracked to be closed if leaked.
+     */
     boolean trackJdbcResources();
 
+    /**
+     * The database URL to connect to.
+     */
     String jdbcUrl();
 
+    /**
+     * A SQL command to be executed when a connection is created.
+     */
     String initialSql();
 
+    /**
+     * JDBC driver class to use as a supplier of connections. Must be an implementation of {@link java.sql.Driver}, {@link javax.sql.DataSource} or {@link javax.sql.XADataSource}.
+     * Can be null, in which case the driver will be obtained from the URL (using the {@link java.sql.DriverManager#getDriver(String)} mechanism).
+     */
     Class<?> connectionProviderClass();
 
+    /**
+     * The isolation level between database transactions.
+     */
     IsolationLevel jdbcTransactionIsolation();
 
+    /**
+     * A collection of providers that are capable of handling principal / credential objects
+     */
     Collection<AgroalSecurityProvider> securityProviders();
 
+    /**
+     * Entity to be authenticated in the database.
+     */
     Principal principal();
 
+    /**
+     * Collection of evidence used for authentication.
+     */
     Collection<Object> credentials();
 
+    /**
+     * Entity to be authenticated in the database for recovery connections. If not set, the principal will be used.
+     */
     Principal recoveryPrincipal();
 
+    /**
+     * Collection of evidence used for authentication for recovery connections. If not set, the credentials will be used.
+     */
     Collection<Object> recoveryCredentials();
 
+    /**
+     * Other unspecified properties to be passed into the JDBC driver when creating new connections.
+     * NOTE: username and password properties are not allowed, these have to be set using the principal / credentials mechanism.
+     */
     Properties jdbcProperties();
 
     // --- //
 
+    /**
+     * The default transaction isolation levels, defined in {@link Connection}.
+     */
     enum TransactionIsolation implements IsolationLevel {
         UNDEFINED, NONE, READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE;
 
@@ -83,10 +126,19 @@ public interface AgroalConnectionFactoryConfiguration {
         }
     }
 
+    /**
+     * Interface to define the transaction isolation level.
+     */
     interface IsolationLevel {
 
+        /**
+         * If a level is not defined it will not be set by the pool (it will use the JDBC driver default).
+         */
         boolean isDefined();
 
+        /**
+         * The value for transaction isolation level.
+         */
         int level();
     }
 }

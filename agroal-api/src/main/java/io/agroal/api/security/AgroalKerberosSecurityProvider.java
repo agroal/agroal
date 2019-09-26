@@ -11,6 +11,8 @@ import javax.security.auth.kerberos.KerberosTicket;
 import java.util.Properties;
 
 /**
+ * Handle objects of type {@link GSSCredential} and {@link KerberosTicket}
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalKerberosSecurityProvider implements AgroalSecurityProvider {

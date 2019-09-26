@@ -15,14 +15,25 @@ import java.util.function.Supplier;
 import static java.util.ServiceLoader.load;
 
 /**
+ * Extension of the DataSource interface that exposes some of it internals.
+ * The Agroal project is all about providing a good (reliable, fast, easy to use maintain and understand) implementation of this interface.
+ *
+ * Agroal - the natural database connection pool!
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public interface AgroalDataSource extends AutoCloseable, DataSource, Serializable {
 
+    /**
+     * Create an AgroalDataSource from a supplier of the configuration.
+     */
     static AgroalDataSource from(Supplier<AgroalDataSourceConfiguration> configurationSupplier, AgroalDataSourceListener... listeners) throws SQLException {
         return from( configurationSupplier.get(), listeners );
     }
 
+    /**
+     * Create an AgroalDataSource from configuration.
+     */
     static AgroalDataSource from(AgroalDataSourceConfiguration configuration, AgroalDataSourceListener... listeners) throws SQLException {
         for ( AgroalDataSourceProvider provider : load( AgroalDataSourceProvider.class, AgroalDataSourceProvider.class.getClassLoader() ) ) {
             AgroalDataSource implementation = provider.getDataSource( configuration, listeners );
@@ -43,18 +54,58 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
 
     // --- //
 
+    /**
+     * Allows inspection of the configuration. Some properties allow read / write.
+     */
     AgroalDataSourceConfiguration getConfiguration();
 
+    /**
+     * Allows access to metrics. If metrics are not enabled, returns default values.
+     */
     AgroalDataSourceMetrics getMetrics();
 
+    /**
+     * Performs a flush action on the connections of the pool.
+     */
     void flush(FlushMode mode);
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     void close();
 
     // --- //
 
+    /**
+     * Modes supported on the flush operation.
+     */
     enum FlushMode {
-        ALL, IDLE, INVALID, GRACEFUL, FILL
+
+        /**
+         * All connections are flushed right away.
+         */
+        ALL,
+
+        /**
+         * Idle connections are flushed.
+         */
+        IDLE,
+
+        /**
+         * Performs on-demand validation of idle connections.
+         */
+        INVALID,
+
+        /**
+         * Active connections are flushed on return. Idle connections are flushed immediately.
+         */
+        GRACEFUL,
+
+        /**
+         * Creates connections to met the minimum size of the pool.
+         * Used after and increase of minimum size, to make that change effective immediately.
+         */
+        FILL
     }
 }
