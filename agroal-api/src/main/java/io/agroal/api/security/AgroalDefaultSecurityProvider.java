@@ -7,6 +7,8 @@ import java.security.Principal;
 import java.util.Properties;
 
 /**
+ * Handles objects of type {@link NamePrincipal}, {@link SimplePassword} and {@link Principal}
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalDefaultSecurityProvider implements AgroalSecurityProvider {

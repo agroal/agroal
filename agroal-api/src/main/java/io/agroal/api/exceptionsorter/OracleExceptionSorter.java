@@ -9,6 +9,8 @@ import java.sql.SQLException;
 import java.util.Locale;
 
 /**
+ * Exception sorter for Oracle databases.
+ *
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class OracleExceptionSorter implements ExceptionSorter {

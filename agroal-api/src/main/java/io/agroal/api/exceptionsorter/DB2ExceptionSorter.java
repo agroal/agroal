@@ -8,6 +8,8 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSo
 import java.sql.SQLException;
 
 /**
+ * Exception sorter for DB2 databases.
+ *
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class DB2ExceptionSorter implements ExceptionSorter {

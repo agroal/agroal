@@ -8,6 +8,8 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSo
 import java.sql.SQLException;
 
 /**
+ * Execption sorter for MSSQL databases.
+ *
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class MSSQLExceptionSorter implements ExceptionSorter {

@@ -26,6 +26,9 @@ import static java.lang.Long.parseLong;
 import static java.util.function.Function.identity;
 
 /**
+ * Convenient way to build an Agroal configuration. This class can build a configuration from a *.properties file or a {@link Properties} object.
+ * This class defines keys for all the options and also allows for a prefix when looking for that properties.
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfiguration> {

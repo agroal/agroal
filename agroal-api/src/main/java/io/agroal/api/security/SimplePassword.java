@@ -7,6 +7,8 @@ import java.io.Serializable;
 import java.util.Properties;
 
 /**
+ * Credential that holds a secret string of characters to be used for authentication. 
+ *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class SimplePassword implements Serializable {

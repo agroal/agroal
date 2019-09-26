@@ -9,6 +9,8 @@ import java.sql.SQLException;
 import java.util.Locale;
 
 /**
+ * Exception sorter for Sybase databases.
+ *
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class SybaseExceptionSorter implements ExceptionSorter {
