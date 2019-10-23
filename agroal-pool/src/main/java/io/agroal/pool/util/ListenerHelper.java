@@ -133,4 +133,10 @@ public final class ListenerHelper {
             listener.onWarning( throwable );
         }
     }
+
+    public static void fireOnInfo(AgroalDataSourceListener[] listeners, String message) {
+        for ( AgroalDataSourceListener listener : listeners ) {
+            listener.onInfo( message );
+        }
+    }
 }
