@@ -123,7 +123,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     }
 
     /**
-     * Attempts to load a JDBC driver class using it's fully qualified name. The classloader used is the one of this class.
+     * Attempts to load a JDBC driver class using its fully qualified name. The classloader used is the one of this class.
      * This method throws Exception if the class can't be loaded.
      */
     public AgroalConnectionFactoryConfigurationSupplier connectionProviderClassName(String connectionProviderName) {

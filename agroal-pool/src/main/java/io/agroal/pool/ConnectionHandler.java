@@ -92,7 +92,7 @@ public final class ConnectionHandler implements TransactionAware {
 
     public void onConnectionWrapperClose(ConnectionWrapper wrapper, ConnectionWrapper.JdbcResourcesLeakReport leakReport) throws SQLException {
         if ( leakReport.hasLeak() ) {
-            fireOnWarning( connectionPool.getListeners(), "JDBC resources leaked: " + leakReport.resultSetCount() + " ResultSet on " + leakReport.resultSetCount() + " Statement" );
+            fireOnWarning( connectionPool.getListeners(), "JDBC resources leaked: " + leakReport.resultSetCount() + " ResultSet(s) and " + leakReport.statementCount() + " Statement(s)" );
         }
         if ( enlisted ) {
             enlistedOpenWrappers.remove( wrapper );
