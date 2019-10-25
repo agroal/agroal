@@ -3,8 +3,6 @@
 
 package io.agroal.pool.wrapper;
 
-import io.agroal.pool.util.StampedCopyOnWriteArrayList;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -13,6 +11,7 @@ import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.Collection;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static java.lang.reflect.Proxy.newProxyInstance;
 
@@ -52,7 +51,7 @@ public class StatementWrapper implements Statement {
     public StatementWrapper(ConnectionWrapper connectionWrapper, Statement statement, boolean trackResources) {
         connection = connectionWrapper;
         wrappedStatement = statement;
-        trackedResultSets = trackResources ? new StampedCopyOnWriteArrayList<>( ResultSet.class ) : null;
+        trackedResultSets = trackResources ? new ConcurrentLinkedQueue<>() : null;
     }
 
     // --- //

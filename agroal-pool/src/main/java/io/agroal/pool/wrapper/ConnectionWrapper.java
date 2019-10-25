@@ -4,7 +4,6 @@
 package io.agroal.pool.wrapper;
 
 import io.agroal.pool.ConnectionHandler;
-import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 
 import java.lang.reflect.InvocationHandler;
 import java.sql.Array;
@@ -25,6 +24,7 @@ import java.sql.Struct;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 
 import static java.lang.reflect.Proxy.newProxyInstance;
@@ -68,7 +68,7 @@ public final class ConnectionWrapper implements Connection {
     public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources) {
         handler = connectionHandler;
         wrappedConnection = connectionHandler.getConnection();
-        trackedStatements = trackResources ? new StampedCopyOnWriteArrayList<>( Statement.class ) : null;
+        trackedStatements = trackResources ? new ConcurrentLinkedQueue<>() : null;
     }
 
     public ConnectionHandler getHandler() {
