@@ -134,6 +134,23 @@ public interface AgroalConnectionPoolConfiguration {
         }
 
         /**
+         * The default validation strategy with a timeout (in seconds).
+         * If the timeout period expires before the operation completes, the connection is invalidated.
+         */
+        static ConnectionValidator defaultValidatorWithTimeout(int timeout) {
+            return new ConnectionValidator() {
+                @Override
+                public boolean isValid(Connection connection) {
+                    try {
+                        return connection.isValid( timeout );
+                    } catch ( Exception t ) {
+                        return false;
+                    }
+                }
+            };
+        }
+
+        /**
          * A validator that never invalidates connections.
          */
         static ConnectionValidator emptyValidator() {
