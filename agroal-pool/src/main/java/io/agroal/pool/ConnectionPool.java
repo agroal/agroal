@@ -113,8 +113,10 @@ public final class ConnectionPool implements Pool {
         transactionIntegration.addResourceRecoveryFactory( connectionFactory );
 
         // fill to the initial size
-        if ( configuration.initialSize() < configuration.minSize() || configuration.initialSize() > configuration.maxSize() ) {
-            fireOnInfo( listeners, "Initial size not whithin min / max bounds" );
+        if ( configuration.initialSize() < configuration.minSize() ) {
+            fireOnInfo( listeners, "Initial size smaller than min. Connections will be created when necessary" );
+        } else if ( configuration.initialSize() > configuration.maxSize() ) {
+            fireOnInfo( listeners, "Initial size bigger than max. Connections will be destroyed as soon as they return to the pool" );
         }
         for ( int n = configuration.initialSize(); n > 0; n-- ) {
             housekeepingExecutor.executeNow( new CreateConnectionTask().initial() );

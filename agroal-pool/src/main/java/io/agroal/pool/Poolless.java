@@ -20,7 +20,18 @@ import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
-import static io.agroal.pool.util.ListenerHelper.*;
+import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionAcquire;
+import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionCreation;
+import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionDestroy;
+import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionFlush;
+import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionReturn;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionAcquired;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreation;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionDestroy;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionFlush;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionPooled;
+import static io.agroal.pool.util.ListenerHelper.fireOnInfo;
+import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
 
@@ -60,22 +71,22 @@ public final class Poolless implements Pool {
 
     public void init() {
         if ( !configuration.maxLifetime().isZero() ) {
-            fireOnWarning( listeners, "Max lifetime not supported in pool-less mode" );
+            fireOnInfo( listeners, "Max lifetime not supported in pool-less mode" );
         }
         if ( !configuration.idleValidationTimeout().isZero() ) {
-            fireOnWarning( listeners, "Idle validation not supported in pool-less mode" );
+            fireOnInfo( listeners, "Idle validation not supported in pool-less mode" );
         }
         if ( !configuration.leakTimeout().isZero() ) {
-            fireOnWarning( listeners, "Leak detection not supported in pool-less mode" );
+            fireOnInfo( listeners, "Leak detection not supported in pool-less mode" );
         }
         if ( !configuration.reapTimeout().isZero() ) {
-            fireOnWarning( listeners, "Connection reap not supported in pool-less mode" );
+            fireOnInfo( listeners, "Connection reap not supported in pool-less mode" );
         }
         if ( configuration.initialSize() != 0 ) {
-            fireOnWarning( listeners, "Initial size is zero in pool-less mode" );
+            fireOnInfo( listeners, "Initial size is zero in pool-less mode" );
         }
         if ( configuration.minSize() != 0 ) {
-            fireOnWarning( listeners, "Min size always zero in pool-less mode" );
+            fireOnInfo( listeners, "Min size always zero in pool-less mode" );
         }
 
         transactionIntegration.addResourceRecoveryFactory( connectionFactory );
