@@ -90,13 +90,17 @@ public final class ConnectionHandler implements TransactionAware {
         return newWrapper;
     }
 
+    public ConnectionWrapper newDetachedConnectionWrapper() {
+        return new ConnectionWrapper( this, connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources(), true );
+    }
+
     public void onConnectionWrapperClose(ConnectionWrapper wrapper, ConnectionWrapper.JdbcResourcesLeakReport leakReport) throws SQLException {
         if ( leakReport.hasLeak() ) {
             fireOnWarning( connectionPool.getListeners(), "JDBC resources leaked: " + leakReport.resultSetCount() + " ResultSet(s) and " + leakReport.statementCount() + " Statement(s)" );
         }
         if ( enlisted ) {
             enlistedOpenWrappers.remove( wrapper );
-        } else {
+        } else if ( !wrapper.isDetached() ) {
             connectionPool.returnConnectionHandler( this );
         }
     }
