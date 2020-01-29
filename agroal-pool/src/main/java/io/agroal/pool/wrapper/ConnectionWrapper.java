@@ -58,6 +58,9 @@ public final class ConnectionWrapper implements Connection {
 
     // --- //
 
+    // Connection.close() does not return the connection to the pool.
+    private final boolean detached;
+
     // Collection of Statements to close them on close(). If null Statements are not tracked.
     private final Collection<Statement> trackedStatements;
 
@@ -66,13 +69,22 @@ public final class ConnectionWrapper implements Connection {
     private Connection wrappedConnection;
 
     public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources) {
+        this(connectionHandler, trackResources, false );
+    }
+
+    public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, boolean detached) {
         handler = connectionHandler;
         wrappedConnection = connectionHandler.getConnection();
         trackedStatements = trackResources ? new ConcurrentLinkedQueue<>() : null;
+        this.detached = detached;
     }
 
     public ConnectionHandler getHandler() {
         return handler;
+    }
+
+    public boolean isDetached() {
+        return detached;
     }
 
     // --- //
@@ -131,8 +143,7 @@ public final class ConnectionWrapper implements Connection {
     public void close() throws SQLException {
         if ( wrappedConnection != CLOSED_CONNECTION ) {
             wrappedConnection = CLOSED_CONNECTION;
-            JdbcResourcesLeakReport leakReport = closeTrackedStatements();
-            handler.onConnectionWrapperClose( this, leakReport );
+            handler.onConnectionWrapperClose( this, closeTrackedStatements() );
         }
     }
 
