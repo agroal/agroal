@@ -3,6 +3,9 @@
 
 package io.agroal.test.narayana;
 
+import com.arjuna.ats.arjuna.common.recoveryPropertyManager;
+import com.arjuna.ats.arjuna.recovery.RecoveryManager;
+import com.arjuna.ats.jta.common.jtaPropertyManager;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
@@ -22,9 +25,14 @@ import org.junit.jupiter.api.Test;
 import javax.sql.XAConnection;
 import javax.transaction.TransactionManager;
 import javax.transaction.TransactionSynchronizationRegistry;
+import javax.transaction.xa.XAResource;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -133,6 +141,32 @@ public class RecoveryTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
             logger.info( "Test for reused recovery credentials created connection " + dataSource.getConnection() );
         }
+    }
+
+    @Test
+    @DisplayName( "Close recovery connection" )
+    public void closeRecoveryConnection() throws SQLException, InterruptedException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, new NarayanaResourceRecoveryRegistry() ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( RequiresCloseXADataSource.class ) )
+                );
+
+        recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
+        recoveryPropertyManager.getRecoveryEnvironmentBean().setPeriodicRecoveryPeriod( 2 );
+        CountDownLatch latch = new CountDownLatch( 2 );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
+            logger.info( "Starting recovery on DataSource " + dataSource );
+            RecoveryManager.manager().scan( latch::countDown );
+            latch.await( 5, TimeUnit.SECONDS );
+        }
+        assertEquals( 2, RequiresCloseXADataSource.closed, "Recovery connection not closed" );
     }
 
     // --- //
@@ -257,6 +291,89 @@ public class RecoveryTests {
         public void removeXAResourceRecovery(XAResourceRecovery recovery) {
             assertTrue( xaResourceRecoverySet.contains( recovery ), "The recovery to remove is not registered" );
             xaResourceRecoverySet.remove( recovery );
+        }
+    }
+
+    // --- //
+
+    public static class RequiresCloseXADataSource implements MockXADataSource {
+
+        private static int closed = 0;
+
+        @Override
+        public XAConnection getXAConnection() throws SQLException {
+            return new MockXAConnection() {
+                @Override
+                public void close() throws SQLException {
+                    logger.info( "Closing XAConnection " + this );
+                    closed++;
+                }
+            };
+        }
+    }
+
+    private static class NarayanaResourceRecoveryRegistry implements XAResourceRecoveryRegistry {
+
+        @Override
+        public void addXAResourceRecovery(XAResourceRecovery recovery) {
+            List<com.arjuna.ats.jta.recovery.XAResourceRecovery> recoveries = jtaPropertyManager.getJTAEnvironmentBean().getXaResourceRecoveries();
+            recoveries.add( new XAResourceRecoveryAdaptor( recovery ) );
+            jtaPropertyManager.getJTAEnvironmentBean().setXaResourceRecoveries( recoveries );
+        }
+
+        @Override
+        public void removeXAResourceRecovery(XAResourceRecovery recovery) {
+            logger.info( "Removing recovery " + recovery );
+            List<com.arjuna.ats.jta.recovery.XAResourceRecovery> recoveries = jtaPropertyManager.getJTAEnvironmentBean().getXaResourceRecoveries();
+            recoveries.remove( new XAResourceRecoveryAdaptor( recovery ) );
+            jtaPropertyManager.getJTAEnvironmentBean().setXaResourceRecoveries( recoveries );
+            assertTrue( recoveries.isEmpty(), "Expected empty recoveries" );
+        }
+    }
+
+    private static class XAResourceRecoveryAdaptor implements com.arjuna.ats.jta.recovery.XAResourceRecovery {
+        private final XAResourceRecovery xaResourceRecovery;
+        private int count = 0;
+
+        public XAResourceRecoveryAdaptor(XAResourceRecovery xaResourceRecovery) {
+            this.xaResourceRecovery = xaResourceRecovery;
+        }
+
+        @Override
+        public XAResource getXAResource() throws SQLException {
+            XAResource resource = xaResourceRecovery.getXAResources()[count++];
+            logger.info( "Retrieving XAResource " + resource );
+            return resource;
+        }
+
+        @Override
+        public boolean initialise(String p) throws SQLException {
+            return true;
+        }
+
+        @Override
+        public boolean hasMoreResources() {
+            if ( count > 0 ) {
+                count = 0;
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if ( this == o ) {
+                return true;
+            } else if ( o == null || getClass() != o.getClass() ) {
+                return false;
+            }
+            XAResourceRecoveryAdaptor that = (XAResourceRecoveryAdaptor) o;
+            return xaResourceRecovery.equals( that.xaResourceRecovery );
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash( xaResourceRecovery );
         }
     }
 }
