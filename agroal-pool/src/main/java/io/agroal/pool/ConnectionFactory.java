@@ -18,6 +18,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Properties;
 
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
@@ -78,7 +79,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
             throw new RuntimeException( "Unable to instantiate javax.sql.XADataSource", e );
         }
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+            injectUrlProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
 
         injectJdbcProperties( newDataSource, properties );
@@ -94,7 +95,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
 
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+            injectUrlProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
 
         injectJdbcProperties( newDataSource, properties );
@@ -123,11 +124,16 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
-    private void injectProperty(Object target, String propertyName, String propertyValue) {
+    private void injectUrlProperty(Object target, String propertyName, String propertyValue) {
         try {
             injector.inject( target, propertyName, propertyValue );
         } catch ( IllegalArgumentException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
-            fireOnWarning( listeners, "Ignoring property '" + propertyName + "': " + e.getMessage() );
+            // AG-134 - Some drivers have setURL() instead of setUrl(), so we retry with upper case.
+            if ( propertyName.chars().anyMatch( Character::isLowerCase ) ) {
+                injectUrlProperty( target, propertyName.toUpperCase( Locale.ROOT ), propertyValue );
+            } else {
+                fireOnWarning( listeners, "Ignoring property '" + propertyName + "': " + e.getMessage() );
+            }
         }
     }
 
