@@ -211,7 +211,7 @@ public final class ConnectionPool implements Pool {
             checkedOutHandler.setLastAccess( nanoTime() );
         }
         if ( leakEnabled ) {
-            if ( checkedOutHandler.getHoldingThread() != null ) {
+            if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
                 Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
                 warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
                 fireOnWarning( listeners, warn );

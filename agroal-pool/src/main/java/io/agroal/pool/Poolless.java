@@ -15,7 +15,6 @@ import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAccumulator;

@@ -26,12 +26,14 @@ import javax.transaction.TransactionSynchronizationRegistry;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
+import java.time.Duration;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.AgroalTestGroup.TRANSACTION;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
+import static java.time.Duration.ofSeconds;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -70,6 +72,7 @@ public class MultipleWrappersTests {
                 .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
+                        .leakTimeout( ofSeconds( 10 ) )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) ) );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
