@@ -1,4 +1,6 @@
-package io.agroal.pool.wrapper;
+package io.agroal.narayana;
+
+import org.jboss.tm.XAResourceWrapper;
 
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
@@ -6,14 +8,19 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import java.sql.SQLException;
 
-public class XAResourceWrapper implements XAResource {
+public class RecoveryXAResource implements XAResourceWrapper {
+
+    private static final String PRODUCT_NAME = RecoveryXAResource.class.getPackage().getImplementationTitle();
+    private static final String PRODUCT_VERSION = RecoveryXAResource.class.getPackage().getImplementationVersion();
 
     private final XAResource wrappedResource;
+    private final String jndiName;
     private XAConnection xaConnection;
 
-    public XAResourceWrapper(XAConnection connection) throws SQLException {
-        xaConnection = connection;
-        wrappedResource = connection.getXAResource();
+    public RecoveryXAResource(XAConnection connection, String jndiName) throws SQLException {
+        this.xaConnection = connection;
+        this.wrappedResource = connection.getXAResource();
+        this.jndiName = jndiName;
     }
 
     @Override
@@ -78,4 +85,27 @@ public class XAResourceWrapper implements XAResource {
     public void start(Xid xid, int flags) throws XAException {
         wrappedResource.start( xid, flags );
     }
+
+    // --- //
+
+    @Override
+    public XAResource getResource() {
+        return wrappedResource;
+    }
+
+    @Override
+    public String getProductName() {
+        return PRODUCT_NAME;
+    }
+
+    @Override
+    public String getProductVersion() {
+        return PRODUCT_VERSION;
+    }
+
+    @Override
+    public String getJndiName() {
+        return jndiName;
+    }
+
 }

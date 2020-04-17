@@ -3,6 +3,7 @@
 
 package io.agroal.api.transaction;
 
+import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 import java.sql.SQLException;
 
@@ -37,12 +38,12 @@ public interface TransactionIntegration {
             }
 
             @Override
-            public void addResourceRecoveryFactory(ResourceRecoveryFactory factory) {
+            public void addResourceRecoveryFactory(RecoveryConnectionFactory factory) {
                 // nothing to do
             }
 
             @Override
-            public void removeResourceRecoveryFactory(ResourceRecoveryFactory factory) {
+            public void removeResourceRecoveryFactory(RecoveryConnectionFactory factory) {
                 // nothing to do
             }
         };
@@ -75,21 +76,22 @@ public interface TransactionIntegration {
     /**
      * Agroal calls this method on init to register itself as a XA module capable of recovery.
      */
-    void addResourceRecoveryFactory(ResourceRecoveryFactory factory);
+    void addResourceRecoveryFactory(RecoveryConnectionFactory factory);
 
     /**
      * Agroal calls this method on shutdown to de-register itself as a XA module capable of recovery.
      */
-    void removeResourceRecoveryFactory(ResourceRecoveryFactory factory);
+    void removeResourceRecoveryFactory(RecoveryConnectionFactory factory);
 
     /**
      * This interface is implemented by the connection factory so that it can provide recovery resources to the transaction layer.
      */
-    interface ResourceRecoveryFactory {
+    interface RecoveryConnectionFactory {
 
         /**
-         * The transaction layer can call this method to obtain resources (one connection) used for recovery of incomplete transactions.
+         * The transaction layer can call this method to obtain one connection used for recovery of incomplete transactions.
+         *
          */
-        XAResource[] recoveryResources();
+        XAConnection getRecoveryConnection();
     }
 }

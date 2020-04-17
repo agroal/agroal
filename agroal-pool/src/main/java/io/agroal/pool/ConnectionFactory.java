@@ -6,13 +6,11 @@ package io.agroal.pool;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.security.AgroalSecurityProvider;
-import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
+import io.agroal.api.transaction.TransactionIntegration.RecoveryConnectionFactory;
 import io.agroal.pool.util.PropertyInjector;
 import io.agroal.pool.util.XAConnectionAdaptor;
-import io.agroal.pool.wrapper.XAResourceWrapper;
 
 import javax.sql.XAConnection;
-import javax.transaction.xa.XAResource;
 import java.lang.reflect.InvocationTargetException;
 import java.security.Principal;
 import java.sql.Connection;
@@ -26,11 +24,9 @@ import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class ConnectionFactory implements ResourceRecoveryFactory {
+public final class ConnectionFactory implements RecoveryConnectionFactory {
 
     private static final String URL_PROPERTY_NAME = "url";
-
-    private static final XAResource[] NO_RESOURCES = {};
 
     private static final Properties EMPTY_PROPERTIES = new Properties();
 
@@ -241,18 +237,18 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     // --- //
 
     @Override
-    public XAResource[] recoveryResources() {
+    public XAConnection getRecoveryConnection() {
         try {
             if ( factoryMode == Mode.XA_DATASOURCE ) {
                 // XAResourceWrapper is responsible for closing the recovery connection.
                 // It's assumed that the recovery mechanism closes the wrappers on shutdown, otherwise need to keep track.
-                return new XAResource[]{ new XAResourceWrapper( newXADataSource( recoveryProperties() ).getXAConnection() ) };
+                return newXADataSource( recoveryProperties() ).getXAConnection();
             }
             fireOnWarning( listeners, "Recovery connections are only available for XADataSource" );
         } catch ( SQLException e ) {
             fireOnWarning( listeners, "Unable to get recovery connection: " + e.getMessage() );
         }
-        return NO_RESOURCES;
+        return null;
     }
 
     // --- //

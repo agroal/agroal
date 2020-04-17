@@ -3,9 +3,8 @@
 
 package io.agroal.test.narayana;
 
-import com.arjuna.ats.arjuna.common.recoveryPropertyManager;
 import com.arjuna.ats.arjuna.recovery.RecoveryManager;
-import com.arjuna.ats.jta.common.jtaPropertyManager;
+import com.arjuna.ats.jbossatx.jta.RecoveryManagerService;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
@@ -25,14 +24,9 @@ import org.junit.jupiter.api.Test;
 import javax.sql.XAConnection;
 import javax.transaction.TransactionManager;
 import javax.transaction.TransactionSynchronizationRegistry;
-import javax.transaction.xa.XAResource;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -72,8 +66,7 @@ public class RecoveryTests {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
-        DriverAgroalDataSourceListener listener = new DriverAgroalDataSourceListener();
-        DriverResourceRecoveryRegistry xaResourceRecoveryRegistry = new DriverResourceRecoveryRegistry( listener );
+        DriverResourceRecoveryRegistry xaResourceRecoveryRegistry = new DriverResourceRecoveryRegistry();
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
@@ -85,7 +78,7 @@ public class RecoveryTests {
 
         assertFalse( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory prematurely registered in XAResourceRecoveryRegistry" );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, xaResourceRecoveryRegistry.listener ) ) {
             logger.info( "Test for recovery registration created datasource " + dataSource );
 
             assertTrue( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory not registered in XAResourceRecoveryRegistry" );
@@ -149,22 +142,26 @@ public class RecoveryTests {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
+        com.arjuna.ats.arjuna.common.recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
+        RecoveryManager recoveryManager = RecoveryManager.manager( RecoveryManager.DIRECT_MANAGEMENT );
+
+        RecoveryManagerService recoveryService = new RecoveryManagerService();
+        recoveryService.create();
+
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
-                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, new NarayanaResourceRecoveryRegistry() ) )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( RequiresCloseXADataSource.class ) )
                 );
 
-        recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
-        recoveryPropertyManager.getRecoveryEnvironmentBean().setPeriodicRecoveryPeriod( 2 );
-        CountDownLatch latch = new CountDownLatch( 2 );
-
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
             logger.info( "Starting recovery on DataSource " + dataSource );
-            RecoveryManager.manager().scan( latch::countDown );
-            latch.await( 5, TimeUnit.SECONDS );
+            recoveryManager.scan();
+            logger.info( "Performed first scan. Performing a second scan" );
+            recoveryManager.scan();
+            logger.info( "Two recovery scans completed" );
         }
         assertEquals( 2, RequiresCloseXADataSource.closed, "Recovery connection not closed" );
     }
@@ -194,13 +191,9 @@ public class RecoveryTests {
 
     private static class DriverResourceRecoveryRegistry implements XAResourceRecoveryRegistry {
 
-        private final DriverAgroalDataSourceListener listener;
+        private final DriverAgroalDataSourceListener listener = new DriverAgroalDataSourceListener();
         private final Collection<XAResourceRecovery> xaResourceRecoverySet = new HashSet<>();
         private boolean registered = false;
-
-        public DriverResourceRecoveryRegistry(DriverAgroalDataSourceListener listener) {
-            this.listener = listener;
-        }
 
         @Override
         public void addXAResourceRecovery(XAResourceRecovery recovery) {
@@ -309,71 +302,6 @@ public class RecoveryTests {
                     closed++;
                 }
             };
-        }
-    }
-
-    private static class NarayanaResourceRecoveryRegistry implements XAResourceRecoveryRegistry {
-
-        @Override
-        public void addXAResourceRecovery(XAResourceRecovery recovery) {
-            List<com.arjuna.ats.jta.recovery.XAResourceRecovery> recoveries = jtaPropertyManager.getJTAEnvironmentBean().getXaResourceRecoveries();
-            recoveries.add( new XAResourceRecoveryAdaptor( recovery ) );
-            jtaPropertyManager.getJTAEnvironmentBean().setXaResourceRecoveries( recoveries );
-        }
-
-        @Override
-        public void removeXAResourceRecovery(XAResourceRecovery recovery) {
-            logger.info( "Removing recovery " + recovery );
-            List<com.arjuna.ats.jta.recovery.XAResourceRecovery> recoveries = jtaPropertyManager.getJTAEnvironmentBean().getXaResourceRecoveries();
-            recoveries.remove( new XAResourceRecoveryAdaptor( recovery ) );
-            jtaPropertyManager.getJTAEnvironmentBean().setXaResourceRecoveries( recoveries );
-            assertTrue( recoveries.isEmpty(), "Expected empty recoveries" );
-        }
-    }
-
-    private static class XAResourceRecoveryAdaptor implements com.arjuna.ats.jta.recovery.XAResourceRecovery {
-        private final XAResourceRecovery xaResourceRecovery;
-        private int count = 0;
-
-        public XAResourceRecoveryAdaptor(XAResourceRecovery xaResourceRecovery) {
-            this.xaResourceRecovery = xaResourceRecovery;
-        }
-
-        @Override
-        public XAResource getXAResource() throws SQLException {
-            XAResource resource = xaResourceRecovery.getXAResources()[count++];
-            logger.info( "Retrieving XAResource " + resource );
-            return resource;
-        }
-
-        @Override
-        public boolean initialise(String p) throws SQLException {
-            return true;
-        }
-
-        @Override
-        public boolean hasMoreResources() {
-            if ( count > 0 ) {
-                count = 0;
-                return false;
-            }
-            return true;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if ( this == o ) {
-                return true;
-            } else if ( o == null || getClass() != o.getClass() ) {
-                return false;
-            }
-            XAResourceRecoveryAdaptor that = (XAResourceRecoveryAdaptor) o;
-            return xaResourceRecovery.equals( that.xaResourceRecovery );
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash( xaResourceRecovery );
         }
     }
 }
