@@ -8,7 +8,7 @@ import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import java.sql.SQLException;
 
-public class RecoveryXAResource implements XAResourceWrapper {
+public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
 
     private static final String PRODUCT_NAME = RecoveryXAResource.class.getPackage().getImplementationTitle();
     private static final String PRODUCT_VERSION = RecoveryXAResource.class.getPackage().getImplementationVersion();
@@ -30,13 +30,7 @@ public class RecoveryXAResource implements XAResourceWrapper {
         }
         Xid[] value = wrappedResource.recover( flag );
         if ( flag == TMENDRSCAN && ( value == null || value.length == 0 ) ) {
-            try {
-                xaConnection.close();
-            } catch ( SQLException e ) {
-                throw new XAException( e.getMessage() );
-            } finally {
-                xaConnection = null;
-            }
+            close();
         }
         return value;
     }
@@ -84,6 +78,21 @@ public class RecoveryXAResource implements XAResourceWrapper {
     @Override
     public void start(Xid xid, int flags) throws XAException {
         wrappedResource.start( xid, flags );
+    }
+
+    // --- //
+
+    @Override
+    public void close() throws XAException {
+        try {
+            xaConnection.close();
+        } catch ( SQLException e ) {
+            XAException xaException = new XAException( XAException.XAER_RMFAIL );
+            xaException.initCause( e );
+            throw xaException;
+        } finally {
+            xaConnection = null;
+        }
     }
 
     // --- //

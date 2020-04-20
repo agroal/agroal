@@ -6,7 +6,7 @@ package io.agroal.pool;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.security.AgroalSecurityProvider;
-import io.agroal.api.transaction.TransactionIntegration.RecoveryConnectionFactory;
+import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
 import io.agroal.pool.util.PropertyInjector;
 import io.agroal.pool.util.XAConnectionAdaptor;
 
@@ -24,7 +24,7 @@ import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class ConnectionFactory implements RecoveryConnectionFactory {
+public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     private static final String URL_PROPERTY_NAME = "url";
 
@@ -240,8 +240,6 @@ public final class ConnectionFactory implements RecoveryConnectionFactory {
     public XAConnection getRecoveryConnection() {
         try {
             if ( factoryMode == Mode.XA_DATASOURCE ) {
-                // XAResourceWrapper is responsible for closing the recovery connection.
-                // It's assumed that the recovery mechanism closes the wrappers on shutdown, otherwise need to keep track.
                 return newXADataSource( recoveryProperties() ).getXAConnection();
             }
             fireOnWarning( listeners, "Recovery connections are only available for XADataSource" );

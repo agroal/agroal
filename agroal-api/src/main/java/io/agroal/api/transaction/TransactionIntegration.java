@@ -38,12 +38,12 @@ public interface TransactionIntegration {
             }
 
             @Override
-            public void addResourceRecoveryFactory(RecoveryConnectionFactory factory) {
+            public void addResourceRecoveryFactory(ResourceRecoveryFactory factory) {
                 // nothing to do
             }
 
             @Override
-            public void removeResourceRecoveryFactory(RecoveryConnectionFactory factory) {
+            public void removeResourceRecoveryFactory(ResourceRecoveryFactory factory) {
                 // nothing to do
             }
         };
@@ -76,21 +76,20 @@ public interface TransactionIntegration {
     /**
      * Agroal calls this method on init to register itself as a XA module capable of recovery.
      */
-    void addResourceRecoveryFactory(RecoveryConnectionFactory factory);
+    void addResourceRecoveryFactory(ResourceRecoveryFactory factory);
 
     /**
      * Agroal calls this method on shutdown to de-register itself as a XA module capable of recovery.
      */
-    void removeResourceRecoveryFactory(RecoveryConnectionFactory factory);
+    void removeResourceRecoveryFactory(ResourceRecoveryFactory factory);
 
     /**
      * This interface is implemented by the connection factory so that it can provide recovery resources to the transaction layer.
      */
-    interface RecoveryConnectionFactory {
+    interface ResourceRecoveryFactory {
 
         /**
          * The transaction layer can call this method to obtain one connection used for recovery of incomplete transactions.
-         *
          */
         XAConnection getRecoveryConnection();
     }

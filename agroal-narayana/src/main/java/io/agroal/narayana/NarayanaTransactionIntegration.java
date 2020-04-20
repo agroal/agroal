@@ -28,7 +28,7 @@ import static javax.transaction.Status.STATUS_MARKED_ROLLBACK;
 public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     // Use this cache as method references are not stable (they are used as bridge between RecoveryConnectionFactory and XAResourceRecovery)
-    private static final ConcurrentMap<RecoveryConnectionFactory, XAResourceRecovery> resourceRecoveryCache = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<ResourceRecoveryFactory, XAResourceRecovery> resourceRecoveryCache = new ConcurrentHashMap<>();
 
     private final TransactionManager transactionManager;
 
@@ -119,14 +119,14 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     // -- //
 
     @Override
-    public void addResourceRecoveryFactory(RecoveryConnectionFactory factory) {
+    public void addResourceRecoveryFactory(ResourceRecoveryFactory factory) {
         if ( recoveryRegistry != null ) {
             recoveryRegistry.addXAResourceRecovery( resourceRecoveryCache.computeIfAbsent( factory, f -> new AgroalXAResourceRecovery( f, jndiName ) ) );
         }
     }
 
     @Override
-    public void removeResourceRecoveryFactory(RecoveryConnectionFactory factory) {
+    public void removeResourceRecoveryFactory(ResourceRecoveryFactory factory) {
         if ( recoveryRegistry != null ) {
             recoveryRegistry.removeXAResourceRecovery( resourceRecoveryCache.remove( factory ) );
         }
@@ -140,10 +140,10 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
         private static final XAResource[] EMPTY_RESOURCES = new XAResource[0];
 
-        private final RecoveryConnectionFactory connectionFactory;
+        private final ResourceRecoveryFactory connectionFactory;
         private final String name;
 
-        public AgroalXAResourceRecovery(RecoveryConnectionFactory factory, String jndiName) {
+        public AgroalXAResourceRecovery(ResourceRecoveryFactory factory, String jndiName) {
             connectionFactory = factory;
             name = jndiName;
         }
