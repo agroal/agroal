@@ -150,11 +150,11 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
         @Override
         public XAResource[] getXAResources() {
+            XAConnection xaConnection = connectionFactory.getRecoveryConnection();
             try {
-                XAConnection xaConnection = connectionFactory.getRecoveryConnection();
                 return xaConnection == null ? EMPTY_RESOURCES : new XAResource[]{new RecoveryXAResource( xaConnection, name )};
             } catch ( SQLException e ) {
-                return new XAResource[]{new ErrorConditionXAResource( e, name )};
+                return new XAResource[]{new ErrorConditionXAResource( xaConnection, e, name )};
             }
         }
     }

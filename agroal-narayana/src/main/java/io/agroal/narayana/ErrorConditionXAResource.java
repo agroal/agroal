@@ -2,20 +2,23 @@ package io.agroal.narayana;
 
 import org.jboss.tm.XAResourceWrapper;
 
+import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import java.sql.SQLException;
 
-public class ErrorConditionXAResource implements XAResourceWrapper {
+public class ErrorConditionXAResource implements AutoCloseable, XAResourceWrapper {
 
     private static final String PRODUCT_NAME = ErrorConditionXAResource.class.getPackage().getImplementationTitle();
     private static final String PRODUCT_VERSION = ErrorConditionXAResource.class.getPackage().getImplementationVersion();
 
+    private final XAConnection xaConnection;
     private final SQLException error;
     private final String jndiName;
 
-    public ErrorConditionXAResource(SQLException e, String jndiName) {
+    public ErrorConditionXAResource(XAConnection xaConnection, SQLException e, String jndiName) {
+        this.xaConnection = xaConnection;
         this.error = e;
         this.jndiName = jndiName;
     }
@@ -28,6 +31,9 @@ public class ErrorConditionXAResource implements XAResourceWrapper {
 
     @Override
     public Xid[] recover(int flag) throws XAException {
+        if ( flag == TMENDRSCAN ) {
+            close();
+        }
         throw createXAException();
     }
 
@@ -74,6 +80,19 @@ public class ErrorConditionXAResource implements XAResourceWrapper {
     @Override
     public void start(Xid xid, int flags) throws XAException {
         throw createXAException();
+    }
+
+    // --- //
+
+    @Override
+    public void close() throws XAException {
+        try {
+            xaConnection.close();
+        } catch ( SQLException e ) {
+            XAException xaException = new XAException( XAException.XAER_RMFAIL );
+            xaException.initCause( e );
+            throw xaException;
+        }
     }
 
     // --- //
