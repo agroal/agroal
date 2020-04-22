@@ -8,6 +8,7 @@ import io.agroal.api.transaction.TransactionIntegration;
 import org.jboss.tm.XAResourceRecovery;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 
+import javax.sql.XAConnection;
 import javax.transaction.Synchronization;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
@@ -26,7 +27,7 @@ import static javax.transaction.Status.STATUS_MARKED_ROLLBACK;
  */
 public class NarayanaTransactionIntegration implements TransactionIntegration {
 
-    // Use this cache as method references are not stable (they are used as bridge between ResourceRecoveryFactory and XAResourceRecovery)
+    // Use this cache as method references are not stable (they are used as bridge between RecoveryConnectionFactory and XAResourceRecovery)
     private static final ConcurrentMap<ResourceRecoveryFactory, XAResourceRecovery> resourceRecoveryCache = new ConcurrentHashMap<>();
 
     private final TransactionManager transactionManager;
@@ -120,7 +121,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     @Override
     public void addResourceRecoveryFactory(ResourceRecoveryFactory factory) {
         if ( recoveryRegistry != null ) {
-            recoveryRegistry.addXAResourceRecovery( resourceRecoveryCache.computeIfAbsent( factory, f -> f::recoveryResources ) );
+            recoveryRegistry.addXAResourceRecovery( resourceRecoveryCache.computeIfAbsent( factory, f -> new AgroalXAResourceRecovery( f, jndiName ) ) );
         }
     }
 
@@ -132,6 +133,31 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     }
 
     // --- //
+
+    // This auxiliary class is a contraption due to the fact that XAResource is not closable.
+    // It creates RecoveryXAResource wrappers that keeps track of lifecycle and closes the associated connection.
+    private static class AgroalXAResourceRecovery implements XAResourceRecovery {
+
+        private static final XAResource[] EMPTY_RESOURCES = new XAResource[0];
+
+        private final ResourceRecoveryFactory connectionFactory;
+        private final String name;
+
+        public AgroalXAResourceRecovery(ResourceRecoveryFactory factory, String jndiName) {
+            connectionFactory = factory;
+            name = jndiName;
+        }
+
+        @Override
+        public XAResource[] getXAResources() {
+            XAConnection xaConnection = connectionFactory.getRecoveryConnection();
+            try {
+                return xaConnection == null ? EMPTY_RESOURCES : new XAResource[]{new RecoveryXAResource( xaConnection, name )};
+            } catch ( SQLException e ) {
+                return new XAResource[]{new ErrorConditionXAResource( xaConnection, e, name )};
+            }
+        }
+    }
 
     private static class InterposedSynchronization implements Synchronization {
 

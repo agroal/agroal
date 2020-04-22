@@ -3,6 +3,7 @@
 
 package io.agroal.api.transaction;
 
+import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 import java.sql.SQLException;
 
@@ -88,8 +89,8 @@ public interface TransactionIntegration {
     interface ResourceRecoveryFactory {
 
         /**
-         * The transaction layer can call this method to obtain resources (one connection) used for recovery of incomplete transactions.
+         * The transaction layer can call this method to obtain one connection used for recovery of incomplete transactions.
          */
-        XAResource[] recoveryResources();
+        XAConnection getRecoveryConnection();
     }
 }

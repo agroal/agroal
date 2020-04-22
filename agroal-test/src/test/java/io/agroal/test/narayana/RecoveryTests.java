@@ -3,6 +3,8 @@
 
 package io.agroal.test.narayana;
 
+import com.arjuna.ats.arjuna.recovery.RecoveryManager;
+import com.arjuna.ats.jbossatx.jta.RecoveryManagerService;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
@@ -64,8 +66,7 @@ public class RecoveryTests {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
-        DriverAgroalDataSourceListener listener = new DriverAgroalDataSourceListener();
-        DriverResourceRecoveryRegistry xaResourceRecoveryRegistry = new DriverResourceRecoveryRegistry( listener );
+        DriverResourceRecoveryRegistry xaResourceRecoveryRegistry = new DriverResourceRecoveryRegistry();
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
@@ -77,7 +78,7 @@ public class RecoveryTests {
 
         assertFalse( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory prematurely registered in XAResourceRecoveryRegistry" );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, xaResourceRecoveryRegistry.listener ) ) {
             logger.info( "Test for recovery registration created datasource " + dataSource );
 
             assertTrue( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory not registered in XAResourceRecoveryRegistry" );
@@ -135,6 +136,36 @@ public class RecoveryTests {
         }
     }
 
+    @Test
+    @DisplayName( "Close recovery connection" )
+    public void closeRecoveryConnection() throws SQLException, InterruptedException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        com.arjuna.ats.arjuna.common.recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
+        RecoveryManager recoveryManager = RecoveryManager.manager( RecoveryManager.DIRECT_MANAGEMENT );
+
+        RecoveryManagerService recoveryService = new RecoveryManagerService();
+        recoveryService.create();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( RequiresCloseXADataSource.class ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
+            logger.info( "Starting recovery on DataSource " + dataSource );
+            recoveryManager.scan();
+            logger.info( "Performed first scan. Performing a second scan" );
+            recoveryManager.scan();
+            logger.info( "Two recovery scans completed" );
+        }
+        assertEquals( 2, RequiresCloseXADataSource.closed, "Recovery connection not closed" );
+    }
+
     // --- //
 
     private static class DriverAgroalDataSourceListener implements AgroalDataSourceListener {
@@ -160,13 +191,9 @@ public class RecoveryTests {
 
     private static class DriverResourceRecoveryRegistry implements XAResourceRecoveryRegistry {
 
-        private final DriverAgroalDataSourceListener listener;
+        private final DriverAgroalDataSourceListener listener = new DriverAgroalDataSourceListener();
         private final Collection<XAResourceRecovery> xaResourceRecoverySet = new HashSet<>();
         private boolean registered = false;
-
-        public DriverResourceRecoveryRegistry(DriverAgroalDataSourceListener listener) {
-            this.listener = listener;
-        }
 
         @Override
         public void addXAResourceRecovery(XAResourceRecovery recovery) {
@@ -257,6 +284,24 @@ public class RecoveryTests {
         public void removeXAResourceRecovery(XAResourceRecovery recovery) {
             assertTrue( xaResourceRecoverySet.contains( recovery ), "The recovery to remove is not registered" );
             xaResourceRecoverySet.remove( recovery );
+        }
+    }
+
+    // --- //
+
+    public static class RequiresCloseXADataSource implements MockXADataSource {
+
+        private static int closed = 0;
+
+        @Override
+        public XAConnection getXAConnection() throws SQLException {
+            return new MockXAConnection() {
+                @Override
+                public void close() throws SQLException {
+                    logger.info( "Closing XAConnection " + this );
+                    closed++;
+                }
+            };
         }
     }
 }

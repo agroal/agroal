@@ -16,19 +16,12 @@ import javax.transaction.xa.Xid;
  */
 public class LocalXAResource implements XAResourceWrapper {
 
-    private final TransactionAware transactionAware;
-
     private static final String PRODUCT_NAME = LocalXAResource.class.getPackage().getImplementationTitle();
-
     private static final String PRODUCT_VERSION = LocalXAResource.class.getPackage().getImplementationVersion();
-
+    
+    private final TransactionAware transactionAware;
     private final String jndiName;
-
     private Xid currentXid;
-
-    public LocalXAResource(TransactionAware transactionAware) {
-        this( transactionAware, "" );
-    }
 
     public LocalXAResource(TransactionAware transactionAware, String jndiName) {
         this.transactionAware = transactionAware;
@@ -150,5 +143,4 @@ public class LocalXAResource implements XAResourceWrapper {
     public String getJndiName() {
         return jndiName;
     }
-
 }
