@@ -34,13 +34,13 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private final AgroalConnectionFactoryConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
     private final Properties jdbcProperties;
-    private final Properties recoveryProperties;
     private final Mode factoryMode;
 
     // these are the sources for connections, that will be used depending on the mode
     private java.sql.Driver driver;
     private javax.sql.DataSource dataSource;
     private javax.sql.XADataSource xaDataSource;
+    private javax.sql.XADataSource xaRecoveryDataSource;
 
     private PropertyInjector injector;
 
@@ -48,15 +48,14 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         this.configuration = configuration;
         this.listeners = listeners;
         this.jdbcProperties = new Properties();
-        this.recoveryProperties = new Properties();
         configuration.jdbcProperties().forEach( jdbcProperties::put );
-        configuration.jdbcProperties().forEach( recoveryProperties::put );
 
         this.factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
         switch ( factoryMode ) {
             case XA_DATASOURCE:
                 this.injector = new PropertyInjector( configuration.connectionProviderClass() );
                 this.xaDataSource = newXADataSource( jdbcProperties );
+                this.xaRecoveryDataSource = newXADataSource( jdbcProperties );
                 break;
             case DATASOURCE:
                 this.injector = new PropertyInjector( configuration.connectionProviderClass() );
@@ -151,23 +150,21 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     // --- //
 
+    private Properties jdbcProperties() {
+        Properties properties = new Properties();
+        properties.putAll( jdbcProperties );
+        properties.putAll( securityProperties( configuration.principal(), configuration.credentials() ) );
+        return properties;
+    }
+
     private Properties recoveryProperties() {
         Properties properties = new Properties();
-        properties.putAll( recoveryProperties );
-
         // use the main credentials when recovery credentials are not provided
         if ( configuration.recoveryPrincipal() == null && ( configuration.recoveryCredentials() == null || configuration.recoveryCredentials().isEmpty() ) ) {
             properties.putAll( securityProperties( configuration.principal(), configuration.credentials() ) );
         } else {
             properties.putAll( securityProperties( configuration.recoveryPrincipal(), configuration.recoveryCredentials() ) );
         }
-        return properties;
-    }
-
-    private Properties jdbcProperties() {
-        Properties properties = new Properties();
-        properties.putAll( jdbcProperties );
-        properties.putAll( securityProperties( configuration.principal(), configuration.credentials() ) );
         return properties;
     }
 
@@ -246,7 +243,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     public XAConnection getRecoveryConnection() {
         try {
             if ( factoryMode == Mode.XA_DATASOURCE ) {
-                return newXADataSource( recoveryProperties() ).getXAConnection();
+                injectJdbcProperties( xaRecoveryDataSource, recoveryProperties() );
+                return xaRecoveryDataSource.getXAConnection();
             }
             fireOnWarning( listeners, "Recovery connections are only available for XADataSource" );
         } catch ( SQLException e ) {
