@@ -23,6 +23,7 @@
         <module>agroal-hikari</module>
         <module>agroal-narayana</module>
         <module>agroal-pool</module>
+        <module>agroal-spring-boot-starter</module>
         <module>agroal-test</module>
     </modules>
     <licenses>
@@ -48,7 +49,9 @@
     <properties>
         <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
+        <version.com.h2database>1.4.197</version.com.h2database>
         <version.com.zaxxer>3.4.2</version.com.zaxxer>
+        <version.me.snowdrop>2.4.0</version.me.snowdrop>
         <version.org.apache.felix>6.0.3</version.org.apache.felix>
         <version.org.jboss.jboss-transaction-spi>7.6.0.Final</version.org.jboss.jboss-transaction-spi>
         <version.org.jboss.logging>3.4.1.Final</version.org.jboss.logging>
@@ -58,6 +61,7 @@
         <version.org.ops4j.pax.exam>4.13.3</version.org.ops4j.pax.exam>
         <version.org.ops4j.pax.url>2.6.2</version.org.ops4j.pax.url>
         <version.org.slf4j>1.7.30</version.org.slf4j>
+        <version.org.springframework.boot>2.3.3.RELEASE</version.org.springframework.boot>
         <!-- Maven plugins -->
         <version.org.apache.servicemix.tooling>1.4.0</version.org.apache.servicemix.tooling>
         <version.de.thetaphi.forbiddenapis>2.7</version.de.thetaphi.forbiddenapis>
