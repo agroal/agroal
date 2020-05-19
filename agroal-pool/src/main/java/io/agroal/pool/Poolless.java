@@ -144,25 +144,36 @@ public final class Poolless implements Pool {
 
     // --- //
 
-    public Connection getConnection() throws SQLException {
+    private long beforeAcquire() throws SQLException {
         fireBeforeConnectionAcquire( listeners );
-        long metricsStamp = metricsRepository.beforeConnectionAcquire();
-
         if ( shutdown ) {
             throw new SQLException( "This pool is closed and does not handle any more connections!" );
         }
+        return metricsRepository.beforeConnectionAcquire();
+    }
+
+    public Connection getConnection() throws SQLException {
+        long stamp = beforeAcquire();
 
         ConnectionHandler checkedOutHandler = handlerFromTransaction();
-        if ( checkedOutHandler == null ) {
-            checkedOutHandler = handlerFromSharedCache();
-            fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
+        if ( checkedOutHandler != null ) {
+            // AG-140 - If associate throws here is fine, it's assumed the synchronization that returns the connection has been registered
+            transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
+            return afterAcquire( stamp, checkedOutHandler );
         }
 
-        metricsRepository.afterConnectionAcquire( metricsStamp );
-        fireOnConnectionAcquired( listeners, checkedOutHandler );
-
-        transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
-        return checkedOutHandler.newConnectionWrapper();
+        try {
+            checkedOutHandler = handlerFromSharedCache();
+            transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
+            fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
+            return afterAcquire( stamp, checkedOutHandler );
+        } catch ( Throwable t ) {
+            if ( checkedOutHandler != null ) {
+                // AG-140 - Flush handler to prevent leak
+                flushHandler( checkedOutHandler );
+            }
+            throw t;
+        }
     }
 
     private ConnectionHandler handlerFromTransaction() throws SQLException {
@@ -198,16 +209,25 @@ public final class Poolless implements Pool {
         }
     }
 
+    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) {
+        metricsRepository.afterConnectionAcquire( metricsStamp );
+        fireOnConnectionAcquired( listeners, checkedOutHandler );
+        return checkedOutHandler.newConnectionWrapper();
+    }
+
     // --- //
 
     public void returnConnectionHandler(ConnectionHandler handler) throws SQLException {
         fireBeforeConnectionReturn( listeners, handler );
-        if ( transactionIntegration.disassociate( handler ) ) {
-            fireOnConnectionReturnInterceptor( interceptors, handler );
-            activeCount.decrementAndGet();
-            synchronizer.releaseConditional();
-            flushHandler( handler );
+        try {
+            if ( !transactionIntegration.disassociate( handler ) ) {
+                return;
+            }
+        } catch ( Throwable ignored ) {
         }
+
+        fireOnConnectionReturnInterceptor( interceptors, handler );
+        flushHandler( handler );
     }
 
     // --- Exposed statistics //
@@ -284,6 +304,8 @@ public final class Poolless implements Pool {
     public void flushHandler(ConnectionHandler handler) {
         handler.setState( FLUSH );
         allConnections.remove( handler );
+        activeCount.decrementAndGet();
+        synchronizer.releaseConditional();
         metricsRepository.afterConnectionFlush();
         fireOnConnectionFlush( listeners, handler );
         destroyConnection( handler );
