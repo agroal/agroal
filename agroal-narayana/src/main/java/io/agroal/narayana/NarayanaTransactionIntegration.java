@@ -76,8 +76,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         try {
             if ( transactionRunning() ) {
                 if ( transactionSynchronizationRegistry.getResource( key ) == null ) {
-                    transactionSynchronizationRegistry.putResource( key, transactionAware );
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
+                    transactionSynchronizationRegistry.putResource( key, transactionAware );
 
                     XAResource xaResourceToEnlist;
                     if ( xaResource != null ) {

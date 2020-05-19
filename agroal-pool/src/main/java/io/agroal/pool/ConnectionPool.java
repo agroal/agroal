@@ -16,9 +16,7 @@ import io.agroal.pool.util.UncheckedArrayList;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -27,7 +25,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
@@ -184,43 +181,44 @@ public final class ConnectionPool implements Pool {
 
     // --- //
 
-    public Connection getConnection() throws SQLException {
+    private long beforeAcquire() throws SQLException {
         fireBeforeConnectionAcquire( listeners );
-        long metricsStamp = metricsRepository.beforeConnectionAcquire();
-
         if ( housekeepingExecutor.isShutdown() ) {
             throw new SQLException( "This pool is closed and does not handle any more connections!" );
         }
+        return metricsRepository.beforeConnectionAcquire();
+    }
+
+    @Override
+    public Connection getConnection() throws SQLException {
+        long stamp = beforeAcquire();
 
         ConnectionHandler checkedOutHandler = handlerFromTransaction();
-        if ( checkedOutHandler == null ) {
+        if ( checkedOutHandler != null ) {
+            // AG-140 - If associate throws here is fine, it's assumed the synchronization that returns the connection has been registered
+            transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
+            return afterAcquire( stamp, checkedOutHandler );
+        }
+
+        try {
             do {
                 checkedOutHandler = handlerFromLocalCache();
                 if ( checkedOutHandler == null ) {
                     checkedOutHandler = handlerFromSharedCache();
                 }
             } while ( idleValidationEnabled && !idleValidation( checkedOutHandler ) );
+            transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
+
             activeCount.increment();
             fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
-        }
-
-        metricsRepository.afterConnectionAcquire( metricsStamp );
-        fireOnConnectionAcquired( listeners, checkedOutHandler );
-
-        if ( leakEnabled || reapEnabled ) {
-            checkedOutHandler.setLastAccess( nanoTime() );
-        }
-        if ( leakEnabled ) {
-            if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
-                Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
-                warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
-                fireOnWarning( listeners, warn );
+            return afterAcquire( stamp, checkedOutHandler );
+        } catch ( Throwable t ) {
+            if ( checkedOutHandler != null ) {
+                // AG-140 - Return the connection to the pool to prevent leak
+                checkedOutHandler.setState( CHECKED_OUT, CHECKED_IN );
             }
-            checkedOutHandler.setHoldingThread( currentThread() );
+            throw t;
         }
-
-        transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
-        return checkedOutHandler.newConnectionWrapper();
     }
 
     private ConnectionHandler handlerFromTransaction() throws SQLException {
@@ -310,6 +308,24 @@ public final class ConnectionPool implements Pool {
         return false;
     }
 
+    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) {
+        metricsRepository.afterConnectionAcquire( metricsStamp );
+        fireOnConnectionAcquired( listeners, checkedOutHandler );
+
+        if ( leakEnabled || reapEnabled ) {
+            checkedOutHandler.setLastAccess( nanoTime() );
+        }
+        if ( leakEnabled ) {
+            if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
+                Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
+                warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
+                fireOnWarning( listeners, warn );
+            }
+            checkedOutHandler.setHoldingThread( currentThread() );
+        }
+        return checkedOutHandler.newConnectionWrapper();
+    }
+
     // --- //
 
     public void returnConnectionHandler(ConnectionHandler handler) throws SQLException {
@@ -320,34 +336,39 @@ public final class ConnectionPool implements Pool {
         if ( idleValidationEnabled || reapEnabled ) {
             handler.setLastAccess( nanoTime() );
         }
-        if ( transactionIntegration.disassociate( handler ) ) {
-            activeCount.decrement();
-
-            // resize on change of max-size, or flush on close
-            int currentSize = allConnections.size();
-            if ( currentSize > configuration.maxSize() || configuration.flushOnClose() && currentSize > configuration.minSize() ) {
-                handler.setState( FLUSH );
-                allConnections.remove( handler );
-                synchronizer.releaseConditional();
-                housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
+        try {
+            if ( !transactionIntegration.disassociate( handler ) ) {
                 return;
             }
+        } catch ( Throwable ignored ) {
+        }
 
-            handler.resetConnection();
-            localCache.get().add( handler );
-            fireOnConnectionReturnInterceptor( interceptors, handler );
+        activeCount.decrement();
 
-            if ( handler.setState( CHECKED_OUT, CHECKED_IN ) ) {
-                // here the handler is already up for grabs
-                synchronizer.releaseConditional();
-                metricsRepository.afterConnectionReturn();
-                fireOnConnectionReturn( listeners, handler );
-            } else {
-                // handler not in CHECKED_OUT implies FLUSH
-                allConnections.remove( handler );
-                housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
-                housekeepingExecutor.execute( new FillTask() );
-            }
+        // resize on change of max-size, or flush on close
+        int currentSize = allConnections.size();
+        if ( currentSize > configuration.maxSize() || configuration.flushOnClose() && currentSize > configuration.minSize() ) {
+            handler.setState( FLUSH );
+            allConnections.remove( handler );
+            synchronizer.releaseConditional();
+            housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
+            return;
+        }
+
+        handler.resetConnection();
+        localCache.get().add( handler );
+        fireOnConnectionReturnInterceptor( interceptors, handler );
+
+        if ( handler.setState( CHECKED_OUT, CHECKED_IN ) ) {
+            // here the handler is already up for grabs
+            synchronizer.releaseConditional();
+            metricsRepository.afterConnectionReturn();
+            fireOnConnectionReturn( listeners, handler );
+        } else {
+            // handler not in CHECKED_OUT implies FLUSH
+            allConnections.remove( handler );
+            housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
+            housekeepingExecutor.execute( new FillTask() );
         }
     }
 
