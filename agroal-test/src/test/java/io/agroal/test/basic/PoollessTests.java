@@ -110,12 +110,14 @@ public class PoollessTests {
 
                 // One connection flushed and another in use
                 assertEquals( 1, dataSource.getMetrics().flushCount() );
-                assertEquals( 0, dataSource.getMetrics().availableCount() );
+                assertEquals( 1, dataSource.getMetrics().activeCount() );
+                assertEquals( 1, dataSource.getMetrics().availableCount() );
             }
 
             // Assert min-size is zero
             assertEquals( 0, dataSource.getMetrics().activeCount() );
-            assertEquals( 0, dataSource.getMetrics().availableCount() );
+            assertEquals( 2, dataSource.getMetrics().availableCount() );
+            assertEquals( 2, dataSource.getMetrics().flushCount() );
 
             // Assert that closing a connection unblocks one waiting thread
             assertDoesNotThrow( () -> {

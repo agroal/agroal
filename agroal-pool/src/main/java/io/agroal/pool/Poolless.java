@@ -226,11 +226,11 @@ public final class Poolless implements Pool {
     }
 
     public long activeCount() {
-        return allConnections.size();
+        return activeCount.get();
     }
 
     public long availableCount() {
-        return 0;
+        return configuration.maxSize() - activeCount.get();
     }
 
     public long maxUsedCount() {
