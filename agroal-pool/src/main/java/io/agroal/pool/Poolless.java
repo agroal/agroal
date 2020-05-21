@@ -120,6 +120,9 @@ public final class Poolless implements Pool {
         if ( list.stream().anyMatch( i -> i.getPriority() < 0 ) ) {
             throw new IllegalArgumentException( "Negative priority values on AgroalPoolInterceptor are reserved." );
         }
+        if ( list.isEmpty() && ( interceptors == null || interceptors.isEmpty() ) ) {
+            return;
+        }
         interceptors = list.stream().sorted( AgroalPoolInterceptor.DEFAULT_COMPARATOR ).collect( toList() );
 
         Function<AgroalPoolInterceptor, String> interceptorName = i -> i.getClass().getName() + "@" + toHexString( identityHashCode( i ) ) + " (priority " + i.getPriority() + ")";
