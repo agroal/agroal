@@ -115,6 +115,11 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
         GRACEFUL,
 
         /**
+         * Flushes connections that have been in use for longer than the specified leak timeout.
+         */
+        LEAK,
+
+        /**
          * Creates connections to met the minimum size of the pool.
          * Used after and increase of minimum size, to make that change effective immediately.
          */

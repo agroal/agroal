@@ -6,6 +6,7 @@ package io.agroal.test.basic;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
+import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
 import org.junit.jupiter.api.AfterAll;
@@ -28,6 +29,7 @@ import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.lang.Integer.max;
 import static java.lang.Integer.min;
 import static java.text.MessageFormat.format;
+import static java.time.Duration.ofMillis;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -298,6 +300,59 @@ public class FlushTests {
 
                 assertEquals( MAX_POOL_SIZE + max( MIN_POOL_SIZE, CALLS ), listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
                 assertEquals( MAX_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+            } );
+        } catch ( InterruptedException e ) {
+            fail( "Test fail due to interrupt" );
+        }
+    }
+
+    @Test
+    @DisplayName( "FlushMode.LEAK" )
+    public void modeLeak() throws SQLException {
+        int MIN_POOL_SIZE = 25, MAX_POOL_SIZE = 50, CALLS = 30, LEAK_MS = 100, TIMEOUT_MS = 1000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MAX_POOL_SIZE )
+                        .minSize( MIN_POOL_SIZE )
+                        .maxSize( MAX_POOL_SIZE )
+                        .leakTimeout( ofMillis( LEAK_MS ) )
+                );
+
+        FlushListener listener = new FlushListener(
+                new CountDownLatch( MAX_POOL_SIZE ),
+                new CountDownLatch( MAX_POOL_SIZE ),
+                new CountDownLatch( MAX_POOL_SIZE - max( MIN_POOL_SIZE, CALLS ) ) );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            Collection<Connection> connections = new ArrayList<>();
+            for ( int i = 0; i < CALLS; i++ ) {
+                connections.add( dataSource.getConnection() );
+            }
+
+            Thread.sleep( LEAK_MS * 2 );
+
+            // Flush to CALLS
+            dataSource.flush( AgroalDataSource.FlushMode.LEAK );
+
+            logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE ) );
+            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} leak connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            }
+
+            assertAll( () -> {
+                assertEquals( CALLS, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
+
+                assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
+                assertEquals( MAX_POOL_SIZE + ( CALLS - MIN_POOL_SIZE ), listener.creationCount.longValue(), "Unexpected number of created connections" );
+
+                assertTrue( connections.stream().allMatch( c -> {
+                    try {
+                        return c.isClosed();
+                    } catch ( SQLException ignore ) {
+                        return false;
+                    }
+                } ) );
             } );
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );

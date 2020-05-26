@@ -29,6 +29,7 @@ import java.util.function.Function;
 
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
+import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
@@ -163,6 +164,10 @@ public final class ConnectionPool implements Pool {
     }
 
     public void flushPool(AgroalDataSource.FlushMode mode) {
+        if ( mode == LEAK && !leakEnabled ) {
+            fireOnWarning( listeners, "Flushing leak connections with no specified leak timout." );
+            return;
+        }
         housekeepingExecutor.execute( new FlushTask( mode ) );
     }
 
@@ -295,7 +300,7 @@ public final class ConnectionPool implements Pool {
     }
 
     private boolean idleValidation(ConnectionHandler handler) {
-        if ( nanoTime() - handler.getLastAccess() < configuration.idleValidationTimeout().toNanos() ) {
+        if ( !handler.isIdle( configuration.idleValidationTimeout() ) ) {
             return true;
         }
         fireBeforeConnectionValidation( listeners, handler );
@@ -320,7 +325,7 @@ public final class ConnectionPool implements Pool {
         fireOnConnectionAcquired( listeners, checkedOutHandler );
 
         if ( leakEnabled || reapEnabled ) {
-            checkedOutHandler.setLastAccess( nanoTime() );
+            checkedOutHandler.touch();
         }
         if ( leakEnabled ) {
             if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
@@ -341,7 +346,7 @@ public final class ConnectionPool implements Pool {
             handler.setHoldingThread( null );
         }
         if ( idleValidationEnabled || reapEnabled ) {
-            handler.setLastAccess( nanoTime() );
+            handler.touch();
         }
         try {
             if ( !transactionIntegration.disassociate( handler ) ) {
@@ -513,6 +518,11 @@ public final class ConnectionPool implements Pool {
                         handler.setState( FLUSH );
                     }
                     break;
+                case LEAK:
+                    if ( handler.isLeak( configuration.leakTimeout() ) ) {
+                        flushHandler( handler );
+                    }
+                    break;
                 case IDLE:
                     if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
                         flushHandler( handler );
@@ -546,6 +556,7 @@ public final class ConnectionPool implements Pool {
                 case ALL:
                 case GRACEFUL:
                 case INVALID:
+                case LEAK:
                 case FILL:
                     // refill to minSize
                     housekeepingExecutor.execute( new FillTask() );
@@ -594,8 +605,7 @@ public final class ConnectionPool implements Pool {
             @Override
             public void run() {
                 fireBeforeConnectionLeak( listeners, handler );
-                Thread thread = handler.getHoldingThread();
-                if ( thread != null && nanoTime() - handler.getLastAccess() > configuration.leakTimeout().toNanos() ) {
+                if ( handler.isLeak( configuration.leakTimeout() ) ) {
                     metricsRepository.afterLeakDetection();
                     fireOnConnectionLeak( listeners, handler );
                 }
@@ -671,7 +681,7 @@ public final class ConnectionPool implements Pool {
             public void run() {
                 fireBeforeConnectionReap( listeners, handler );
                 if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
-                    if ( nanoTime() - handler.getLastAccess() > configuration.reapTimeout().toNanos() ) {
+                    if ( handler.isIdle( configuration.reapTimeout() ) ) {
                         allConnections.remove( handler );
                         metricsRepository.afterConnectionReap();
                         fireOnConnectionReap( listeners, handler );
