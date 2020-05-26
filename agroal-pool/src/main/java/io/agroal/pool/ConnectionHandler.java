@@ -13,6 +13,7 @@ import javax.transaction.xa.XAResource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -22,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
+import static java.lang.System.nanoTime;
 import static java.util.EnumSet.noneOf;
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
 
@@ -49,6 +51,9 @@ public final class ConnectionHandler implements TransactionAware {
     // attributes that need to be reset when the connection is returned
     private final Set<DirtyAttribute> dirtyAttributes = noneOf( DirtyAttribute.class );
 
+    // collection of wrappers created while enlisted in the current transaction
+    private final Collection<ConnectionWrapper> enlistedOpenWrappers = new CopyOnWriteArrayList<>();
+
     // Can use annotation to get (in theory) a little better performance
     // @Contended
     private volatile State state;
@@ -65,9 +70,6 @@ public final class ConnectionHandler implements TransactionAware {
     // reference to the task that flushes this connection when it gets over it's maxLifetime
     private Future<?> maxLifetimeTask;
 
-    // collection of wrappers created while enlisted in the current transaction
-    private Collection<ConnectionWrapper> enlistedOpenWrappers = new CopyOnWriteArrayList<>();
-
     // Callback set by the transaction integration layer to prevent deferred enlistment
     // If the connection is not associated with a transaction and an operation occurs within the bounds of a transaction, an SQLException is thrown
     // If there is no transaction integration this should just return false
@@ -79,7 +81,7 @@ public final class ConnectionHandler implements TransactionAware {
 
         connectionPool = pool;
         state = State.NEW;
-        lastAccess = System.nanoTime();
+        touch();
     }
 
     public ConnectionWrapper newConnectionWrapper() {
@@ -185,12 +187,16 @@ public final class ConnectionHandler implements TransactionAware {
         return stateUpdater.get( this ) == State.CHECKED_OUT;
     }
 
-    public long getLastAccess() {
-        return lastAccess;
+    public void touch() {
+        lastAccess = nanoTime();
     }
 
-    public void setLastAccess(long lastAccess) {
-        this.lastAccess = lastAccess;
+    public boolean isLeak(Duration timeout) {
+        return isActive() && !enlisted && isIdle( timeout );
+    }
+
+    public boolean isIdle(Duration timeout) {
+        return nanoTime() - lastAccess > timeout.toNanos();
     }
 
     public void setMaxLifetimeTask(Future<?> maxLifetimeTask) {
@@ -252,7 +258,7 @@ public final class ConnectionHandler implements TransactionAware {
 
     @Override
     public void transactionCheckCallback(SQLCallable<Boolean> transactionCheck) {
-        this.transactionActiveCheck = transactionCheck;
+        transactionActiveCheck = transactionCheck;
     }
 
     public void deferredEnlistmentCheck() throws SQLException {

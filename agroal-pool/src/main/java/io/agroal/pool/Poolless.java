@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Function;
 
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
+import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
@@ -89,7 +90,7 @@ public final class Poolless implements Pool {
             fireOnInfo( listeners, "Idle validation not supported in pool-less mode" );
         }
         if ( !configuration.leakTimeout().isZero() ) {
-            fireOnInfo( listeners, "Leak detection not supported in pool-less mode" );
+            fireOnInfo( listeners, "Leak detection not pro-active in pool-less mode" );
         }
         if ( !configuration.reapTimeout().isZero() ) {
             fireOnInfo( listeners, "Connection reap not supported in pool-less mode" );
@@ -215,6 +216,15 @@ public final class Poolless implements Pool {
     private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
+        if ( !configuration.leakTimeout().isZero() ) {
+            if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
+                Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
+                warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
+                fireOnWarning( listeners, warn );
+            }
+            checkedOutHandler.setHoldingThread( currentThread() );
+            checkedOutHandler.touch();
+        }
         return checkedOutHandler.newConnectionWrapper();
     }
 
@@ -300,6 +310,13 @@ public final class Poolless implements Pool {
             for ( ConnectionHandler handler : allConnections ) {
                 fireBeforeConnectionFlush( listeners, handler );
                 flushHandler( handler );
+            }
+        } else if ( mode == LEAK ) {
+            for ( ConnectionHandler handler : allConnections ) {
+                if ( handler.isLeak( configuration.leakTimeout() ) ) {
+                    fireBeforeConnectionFlush( listeners, handler );
+                    flushHandler( handler );
+                }
             }
         }
     }
