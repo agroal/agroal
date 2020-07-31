@@ -22,6 +22,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
@@ -69,6 +70,8 @@ import static java.util.stream.Collectors.toList;
  */
 public final class ConnectionPool implements Pool {
 
+    private static final AtomicInteger HOUSEKEEP_COUNT = new AtomicInteger();
+
     private final AgroalConnectionPoolConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
 
@@ -100,7 +103,7 @@ public final class ConnectionPool implements Pool {
 
         synchronizer = new AgroalSynchronizer();
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
-        housekeepingExecutor = new PriorityScheduledExecutor( 1, "Agroal_" + identityHashCode( this ) );
+        housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet() );
         transactionIntegration = configuration.transactionIntegration();
 
         idleValidationEnabled = !configuration.idleValidationTimeout().isZero();
