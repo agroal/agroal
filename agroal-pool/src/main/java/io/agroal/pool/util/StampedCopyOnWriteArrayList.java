@@ -45,7 +45,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
 
     @SuppressWarnings( "unchecked" )
     public StampedCopyOnWriteArrayList(Class<? extends T> clazz) {
-        this.data = (T[]) newInstance( clazz, 0 );
+        data = (T[]) newInstance( clazz, 0 );
         lock = new StampedLock();
         optimisticStamp = lock.tryOptimisticRead();
     }
@@ -119,33 +119,29 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
 
     @Override
     public boolean remove(Object element) {
-        long stamp = lock.readLock();
+        int index = indexOf( element );
+        if ( index == -1 ) {
+            return false;
+        }
+        long stamp = lock.writeLock();
         try {
-            boolean found = true;
-
-            while ( found ) {
-                T[] array = data;
-                found = false;
-
-                for ( int index = array.length - 1; index >= 0; index-- ) {
-                    if ( element == array[index] ) {
-                        found = true;
-
-                        long writeStamp = lock.tryConvertToWriteLock( stamp );
-                        if ( writeStamp != 0 ) {
-                            stamp = writeStamp;
-
-                            T[] newData = Arrays.copyOf( data, data.length - 1 );
-                            arraycopy( data, index + 1, newData, index, data.length - index - 1 );
-                            data = newData;
-                            return true;
-                        } else {
-                            break;
-                        }
+            if ( index >= data.length || element != data[index] ) {
+                // contents changed, need to recheck the position of the element in the array
+                for ( index = 0; index < data.length; index++ ) {
+                    if ( element == data[index] ) {
+                        break;
                     }
                 }
+                if ( index == data.length ) {  // not found!
+                    return false;
+                }
             }
-            return false;
+            T[] newData = Arrays.copyOf( data, data.length - 1 );
+            if ( data.length - index - 1 != 0 ) {
+                arraycopy( data, index + 1, newData, index, data.length - index - 1 );
+            }
+            data = newData;
+            return true;
         } finally {
             optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
         }
@@ -178,11 +174,6 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     @Override
-    public boolean contains(Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Iterator<T> iterator() {
         T[] array = getUnderlyingArray();
         return array.length == 0 ? emptyIterator : new UncheckedIterator<>( array );
@@ -200,6 +191,29 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
             return true;
         } finally {
             optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+        }
+    }
+
+    @Override
+    public boolean contains(Object o) {
+        return indexOf( o ) != -1;
+    }
+
+    @Override
+    public int indexOf(Object o) {
+        T[] array = getUnderlyingArray();
+        for ( int i = 0; i < array.length; i++ ) {
+            if ( o == array[i] ) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public void forEach(Consumer<? super T> action) {
+        for ( T element : this ) {
+            action.accept( element );
         }
     }
 
@@ -241,11 +255,6 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     @Override
-    public int indexOf(Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public int lastIndexOf(Object o) {
         throw new UnsupportedOperationException();
     }
@@ -273,13 +282,6 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     @Override
     public Stream<T> parallelStream() {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void forEach(Consumer<? super T> action) {
-        for ( T element : this ) {
-            action.accept( element );
-        }
     }
 
     @Override
@@ -312,9 +314,9 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
 
         private int index = 0;
 
-        public UncheckedIterator(T[] data) {
-            this.data = data;
-            this.size = data.length;
+        public UncheckedIterator(T[] array) {
+            data = array;
+            size = data.length;
         }
 
         @Override
