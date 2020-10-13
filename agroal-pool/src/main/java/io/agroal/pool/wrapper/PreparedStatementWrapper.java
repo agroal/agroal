@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLException;
+import java.sql.SQLType;
 import java.sql.SQLXML;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -614,6 +615,38 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
     public void setNClob(int parameterIndex, Reader reader) throws SQLException {
         try {
             wrappedStatement.setNClob( parameterIndex, reader );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    // --- JDBC 4.2 //
+
+    @Override
+    public void setObject(int parameterIndex, Object x, SQLType targetSqlType, int scaleOrLength) throws SQLException {
+        try {
+            wrappedStatement.setObject( parameterIndex, x, targetSqlType, scaleOrLength );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
+    public void setObject(int parameterIndex, Object x, SQLType targetSqlType) throws SQLException {
+        try {
+            wrappedStatement.setObject( parameterIndex, x, targetSqlType );
+        } catch ( SQLException se ) {
+            connection.getHandler().setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
+    public long executeLargeUpdate() throws SQLException {
+        try {
+            return wrappedStatement.executeLargeUpdate();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;

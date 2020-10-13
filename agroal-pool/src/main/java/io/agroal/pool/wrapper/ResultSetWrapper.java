@@ -19,6 +19,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLException;
+import java.sql.SQLType;
 import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Statement;
@@ -1957,6 +1958,50 @@ public final class ResultSetWrapper implements ResultSet {
             throw se;
         }            
     }
+
+    // --- JDBC 4.2 //
+
+    @Override
+    public void updateObject(int columnIndex, Object x, SQLType targetSqlType, int scaleOrLength)  throws SQLException {
+        try {
+            wrappedResultSet.updateObject( columnIndex, x, targetSqlType, scaleOrLength );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
+    public void updateObject(String columnLabel, Object x, SQLType targetSqlType, int scaleOrLength) throws SQLException {
+        try {
+            wrappedResultSet.updateObject( columnLabel, x, targetSqlType, scaleOrLength );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
+    public void updateObject(int columnIndex, Object x, SQLType targetSqlType) throws SQLException {
+        try {
+            wrappedResultSet.updateObject( columnIndex, x, targetSqlType );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
+    public void updateObject(String columnLabel, Object x, SQLType targetSqlType) throws SQLException {
+        try {
+            wrappedResultSet.updateObject( columnLabel, x, targetSqlType );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    // --- //
 
     @Override
     public <T> T unwrap(Class<T> target) throws SQLException {
