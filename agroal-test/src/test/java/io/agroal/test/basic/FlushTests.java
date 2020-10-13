@@ -320,7 +320,7 @@ public class FlushTests {
                 );
 
         FlushListener listener = new FlushListener(
-                new CountDownLatch( MAX_POOL_SIZE ),
+                new CountDownLatch( MIN_POOL_SIZE + CALLS ),
                 new CountDownLatch( MAX_POOL_SIZE ),
                 new CountDownLatch( min( MAX_POOL_SIZE, CALLS ) ) );
 
@@ -338,6 +338,9 @@ public class FlushTests {
             logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE ) );
             if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
                 fail( format( "{0} leak connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            }
+            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created after flush", listener.creationLatch.getCount() ) );
             }
 
             assertAll( () -> {
