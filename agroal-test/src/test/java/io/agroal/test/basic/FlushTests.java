@@ -322,7 +322,7 @@ public class FlushTests {
         FlushListener listener = new FlushListener(
                 new CountDownLatch( MAX_POOL_SIZE ),
                 new CountDownLatch( MAX_POOL_SIZE ),
-                new CountDownLatch( MAX_POOL_SIZE - max( MIN_POOL_SIZE, CALLS ) ) );
+                new CountDownLatch( min( MAX_POOL_SIZE, CALLS ) ) );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             Collection<Connection> connections = new ArrayList<>();
