@@ -168,7 +168,7 @@ public final class ConnectionWrapper implements Connection {
             throw new SQLException( "Trying to set autocommit in connection taking part of transaction" );
         }
         try {
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             if ( wrappedConnection.getAutoCommit() != autoCommit ) {
                 handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.AUTOCOMMIT );
                 wrappedConnection.setAutoCommit( autoCommit );
@@ -183,7 +183,7 @@ public final class ConnectionWrapper implements Connection {
     public boolean getAutoCommit() throws SQLException {
         try {
             handler.traceConnectionOperation( "getAutoCommit()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getAutoCommit();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -214,7 +214,7 @@ public final class ConnectionWrapper implements Connection {
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
         try {
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             wrappedConnection.rollback();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -230,7 +230,7 @@ public final class ConnectionWrapper implements Connection {
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
         try {
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             wrappedConnection.rollback( savepoint );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -244,7 +244,7 @@ public final class ConnectionWrapper implements Connection {
     public void clearWarnings() throws SQLException {
         try {
             handler.traceConnectionOperation( "clearWarnings()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             wrappedConnection.clearWarnings();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -256,7 +256,7 @@ public final class ConnectionWrapper implements Connection {
     public Clob createClob() throws SQLException {
         try {
             handler.traceConnectionOperation( "createClob()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.createClob();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -268,7 +268,7 @@ public final class ConnectionWrapper implements Connection {
     public Blob createBlob() throws SQLException {
         try {
             handler.traceConnectionOperation( "createBlob()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.createBlob();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -280,7 +280,7 @@ public final class ConnectionWrapper implements Connection {
     public NClob createNClob() throws SQLException {
         try {
             handler.traceConnectionOperation( "createNClob()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.createNClob();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -292,7 +292,7 @@ public final class ConnectionWrapper implements Connection {
     public SQLXML createSQLXML() throws SQLException {
         try {
             handler.traceConnectionOperation( "createSQLXML()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.createSQLXML();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -304,7 +304,7 @@ public final class ConnectionWrapper implements Connection {
     public Array createArrayOf(String typeName, Object[] elements) throws SQLException {
         try {
             handler.traceConnectionOperation( "createArrayOf(String, Object[])" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.createArrayOf( typeName, elements );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -316,7 +316,7 @@ public final class ConnectionWrapper implements Connection {
     public Statement createStatement() throws SQLException {
         try {
             handler.traceConnectionOperation( "createStatement()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackStatement( wrappedConnection.createStatement() );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -328,7 +328,7 @@ public final class ConnectionWrapper implements Connection {
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
         try {
             handler.traceConnectionOperation( "createStatement(int, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -340,7 +340,7 @@ public final class ConnectionWrapper implements Connection {
     public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
         try {
             handler.traceConnectionOperation( "createStatement(int, int, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency, resultSetHoldability ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -352,7 +352,7 @@ public final class ConnectionWrapper implements Connection {
     public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
         try {
             handler.traceConnectionOperation( "createStruct(String, Object[])" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.createStruct( typeName, attributes );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -364,7 +364,7 @@ public final class ConnectionWrapper implements Connection {
     public String getCatalog() throws SQLException {
         try {
             handler.traceConnectionOperation( "getCatalog()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getCatalog();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -376,7 +376,7 @@ public final class ConnectionWrapper implements Connection {
     public void setCatalog(String catalog) throws SQLException {
         try {
             handler.traceConnectionOperation( "setCatalog(String)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.CATALOG );
             wrappedConnection.setCatalog( catalog );
         } catch ( SQLException se ) {
@@ -389,7 +389,7 @@ public final class ConnectionWrapper implements Connection {
     public int getHoldability() throws SQLException {
         try {
             handler.traceConnectionOperation( "getHoldability()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getHoldability();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -401,7 +401,7 @@ public final class ConnectionWrapper implements Connection {
     public void setHoldability(int holdability) throws SQLException {
         try {
             handler.traceConnectionOperation( "setHoldability(int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             wrappedConnection.setHoldability( holdability );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -413,7 +413,7 @@ public final class ConnectionWrapper implements Connection {
     public Properties getClientInfo() throws SQLException {
         try {
             handler.traceConnectionOperation( "getClientInfo()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getClientInfo();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -436,7 +436,7 @@ public final class ConnectionWrapper implements Connection {
     public String getClientInfo(String name) throws SQLException {
         try {
             handler.traceConnectionOperation( "getClientInfo(String)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getClientInfo( name );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -448,7 +448,7 @@ public final class ConnectionWrapper implements Connection {
     public DatabaseMetaData getMetaData() throws SQLException {
         try {
             handler.traceConnectionOperation( "getMetaData()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getMetaData();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -460,7 +460,7 @@ public final class ConnectionWrapper implements Connection {
     public int getNetworkTimeout() throws SQLException {
         try {
             handler.traceConnectionOperation( "getNetworkTimeout()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getNetworkTimeout();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -472,7 +472,7 @@ public final class ConnectionWrapper implements Connection {
     public String getSchema() throws SQLException {
         try {
             handler.traceConnectionOperation( "getSchema()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getSchema();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -484,7 +484,7 @@ public final class ConnectionWrapper implements Connection {
     public void setSchema(String schema) throws SQLException {
         try {
             handler.traceConnectionOperation( "setSchema(String)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.SCHEMA );
             wrappedConnection.setSchema( schema );
         } catch ( SQLException se ) {
@@ -497,7 +497,7 @@ public final class ConnectionWrapper implements Connection {
     public Map<String, Class<?>> getTypeMap() throws SQLException {
         try {
             handler.traceConnectionOperation( "getTypeMap()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getTypeMap();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -509,7 +509,7 @@ public final class ConnectionWrapper implements Connection {
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
         try {
             handler.traceConnectionOperation( "setTypeMap(Map<String, Class<?>>)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             wrappedConnection.setTypeMap( map );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -521,7 +521,7 @@ public final class ConnectionWrapper implements Connection {
     public int getTransactionIsolation() throws SQLException {
         try {
             handler.traceConnectionOperation( "getTransactionIsolation()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getTransactionIsolation();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -533,7 +533,7 @@ public final class ConnectionWrapper implements Connection {
     public void setTransactionIsolation(int level) throws SQLException {
         try {
             handler.traceConnectionOperation( "setTransactionIsolation(int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION );
             wrappedConnection.setTransactionIsolation( level );
         } catch ( SQLException se ) {
@@ -546,7 +546,7 @@ public final class ConnectionWrapper implements Connection {
     public SQLWarning getWarnings() throws SQLException {
         try {
             handler.traceConnectionOperation( "getWarnings()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.getWarnings();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -558,7 +558,7 @@ public final class ConnectionWrapper implements Connection {
     public boolean isClosed() throws SQLException {
         try {
             handler.traceConnectionOperation( "isClosed()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.isClosed();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -570,7 +570,7 @@ public final class ConnectionWrapper implements Connection {
     public boolean isReadOnly() throws SQLException {
         try {
             handler.traceConnectionOperation( "isReadOnly()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.isReadOnly();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -582,7 +582,7 @@ public final class ConnectionWrapper implements Connection {
     public void setReadOnly(boolean readOnly) throws SQLException {
         try {
             handler.traceConnectionOperation( "setReadOnly(boolean)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             wrappedConnection.setReadOnly( readOnly );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -594,7 +594,7 @@ public final class ConnectionWrapper implements Connection {
     public boolean isValid(int timeout) throws SQLException {
         try {
             handler.traceConnectionOperation( "isValid(int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.isValid( timeout );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -606,7 +606,7 @@ public final class ConnectionWrapper implements Connection {
     public String nativeSQL(String sql) throws SQLException {
         try {
             handler.traceConnectionOperation( "nativeSQL(String)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.nativeSQL( sql );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -618,7 +618,7 @@ public final class ConnectionWrapper implements Connection {
     public CallableStatement prepareCall(String sql) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareCall(String)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackCallableStatement( wrappedConnection.prepareCall( sql ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -630,7 +630,7 @@ public final class ConnectionWrapper implements Connection {
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareCall(String, int, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -642,7 +642,7 @@ public final class ConnectionWrapper implements Connection {
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareCall(String, int, int, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency, resultSetHoldability ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -654,7 +654,7 @@ public final class ConnectionWrapper implements Connection {
     public PreparedStatement prepareStatement(String sql) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareStatement(String)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackPreparedStatement( wrappedConnection.prepareStatement( sql ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -666,7 +666,7 @@ public final class ConnectionWrapper implements Connection {
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -678,7 +678,7 @@ public final class ConnectionWrapper implements Connection {
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int, int, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency, resultSetHoldability ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -690,7 +690,7 @@ public final class ConnectionWrapper implements Connection {
     public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackPreparedStatement( wrappedConnection.prepareStatement( sql, autoGeneratedKeys ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -702,7 +702,7 @@ public final class ConnectionWrapper implements Connection {
     public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int[])" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnIndexes ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -714,7 +714,7 @@ public final class ConnectionWrapper implements Connection {
     public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
         try {
             handler.traceConnectionOperation( "prepareStatement(String, String[])" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnNames ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -726,7 +726,7 @@ public final class ConnectionWrapper implements Connection {
     public void releaseSavepoint(Savepoint savepoint) throws SQLException {
         try {
             handler.traceConnectionOperation( "releaseSavepoint(Savepoint)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             wrappedConnection.releaseSavepoint( savepoint );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -749,7 +749,7 @@ public final class ConnectionWrapper implements Connection {
     public Savepoint setSavepoint() throws SQLException {
         try {
             handler.traceConnectionOperation( "setSavepoint()" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.setSavepoint();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -761,7 +761,7 @@ public final class ConnectionWrapper implements Connection {
     public Savepoint setSavepoint(String name) throws SQLException {
         try {
             handler.traceConnectionOperation( "setSavepoint(String)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             return wrappedConnection.setSavepoint( name );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -773,7 +773,7 @@ public final class ConnectionWrapper implements Connection {
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
         try {
             handler.traceConnectionOperation( "setNetworkTimeout(Executor, int)" );
-            handler.deferredEnlistmentCheck();
+            handler.verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.NETWORK_TIMEOUT );
             wrappedConnection.setNetworkTimeout( executor, milliseconds );
         } catch ( SQLException se ) {

@@ -19,8 +19,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static javax.transaction.Status.STATUS_ACTIVE;
-import static javax.transaction.Status.STATUS_MARKED_ROLLBACK;
+import static javax.transaction.Status.STATUS_COMMITTED;
+import static javax.transaction.Status.STATUS_NO_TRANSACTION;
+import static javax.transaction.Status.STATUS_ROLLEDBACK;
+import static javax.transaction.Status.STATUS_UNKNOWN;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -91,9 +93,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                 } else {
                     transactionAware.transactionStart();
                 }
-            } else {
-                transactionAware.transactionCheckCallback( this::transactionRunning );
             }
+            transactionAware.transactionCheckCallback( this::transactionRunning );
         } catch ( Exception e ) {
             throw new SQLException( "Exception in association of connection to existing transaction", e );
         }
@@ -110,7 +111,12 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     private boolean transactionRunning() throws SQLException {
         try {
             Transaction transaction = transactionManager.getTransaction();
-            return transaction != null && ( transaction.getStatus() == STATUS_ACTIVE || transaction.getStatus() == STATUS_MARKED_ROLLBACK );
+            if ( transaction == null ) {
+                return false;
+            }
+            int status = transaction.getStatus();
+            return status != STATUS_UNKNOWN && status != STATUS_NO_TRANSACTION && status != STATUS_COMMITTED && status != STATUS_ROLLEDBACK;
+            // other states are active transaction: ACTIVE, MARKED_ROLLBACK, PREPARING, PREPARED, COMMITTING, ROLLING_BACK
         } catch ( Exception e ) {
             throw new SQLException( "Exception in retrieving existing transaction", e );
         }

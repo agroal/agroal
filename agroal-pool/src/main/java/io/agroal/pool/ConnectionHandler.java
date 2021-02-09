@@ -296,7 +296,7 @@ public final class ConnectionHandler implements TransactionAware {
             fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to commit" );
             wrapper.close();
         }
-        deferredEnlistmentCheck();
+        verifyEnlistment();
         connection.commit();
     }
 
@@ -306,7 +306,7 @@ public final class ConnectionHandler implements TransactionAware {
             fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
             wrapper.close();
         }
-        deferredEnlistmentCheck();
+        verifyEnlistment();
         connection.rollback();
     }
 
@@ -321,9 +321,12 @@ public final class ConnectionHandler implements TransactionAware {
         transactionActiveCheck = transactionCheck;
     }
 
-    public void deferredEnlistmentCheck() throws SQLException {
+    public void verifyEnlistment() throws SQLException {
         if ( !enlisted && transactionActiveCheck.call() ) {
             throw new SQLException( "Deferred enlistment not supported" );
+        }
+        if ( enlisted && !transactionActiveCheck.call() ) {
+            throw new SQLException( "Enlisted connection used without active transaction" );
         }
     }
 
