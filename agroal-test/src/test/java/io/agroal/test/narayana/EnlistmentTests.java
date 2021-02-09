@@ -19,9 +19,11 @@ import org.junit.jupiter.api.Test;
 
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
+import javax.transaction.InvalidTransactionException;
 import javax.transaction.NotSupportedException;
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
+import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 import javax.transaction.TransactionSynchronizationRegistry;
 import java.sql.Connection;
@@ -144,6 +146,40 @@ public class EnlistmentTests {
 
                 assertFalse( connection.isClosed(), "Not expecting the connection to be close since it was not enrolled into the transaction" );
             } catch ( NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException e ) {
+                fail( "Exception: " + e.getMessage() );
+            }
+        }
+    }
+
+    @Test
+    @DisplayName( "De-enlistment test" )
+    public void deEnlistmentTest() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+
+            try {
+                txManager.begin();
+                Connection connection = dataSource.getConnection();
+                logger.info( format( "Got connection {0}", connection ) );
+                connection.createStatement().close();
+
+                Transaction transaction = txManager.suspend();
+                assertThrows( SQLException.class, connection::createStatement );
+                logger.info( format( "Call to a method on the connection thrown a SQLException" ) );
+                txManager.resume( transaction );
+                
+                assertFalse( connection.isClosed(), "Not expecting the connection to be close since the transaction didn't complete" );
+                connection.createStatement().close();
+                txManager.commit();
+            } catch ( NotSupportedException | SystemException | HeuristicMixedException | HeuristicRollbackException | RollbackException | InvalidTransactionException e ) {
                 fail( "Exception: " + e.getMessage() );
             }
         }
