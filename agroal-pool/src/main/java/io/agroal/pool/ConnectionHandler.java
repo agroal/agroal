@@ -132,16 +132,20 @@ public final class ConnectionHandler implements TransactionAware {
             dirtyAttributes.clear();
         }
 
-        SQLWarning warning = connection.getWarnings();
-        if ( warning != null ) {
-            AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
-            while ( warning != null ) {
-                if ( exceptionSorter != null && exceptionSorter.isFatal( warning ) ) {
-                    setState( State.FLUSH );
+        try {
+            SQLWarning warning = connection.getWarnings();
+            if ( warning != null ) {
+                AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
+                while ( warning != null ) {
+                    if ( exceptionSorter != null && exceptionSorter.isFatal( warning ) ) {
+                        setState( State.FLUSH );
+                    }
+                    warning = warning.getNextWarning();
                 }
-                warning = warning.getNextWarning();
+                connection.clearWarnings();
             }
-            connection.clearWarnings();
+        } catch ( SQLException sqlException ) {
+            // keep errors
         }
     }
 

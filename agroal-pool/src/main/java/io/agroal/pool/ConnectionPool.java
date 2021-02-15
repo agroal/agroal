@@ -367,7 +367,11 @@ public final class ConnectionPool implements Pool {
             return;
         }
 
-        handler.resetConnection();
+        try {
+            handler.resetConnection();
+        } catch ( SQLException sqlException ) {
+            fireOnWarning( listeners, sqlException );
+        }
         localCache.get().add( handler );
         fireOnConnectionReturnInterceptor( interceptors, handler );
 
