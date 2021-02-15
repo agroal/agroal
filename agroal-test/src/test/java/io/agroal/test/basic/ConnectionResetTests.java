@@ -7,6 +7,7 @@ import io.agroal.api.AgroalDataSource;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
+import io.agroal.test.MockDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,7 @@ import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -145,6 +147,19 @@ public class ConnectionResetTests {
 
     // --- //
 
+    @Test
+    @DisplayName( "Test exception during reset" )
+    public void resetExceptionTest() throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration(
+                        cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.connectionProviderClass( SneakyDataSource.class ) ) ) ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                assertThrows( SQLException.class, () -> c.getWarnings() );
+            }
+        }
+    }
+
+    // --- //
+
     public static class FakeConnection implements MockConnection {
 
         private int isolation;
@@ -181,4 +196,22 @@ public class ConnectionResetTests {
             this.warnings = false;
         }
     }
+
+    public static class SneakyDataSource implements MockDataSource {
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return new SneakyConnection();
+        }
+
+    }
+
+    public static class SneakyConnection implements MockConnection {
+        @Override
+        public SQLWarning getWarnings() throws SQLException {
+            // getWarnings method is called on connection return. Need to make sure the pool is usable in that scenario.
+            throw new SQLException("This one is sneaky!");
+        }
+    }
+
 }
