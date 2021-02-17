@@ -61,6 +61,7 @@ import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
+import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.joining;
@@ -345,6 +346,10 @@ public final class ConnectionPool implements Pool {
                 fireOnWarning( listeners, warn );
             }
             checkedOutHandler.setHoldingThread( currentThread() );
+            if ( configuration.enhancedLeakReport() ) {
+                StackTraceElement[] trace = currentThread().getStackTrace();
+                checkedOutHandler.setAcquisitionStackTrace( copyOfRange( trace, 4, trace.length) );
+            }
         }
         return checkedOutHandler.newConnectionWrapper();
     }
@@ -355,6 +360,7 @@ public final class ConnectionPool implements Pool {
         fireBeforeConnectionReturn( listeners, handler );
         if ( leakEnabled ) {
             handler.setHoldingThread( null );
+            handler.setAcquisitionStackTrace( null );
         }
         if ( idleValidationEnabled || reapEnabled ) {
             handler.touch();

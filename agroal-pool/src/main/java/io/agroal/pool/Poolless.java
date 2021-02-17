@@ -43,6 +43,7 @@ import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
+import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.unmodifiableList;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
@@ -236,6 +237,10 @@ public final class Poolless implements Pool {
             }
             checkedOutHandler.setHoldingThread( currentThread() );
             checkedOutHandler.touch();
+            if ( configuration.enhancedLeakReport() ) {
+                StackTraceElement[] stackTrace = currentThread().getStackTrace();
+                checkedOutHandler.setAcquisitionStackTrace( copyOfRange( stackTrace, 4, stackTrace.length) );
+            }
         }
         return checkedOutHandler.newConnectionWrapper();
     }
