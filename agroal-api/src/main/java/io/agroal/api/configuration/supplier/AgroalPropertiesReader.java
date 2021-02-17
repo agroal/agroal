@@ -43,6 +43,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String MAX_SIZE = "maxSize";
     public static final String INITIAL_SIZE = "initialSize";
     public static final String FLUSH_ON_CLOSE = "flushOnClose";
+    public static final String ENHANCED_LEAK_REPORT = "enhancedLeakReport";
     public static final String TRANSACTION_REQUIREMENT = "transactionRequirement";
 
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
@@ -138,6 +139,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::maxSize, Integer::parseInt, properties, MAX_SIZE );
         apply( connectionPoolSupplier::flushOnClose, Boolean::parseBoolean, properties, FLUSH_ON_CLOSE );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
+        apply( connectionPoolSupplier::enhancedLeakReport, Boolean::parseBoolean, properties, ENHANCED_LEAK_REPORT );
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
 
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );

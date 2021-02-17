@@ -32,6 +32,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     private TransactionIntegration transactionIntegration = none();
     private TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
+    private boolean enhancedLeakReport = false;
     private boolean flushOnClose = false;
     private int initialSize = 0;
     private volatile int minSize = 0;
@@ -58,6 +59,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         this.transactionIntegration = existingConfiguration.transactionIntegration();
         this.transactionRequirement = existingConfiguration.transactionRequirement();
         this.flushOnClose = existingConfiguration.flushOnClose();
+        this.enhancedLeakReport = existingConfiguration.enhancedLeakReport();
         this.initialSize = existingConfiguration.initialSize();
         this.minSize = existingConfiguration.minSize();
         this.maxSize = existingConfiguration.maxSize();
@@ -124,6 +126,22 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier transactionRequirement(TransactionRequirement requirement) {
         checkLock();
         transactionRequirement = requirement;
+        return this;
+    }
+
+    /**
+     * Enables enhanced leak report.
+     */
+    public AgroalConnectionPoolConfigurationSupplier enhancedLeakReport() {
+        return enhancedLeakReport( true );
+    }
+
+    /**
+     * Enables or disables enhanced leak report. Default is false.
+     */
+    public AgroalConnectionPoolConfigurationSupplier enhancedLeakReport(boolean enhanced) {
+        checkLock();
+        enhancedLeakReport = enhanced;
         return this;
     }
 
@@ -305,6 +323,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public TransactionRequirement transactionRequirement() {
                 return transactionRequirement;
+            }
+
+            @Override
+            public boolean enhancedLeakReport() {
+                return enhancedLeakReport;
             }
 
             @Override

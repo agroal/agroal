@@ -72,6 +72,11 @@ public interface AgroalConnectionPoolConfiguration {
     Duration maxLifetime();
 
     /**
+     * Provides detailed insights of the connection status when it's reported as a leak (as INFO messages on AgroalDataSourceListener).
+     */
+    boolean enhancedLeakReport();
+
+    /**
      * If connections should be flushed when returning to the pool.
      */
     boolean flushOnClose();

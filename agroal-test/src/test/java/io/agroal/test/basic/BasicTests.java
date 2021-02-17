@@ -285,11 +285,47 @@ public class BasicTests {
         }
     }
 
+    @Test
+    @DisplayName( "Enhanced leak report" )
+    public void enhancedLeakReportTest() throws SQLException {
+        int LEAK_DETECTION_MS = 1000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 10 )
+                        .leakTimeout( ofMillis( LEAK_DETECTION_MS ) )
+                        .acquisitionTimeout( ofMillis( LEAK_DETECTION_MS ) )
+                        .enhancedLeakReport()
+                );
+        CountDownLatch latch = new CountDownLatch( 1 );
+
+        LeakDetectionListener listener = new LeakDetectionListener( currentThread(), latch );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            Connection connection = dataSource.getConnection();
+            assertNotNull( connection.getSchema(), "Expected non null value" );
+            connection.unwrap( Connection.class ).close();
+
+            try {
+                logger.info( format( "Holding connection from the pool and waiting for leak notification") );
+                if ( !latch.await( 3L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
+                    fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
+                }
+                Thread.sleep( 100 ); // hold for a bit to allow for enhanced info
+                assertEquals( 3 + 1, listener.infoCount, "Not enough info on extended leak report" );
+                assertEquals( 1, listener.warningCount, "Not enough info on extended leak report" );
+            } catch ( InterruptedException e ) {
+                fail( "Test fail due to interrupt" );
+            }
+        }
+    }
+
     // --- //
 
     private static class LeakDetectionListener implements AgroalDataSourceListener {
         private final Thread leakingThread;
         private final CountDownLatch latch;
+        private int infoCount, warningCount;
 
         public LeakDetectionListener(Thread leakingThread, CountDownLatch latch) {
             this.leakingThread = leakingThread;
@@ -300,6 +336,18 @@ public class BasicTests {
         public void onConnectionLeak(Connection connection, Thread thread) {
             assertEquals( leakingThread, thread, "Wrong thread reported" );
             latch.countDown();
+        }
+
+        @Override
+        public void onWarning(String message) {
+            warningCount++;
+            logger.warning( message );
+        }
+
+        @Override
+        public void onInfo(String message) {
+            infoCount++;
+            logger.info( message );
         }
     }
 
@@ -363,6 +411,11 @@ public class BasicTests {
         @Override
         public boolean isClosed() throws SQLException {
             return closed;
+        }
+
+        @Override
+        public <T> T unwrap(Class<T> target) throws SQLException {
+            return (T) this;
         }
     }
 }
