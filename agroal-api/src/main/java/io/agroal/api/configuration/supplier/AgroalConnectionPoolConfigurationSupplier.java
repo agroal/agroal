@@ -5,6 +5,7 @@ package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
 import io.agroal.api.transaction.TransactionIntegration;
 
@@ -32,6 +33,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     private TransactionIntegration transactionIntegration = none();
     private TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
+    private MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
     private boolean enhancedLeakReport = false;
     private boolean flushOnClose = false;
     private int initialSize = 0;
@@ -58,6 +60,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         this.connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( existingConfiguration.connectionFactoryConfiguration() );
         this.transactionIntegration = existingConfiguration.transactionIntegration();
         this.transactionRequirement = existingConfiguration.transactionRequirement();
+        this.multipleAcquisitionAction = existingConfiguration.multipleAcquisition();
         this.flushOnClose = existingConfiguration.flushOnClose();
         this.enhancedLeakReport = existingConfiguration.enhancedLeakReport();
         this.initialSize = existingConfiguration.initialSize();
@@ -121,6 +124,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     /**
+     * <<<<<<< HEAD
      * Sets the transaction requirements for the pool. Default is {@link TransactionRequirement#OFF}.
      */
     public AgroalConnectionPoolConfigurationSupplier transactionRequirement(TransactionRequirement requirement) {
@@ -134,6 +138,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
      */
     public AgroalConnectionPoolConfigurationSupplier enhancedLeakReport() {
         return enhancedLeakReport( true );
+    }
+
+    /**
+     * Sets the behaviour of the pool when a thread tries to acquire multiple connections. Default is {@link MultipleAcquisitionAction#OFF}
+     */
+    public AgroalConnectionPoolConfigurationSupplier multipleAcquisition(MultipleAcquisitionAction action) {
+        checkLock();
+        multipleAcquisitionAction = action;
+        return this;
     }
 
     /**
@@ -333,6 +346,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public boolean flushOnClose() {
                 return flushOnClose;
+            }
+
+            @Override
+            public MultipleAcquisitionAction multipleAcquisition() {
+                return multipleAcquisitionAction;
             }
 
             @Override

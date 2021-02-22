@@ -4,6 +4,7 @@
 package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation;
@@ -44,6 +45,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String INITIAL_SIZE = "initialSize";
     public static final String FLUSH_ON_CLOSE = "flushOnClose";
     public static final String ENHANCED_LEAK_REPORT = "enhancedLeakReport";
+    public static final String MULTIPLE_ACQUISITION = "multipleAcquisition";
     public static final String TRANSACTION_REQUIREMENT = "transactionRequirement";
 
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
@@ -140,6 +142,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::flushOnClose, Boolean::parseBoolean, properties, FLUSH_ON_CLOSE );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
         apply( connectionPoolSupplier::enhancedLeakReport, Boolean::parseBoolean, properties, ENHANCED_LEAK_REPORT );
+        apply( connectionPoolSupplier::multipleAcquisition, MultipleAcquisitionAction::valueOf, properties, MULTIPLE_ACQUISITION );
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
 
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );

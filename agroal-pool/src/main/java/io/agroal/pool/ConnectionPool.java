@@ -30,6 +30,7 @@ import java.util.function.Function;
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
@@ -202,6 +203,25 @@ public final class ConnectionPool implements Pool {
         return metricsRepository.beforeConnectionAcquire();
     }
 
+    private void checkMultipleAcquisition() throws SQLException {
+        if ( configuration.multipleAcquisition() != OFF ) {
+            for ( ConnectionHandler handler : allConnections ) {
+                if ( handler.getHoldingThread() == currentThread() ) {
+                    switch ( configuration.multipleAcquisition() ) {
+                        case STRICT:
+                            throw new SQLException( "Acquisition of multiple connections by the same Thread." );
+                        case WARN:
+                            fireOnWarning( listeners, "Acquisition of multiple connections by the same Thread. This can lead to pool exhaustion and eventually a deadlock!" );
+                        case OFF:
+                        default:
+                            // no action
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     @Override
     public Connection getConnection() throws SQLException {
         long stamp = beforeAcquire();
@@ -212,6 +232,7 @@ public final class ConnectionPool implements Pool {
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
             return afterAcquire( stamp, checkedOutHandler );
         }
+        checkMultipleAcquisition();
 
         try {
             do {
@@ -339,7 +360,7 @@ public final class ConnectionPool implements Pool {
         if ( leakEnabled || reapEnabled ) {
             checkedOutHandler.touch();
         }
-        if ( leakEnabled ) {
+        if ( leakEnabled || configuration.multipleAcquisition() != OFF ) {
             if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
                 Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
                 warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
