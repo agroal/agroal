@@ -198,6 +198,14 @@ public final class ConnectionPool implements Pool {
         if ( housekeepingExecutor.isShutdown() ) {
             throw new SQLException( "This pool is closed and does not handle any more connections!" );
         }
+        if ( leakEnabled ) {
+            for ( ConnectionHandler handler : allConnections ) {
+                if ( handler.getHoldingThread() == currentThread() ) {
+                    fireOnWarning( listeners, "Acquisition of multiple connections by the same Thread. This can lead to pool exhaustion and eventually a deadlock!" );
+                    break;
+                }
+            }
+        }
         return metricsRepository.beforeConnectionAcquire();
     }
 

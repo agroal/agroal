@@ -153,6 +153,14 @@ public final class Poolless implements Pool {
         if ( shutdown ) {
             throw new SQLException( "This pool is closed and does not handle any more connections!" );
         }
+        if ( !configuration.leakTimeout().isZero() ) {
+            for ( ConnectionHandler handler : allConnections) {
+                if ( handler.getHoldingThread() == currentThread() ) {
+                    fireOnWarning( listeners, "Acquisition of multiple connections by the same Thread. This can lead to pool exhaustion and eventually a deadlock!" );
+                    break;
+                }
+            }
+        }
         return metricsRepository.beforeConnectionAcquire();
     }
 

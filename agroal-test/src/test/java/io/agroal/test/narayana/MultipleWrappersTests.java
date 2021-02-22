@@ -72,7 +72,6 @@ public class MultipleWrappersTests {
                 .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
-                        .leakTimeout( ofSeconds( 10 ) )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) ) );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {

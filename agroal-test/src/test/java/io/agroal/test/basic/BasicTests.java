@@ -151,7 +151,7 @@ public class BasicTests {
                 );
         CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
 
-        AgroalDataSourceListener listener = new LeakDetectionListener( leakingThread, latch );
+        LeakDetectionListener listener = new LeakDetectionListener( leakingThread, latch );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
@@ -164,6 +164,7 @@ public class BasicTests {
                 if ( !latch.await( 3L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
                     fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
                 }
+                assertEquals( MAX_POOL_SIZE - 1, listener.warnings, "Not enough deadlock warnings" );
             } catch ( InterruptedException e ) {
                 fail( "Test fail due to interrupt" );
             }
@@ -290,6 +291,7 @@ public class BasicTests {
     private static class LeakDetectionListener implements AgroalDataSourceListener {
         private final Thread leakingThread;
         private final CountDownLatch latch;
+        private int warnings;
 
         public LeakDetectionListener(Thread leakingThread, CountDownLatch latch) {
             this.leakingThread = leakingThread;
@@ -300,6 +302,11 @@ public class BasicTests {
         public void onConnectionLeak(Connection connection, Thread thread) {
             assertEquals( leakingThread, thread, "Wrong thread reported" );
             latch.countDown();
+        }
+
+        @Override
+        public void onWarning(String message) {
+            warnings++;
         }
     }
 
