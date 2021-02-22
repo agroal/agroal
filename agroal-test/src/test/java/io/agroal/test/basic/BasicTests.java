@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.STRICT;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.WARN;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
@@ -307,7 +309,7 @@ public class BasicTests {
             connection.unwrap( Connection.class ).close();
 
             try {
-                logger.info( format( "Holding connection from the pool and waiting for leak notification") );
+                logger.info( format( "Holding connection from the pool and waiting for leak notification" ) );
                 if ( !latch.await( 3L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
                     fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
                 }
@@ -316,6 +318,48 @@ public class BasicTests {
                 assertEquals( 1, listener.warningCount, "Not enough info on extended leak report" );
             } catch ( InterruptedException e ) {
                 fail( "Test fail due to interrupt" );
+            }
+        }
+    }
+
+    @Test
+    @DisplayName( "Single acquisition" )
+    public void basicSingleAcquisitionTest() throws SQLException {
+        int MAX_POOL_SIZE = 10;
+
+        AgroalDataSourceConfigurationSupplier offConfigurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                );
+        AgroalDataSourceConfigurationSupplier warnConfigurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                        .multipleAcquisition( WARN ) );
+        AgroalDataSourceConfigurationSupplier strictConfigurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                        .multipleAcquisition( STRICT ) );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( offConfigurationSupplier, new NoWarningsAgroalListener() ) ) {
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                Connection connection = dataSource.getConnection();
+                assertNotNull( connection.getSchema(), "Expected non null value" );
+                //connection.close();
+            }
+        }
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( strictConfigurationSupplier, new NoWarningsAgroalListener() ) ) {
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                if ( i == 0 ) {
+                    Connection connection = dataSource.getConnection();
+                    assertNotNull( connection.getSchema(), "Expected non null value" );
+                    //connection.close();
+                } else {
+                    assertThrows( SQLException.class, dataSource::getConnection, "Expected exception on multiple acquisition" );
+                    assertEquals( 1, dataSource.getMetrics().acquireCount() );
+                    assertEquals( 1, dataSource.getMetrics().activeCount() );
+                }
             }
         }
     }
@@ -389,6 +433,18 @@ public class BasicTests {
         @Override
         public void beforeConnectionDestroy(Connection connection) {
             destroyLatch.countDown();
+        }
+    }
+
+    private static class NoWarningsAgroalListener implements AgroalDataSourceListener {
+        @Override
+        public void onWarning(String message) {
+            fail( "Unexpected warn message: " + message );
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            fail( "Unexpected warn throwable: " + throwable.getMessage() );
         }
     }
 

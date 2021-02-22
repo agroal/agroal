@@ -82,6 +82,11 @@ public interface AgroalConnectionPoolConfiguration {
     boolean flushOnClose();
 
     /**
+     * Behaviour when a thread tries to acquire multiple connections.
+     */
+    MultipleAcquisitionAction multipleAcquisition();
+
+    /**
      * The number of connections to be created when the pool starts. Can be smaller than min or bigger than max.
      */
     int initialSize();
@@ -139,6 +144,26 @@ public interface AgroalConnectionPoolConfiguration {
          */
         STRICT
     }
+
+    /**
+     * Action to perform on acquisition of multiple connections by the same thread.
+     */
+    enum MultipleAcquisitionAction {
+        /**
+         * No restriction.
+         */
+        OFF,
+        /**
+         * Warn if thread already holds a connection.
+         */
+        WARN,
+        /**
+         * Enforces single connection by throwing exception.
+         */
+        STRICT
+    }
+
+    // --- //
 
     /**
      * Interface for custom connection validation strategies.
