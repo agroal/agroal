@@ -37,6 +37,11 @@ public interface AgroalConnectionPoolConfiguration {
     TransactionIntegration transactionIntegration();
 
     /**
+     * Requires connections to be enlisted into a transaction.
+     */
+    TransactionRequirement transactionRequirement();
+
+    /**
      * Connections idle for longer than this time period are validated before being acquired (foreground validation).
      * A duration of {@link Duration#ZERO} means that a this feature is disabled.
      */
@@ -111,6 +116,24 @@ public interface AgroalConnectionPoolConfiguration {
     void setAcquisitionTimeout(Duration timeout);
 
     // --- //
+
+    /**
+     * Modes available for transaction requirement.
+     */
+    enum TransactionRequirement {
+        /**
+         * Enlistment not required.
+         */
+        OFF,
+        /**
+         * Warn if not enlisted.
+         */
+        WARN,
+        /**
+         * Throw exception if not enlisted.
+         */
+        STRICT
+    }
 
     /**
      * Interface for custom connection validation strategies.

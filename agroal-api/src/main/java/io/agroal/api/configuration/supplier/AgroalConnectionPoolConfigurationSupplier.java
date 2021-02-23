@@ -5,6 +5,7 @@ package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.time.Duration;
@@ -30,6 +31,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = null;
 
     private TransactionIntegration transactionIntegration = none();
+    private TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
     private boolean flushOnClose = false;
     private int initialSize = 0;
     private volatile int minSize = 0;
@@ -54,6 +56,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         }
         this.connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( existingConfiguration.connectionFactoryConfiguration() );
         this.transactionIntegration = existingConfiguration.transactionIntegration();
+        this.transactionRequirement = existingConfiguration.transactionRequirement();
         this.flushOnClose = existingConfiguration.flushOnClose();
         this.initialSize = existingConfiguration.initialSize();
         this.minSize = existingConfiguration.minSize();
@@ -112,6 +115,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier transactionIntegration(TransactionIntegration integration) {
         checkLock();
         transactionIntegration = integration;
+        return this;
+    }
+
+    /**
+     * Sets the transaction requirements for the pool. Default is {@link TransactionRequirement#OFF}.
+     */
+    public AgroalConnectionPoolConfigurationSupplier transactionRequirement(TransactionRequirement requirement) {
+        checkLock();
+        transactionRequirement = requirement;
         return this;
     }
 
@@ -288,6 +300,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public TransactionIntegration transactionIntegration() {
                 return transactionIntegration;
+            }
+
+            @Override
+            public TransactionRequirement transactionRequirement() {
+                return transactionRequirement;
             }
 
             @Override
