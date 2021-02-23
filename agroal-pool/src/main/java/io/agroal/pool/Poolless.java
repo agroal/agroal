@@ -213,9 +213,21 @@ public final class Poolless implements Pool {
         }
     }
 
-    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) {
+    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) throws SQLException {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
+
+        if ( !checkedOutHandler.isEnlisted() ) {
+            switch ( configuration.transactionRequirement() ) {
+                case STRICT:
+                    returnConnectionHandler( checkedOutHandler );
+                    throw new SQLException( "Connection acquired without transaction." );
+                case WARN:
+                    fireOnWarning( listeners, new SQLException( "Connection acquired without transaction." ) );
+                case OFF: // do nothing
+                default:
+            }
+        }
         if ( !configuration.leakTimeout().isZero() ) {
             if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
                 Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );

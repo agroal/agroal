@@ -320,10 +320,21 @@ public final class ConnectionPool implements Pool {
         return false;
     }
 
-    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) {
+    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) throws SQLException {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
 
+        if ( !checkedOutHandler.isEnlisted() ) {
+            switch ( configuration.transactionRequirement() ) {
+                case STRICT:
+                    returnConnectionHandler( checkedOutHandler );
+                    throw new SQLException( "Connection acquired without transaction." );
+                case WARN:
+                    fireOnWarning( listeners, new SQLException( "Connection acquired without transaction." ) );
+                case OFF: // do nothing
+                default:
+            }
+        }
         if ( leakEnabled || reapEnabled ) {
             checkedOutHandler.touch();
         }
