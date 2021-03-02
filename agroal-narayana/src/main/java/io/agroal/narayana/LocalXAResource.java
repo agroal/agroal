@@ -10,6 +10,10 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import static javax.transaction.xa.XAException.XAER_NOTA;
+import static javax.transaction.xa.XAException.XAER_RMFAIL;
+import static javax.transaction.xa.XAException.XA_RBROLLBACK;
+
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
@@ -36,18 +40,18 @@ public class LocalXAResource implements XAResourceWrapper {
     public void start(Xid xid, int flags) throws XAException {
         if ( currentXid == null ) {
             if ( flags != TMNOFLAGS ) {
-                throw new XAException( "Starting resource with wrong flags" );
+                throw xaException( XAER_RMFAIL, "Starting resource with wrong flags" );
             }
             try {
                 transactionAware.transactionStart();
             } catch ( Exception t ) {
                 transactionAware.setFlushOnly();
-                throw new XAException( "Error trying to start local transaction: " + t.getMessage() );
+                throw xaException( XAER_RMFAIL, "Error trying to start local transaction: " + t.getMessage(), t );
             }
             currentXid = xid;
         } else {
             if ( flags != TMJOIN && flags != TMRESUME ) {
-                throw new XAException( XAException.XAER_DUPID );
+                throw xaException( XAException.XAER_DUPID, "Invalid flag for join|resume" );
             }
         }
     }
@@ -55,7 +59,7 @@ public class LocalXAResource implements XAResourceWrapper {
     @Override
     public void commit(Xid xid, boolean onePhase) throws XAException {
         if ( xid == null || !xid.equals( currentXid ) ) {
-            throw new XAException( "Invalid xid to transactionCommit" );
+            throw xaException( XAER_NOTA, "Invalid xid to transactionCommit" );
         }
 
         currentXid = null;
@@ -63,14 +67,14 @@ public class LocalXAResource implements XAResourceWrapper {
             transactionAware.transactionCommit();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();
-            throw new XAException( "Error trying to transactionCommit local transaction: " + t.getMessage() );
+            throw xaException( onePhase ? XA_RBROLLBACK : XAER_RMFAIL, "Error trying to transactionCommit local transaction: " + t.getMessage(), t );
         }
     }
 
     @Override
     public void rollback(Xid xid) throws XAException {
         if ( xid == null || !xid.equals( currentXid ) ) {
-            throw new XAException( "Invalid xid to transactionRollback" );
+            throw xaException( XAER_NOTA, "Invalid xid to transactionRollback" );
         }
 
         currentXid = null;
@@ -78,7 +82,7 @@ public class LocalXAResource implements XAResourceWrapper {
             transactionAware.transactionRollback();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();
-            throw new XAException( "Error trying to transactionRollback local transaction: " + t.getMessage() );
+            throw xaException( XAER_RMFAIL, "Error trying to transactionRollback local transaction: " + t.getMessage(), t );
         }
     }
 
@@ -86,14 +90,14 @@ public class LocalXAResource implements XAResourceWrapper {
     public void end(Xid xid, int flags) throws XAException {
         if ( xid == null || !xid.equals( currentXid ) ) {
             transactionAware.setFlushOnly();
-            throw new XAException( "Invalid xid to transactionEnd" );
+            throw xaException( XAER_NOTA, "Invalid xid to transactionEnd" );
         }
     }
 
     @Override
     public void forget(Xid xid) throws XAException {
         transactionAware.setFlushOnly();
-        throw new XAException( "Forget not supported in local XA resource" );
+        throw xaException( XAER_RMFAIL, "Forget not supported in local XA resource" );
     }
 
     @Override
@@ -114,12 +118,24 @@ public class LocalXAResource implements XAResourceWrapper {
     @Override
     public Xid[] recover(int flags) throws XAException {
         transactionAware.setFlushOnly();
-        throw new XAException( "No recover in local XA resource" );
+        throw xaException( XAER_RMFAIL, "No recover in local XA resource");
     }
 
     @Override
     public boolean setTransactionTimeout(int timeout) throws XAException {
         return false;
+    }
+
+    private static XAException xaException(int errorCode, String message, Throwable cause) {
+        XAException xaException = xaException( errorCode, message );
+        xaException.initCause( cause );
+        return xaException;
+    }
+
+    private static XAException xaException(int errorCode, String message ) {
+        XAException xaException = new XAException( message );
+        xaException.errorCode = errorCode;
+        return xaException;
     }
 
     // --- XA Resource Wrapper //

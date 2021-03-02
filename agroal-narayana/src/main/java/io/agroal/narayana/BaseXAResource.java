@@ -146,10 +146,14 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             transactionAware.transactionStart();
             xaResource.start( xid, flags );
+        } catch ( XAException xe ) {
+            transactionAware.setFlushOnly();
+            throw xe;
         } catch ( Exception e ) {
             transactionAware.setFlushOnly();
             XAException xe = new XAException( "Error trying to start xa transaction: " + e.getMessage() );
             xe.initCause( e );
+            xe.errorCode = XAException.XAER_RMFAIL;
             throw xe;
         }
     }
