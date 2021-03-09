@@ -10,8 +10,9 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
+import static javax.transaction.xa.XAException.XAER_INVAL;
 import static javax.transaction.xa.XAException.XAER_NOTA;
-import static javax.transaction.xa.XAException.XAER_RMFAIL;
+import static javax.transaction.xa.XAException.XAER_RMERR;
 import static javax.transaction.xa.XAException.XA_RBROLLBACK;
 
 /**
@@ -40,13 +41,13 @@ public class LocalXAResource implements XAResourceWrapper {
     public void start(Xid xid, int flags) throws XAException {
         if ( currentXid == null ) {
             if ( flags != TMNOFLAGS ) {
-                throw xaException( XAER_RMFAIL, "Starting resource with wrong flags" );
+                throw xaException( XAER_INVAL, "Starting resource with wrong flags" );
             }
             try {
                 transactionAware.transactionStart();
             } catch ( Exception t ) {
                 transactionAware.setFlushOnly();
-                throw xaException( XAER_RMFAIL, "Error trying to start local transaction: " + t.getMessage(), t );
+                throw xaException( XAER_RMERR, "Error trying to start local transaction: " + t.getMessage(), t );
             }
             currentXid = xid;
         } else {
@@ -67,7 +68,7 @@ public class LocalXAResource implements XAResourceWrapper {
             transactionAware.transactionCommit();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();
-            throw xaException( onePhase ? XA_RBROLLBACK : XAER_RMFAIL, "Error trying to transactionCommit local transaction: " + t.getMessage(), t );
+            throw xaException( onePhase ? XA_RBROLLBACK : XAER_RMERR, "Error trying to transactionCommit local transaction: " + t.getMessage(), t );
         }
     }
 
@@ -82,7 +83,7 @@ public class LocalXAResource implements XAResourceWrapper {
             transactionAware.transactionRollback();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();
-            throw xaException( XAER_RMFAIL, "Error trying to transactionRollback local transaction: " + t.getMessage(), t );
+            throw xaException( XAER_RMERR, "Error trying to transactionRollback local transaction: " + t.getMessage(), t );
         }
     }
 
@@ -97,7 +98,7 @@ public class LocalXAResource implements XAResourceWrapper {
     @Override
     public void forget(Xid xid) throws XAException {
         transactionAware.setFlushOnly();
-        throw xaException( XAER_RMFAIL, "Forget not supported in local XA resource" );
+        throw xaException( XAER_NOTA, "Forget not supported in local XA resource" );
     }
 
     @Override
@@ -118,7 +119,7 @@ public class LocalXAResource implements XAResourceWrapper {
     @Override
     public Xid[] recover(int flags) throws XAException {
         transactionAware.setFlushOnly();
-        throw xaException( XAER_RMFAIL, "No recover in local XA resource");
+        throw xaException( XAER_RMERR, "No recover in local XA resource");
     }
 
     @Override
