@@ -30,6 +30,7 @@ import java.util.function.Function;
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
@@ -61,6 +62,7 @@ import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
+import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.joining;
@@ -201,6 +203,25 @@ public final class ConnectionPool implements Pool {
         return metricsRepository.beforeConnectionAcquire();
     }
 
+    private void checkMultipleAcquisition() throws SQLException {
+        if ( configuration.multipleAcquisition() != OFF ) {
+            for ( ConnectionHandler handler : allConnections ) {
+                if ( handler.getHoldingThread() == currentThread() ) {
+                    switch ( configuration.multipleAcquisition() ) {
+                        case STRICT:
+                            throw new SQLException( "Acquisition of multiple connections by the same Thread." );
+                        case WARN:
+                            fireOnWarning( listeners, "Acquisition of multiple connections by the same Thread. This can lead to pool exhaustion and eventually a deadlock!" );
+                        case OFF:
+                        default:
+                            // no action
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     @Override
     public Connection getConnection() throws SQLException {
         long stamp = beforeAcquire();
@@ -211,6 +232,7 @@ public final class ConnectionPool implements Pool {
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
             return afterAcquire( stamp, checkedOutHandler );
         }
+        checkMultipleAcquisition();
 
         try {
             do {
@@ -320,20 +342,35 @@ public final class ConnectionPool implements Pool {
         return false;
     }
 
-    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) {
+    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) throws SQLException {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
 
+        if ( !checkedOutHandler.isEnlisted() ) {
+            switch ( configuration.transactionRequirement() ) {
+                case STRICT:
+                    returnConnectionHandler( checkedOutHandler );
+                    throw new SQLException( "Connection acquired without transaction." );
+                case WARN:
+                    fireOnWarning( listeners, new SQLException( "Connection acquired without transaction." ) );
+                case OFF: // do nothing
+                default:
+            }
+        }
         if ( leakEnabled || reapEnabled ) {
             checkedOutHandler.touch();
         }
-        if ( leakEnabled ) {
+        if ( leakEnabled || configuration.multipleAcquisition() != OFF ) {
             if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
                 Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
                 warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
                 fireOnWarning( listeners, warn );
             }
             checkedOutHandler.setHoldingThread( currentThread() );
+            if ( configuration.enhancedLeakReport() ) {
+                StackTraceElement[] trace = currentThread().getStackTrace();
+                checkedOutHandler.setAcquisitionStackTrace( copyOfRange( trace, 4, trace.length) );
+            }
         }
         return checkedOutHandler.newConnectionWrapper();
     }
@@ -344,6 +381,7 @@ public final class ConnectionPool implements Pool {
         fireBeforeConnectionReturn( listeners, handler );
         if ( leakEnabled ) {
             handler.setHoldingThread( null );
+            handler.setAcquisitionStackTrace( null );
         }
         if ( idleValidationEnabled || reapEnabled ) {
             handler.touch();

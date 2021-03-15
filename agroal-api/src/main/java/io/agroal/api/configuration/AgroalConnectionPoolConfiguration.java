@@ -37,6 +37,11 @@ public interface AgroalConnectionPoolConfiguration {
     TransactionIntegration transactionIntegration();
 
     /**
+     * Requires connections to be enlisted into a transaction.
+     */
+    TransactionRequirement transactionRequirement();
+
+    /**
      * Connections idle for longer than this time period are validated before being acquired (foreground validation).
      * A duration of {@link Duration#ZERO} means that a this feature is disabled.
      */
@@ -67,9 +72,19 @@ public interface AgroalConnectionPoolConfiguration {
     Duration maxLifetime();
 
     /**
+     * Provides detailed insights of the connection status when it's reported as a leak (as INFO messages on AgroalDataSourceListener).
+     */
+    boolean enhancedLeakReport();
+
+    /**
      * If connections should be flushed when returning to the pool.
      */
     boolean flushOnClose();
+
+    /**
+     * Behaviour when a thread tries to acquire multiple connections.
+     */
+    MultipleAcquisitionAction multipleAcquisition();
 
     /**
      * The number of connections to be created when the pool starts. Can be smaller than min or bigger than max.
@@ -109,6 +124,44 @@ public interface AgroalConnectionPoolConfiguration {
      * A duration of {@link Duration#ZERO} means that a thread will wait indefinitely.
      */
     void setAcquisitionTimeout(Duration timeout);
+
+    // --- //
+
+    /**
+     * Modes available for transaction requirement.
+     */
+    enum TransactionRequirement {
+        /**
+         * Enlistment not required.
+         */
+        OFF,
+        /**
+         * Warn if not enlisted.
+         */
+        WARN,
+        /**
+         * Throw exception if not enlisted.
+         */
+        STRICT
+    }
+
+    /**
+     * Action to perform on acquisition of multiple connections by the same thread.
+     */
+    enum MultipleAcquisitionAction {
+        /**
+         * No restriction.
+         */
+        OFF,
+        /**
+         * Warn if thread already holds a connection.
+         */
+        WARN,
+        /**
+         * Enforces single connection by throwing exception.
+         */
+        STRICT
+    }
 
     // --- //
 

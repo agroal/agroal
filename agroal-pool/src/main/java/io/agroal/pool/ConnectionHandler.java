@@ -6,6 +6,7 @@ package io.agroal.pool;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionAware;
+import io.agroal.pool.util.UncheckedArrayList;
 import io.agroal.pool.wrapper.ConnectionWrapper;
 
 import javax.sql.XAConnection;
@@ -14,7 +15,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
@@ -60,6 +63,11 @@ public final class ConnectionHandler implements TransactionAware {
 
     // for leak detection (only valid for CHECKED_OUT connections)
     private Thread holdingThread;
+
+    // Enhanced leak report
+    private volatile StackTraceElement[] acquisitionStackTrace;
+    private StackTraceElement[] lastOperationStackTrace;
+    private List<String> connectionOperations;
 
     // for expiration (CHECKED_IN connections) and leak detection (CHECKED_OUT connections)
     private long lastAccess;
@@ -207,12 +215,60 @@ public final class ConnectionHandler implements TransactionAware {
         this.maxLifetimeTask = maxLifetimeTask;
     }
 
+    // --- Leak detection //
+
     public Thread getHoldingThread() {
         return holdingThread;
     }
 
     public void setHoldingThread(Thread holdingThread) {
         this.holdingThread = holdingThread;
+    }
+
+    // --- Enhanced leak report //     
+
+    /**
+     * Abbreviated list of all operation on the connection, for enhanced leak report
+     */
+    public void traceConnectionOperation(String operation) {
+        if ( acquisitionStackTrace != null ) {
+            connectionOperations.add( operation );
+            StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+            lastOperationStackTrace = Arrays.copyOfRange(trace, 3, trace.length);
+        }
+    }
+
+    /**
+     * Abbreviated list of all operation on the connection, for enhanced leak report
+     */
+    public List<String> getConnectionOperations() {
+        return connectionOperations;
+    }
+
+    /**
+     * Stack trace of the first acquisition for this connection
+     */
+    public StackTraceElement[] getAcquisitionStackTrace() {
+        return acquisitionStackTrace;
+    }
+
+    /**
+     * Stack trace for the last operation on this connection
+     */
+    public StackTraceElement[] getLastOperationStackTrace() {
+        return lastOperationStackTrace;
+    }
+
+    /**
+     * Stores a stack trace for leak report. Setting a value != null also enables tracing of operations on the connection
+     */
+    public void setAcquisitionStackTrace(StackTraceElement[] stackTrace) {
+        lastOperationStackTrace = null;
+        if ( connectionOperations == null ) {
+            connectionOperations = new UncheckedArrayList<>( String.class );
+        }
+        connectionOperations.clear();
+        acquisitionStackTrace = stackTrace;
     }
 
     public void setDirtyAttribute(DirtyAttribute attribute) {

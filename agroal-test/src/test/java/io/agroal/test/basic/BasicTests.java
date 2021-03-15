@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.STRICT;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.WARN;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
@@ -285,11 +287,89 @@ public class BasicTests {
         }
     }
 
+    @Test
+    @DisplayName( "Enhanced leak report" )
+    public void enhancedLeakReportTest() throws SQLException {
+        int LEAK_DETECTION_MS = 1000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 10 )
+                        .leakTimeout( ofMillis( LEAK_DETECTION_MS ) )
+                        .acquisitionTimeout( ofMillis( LEAK_DETECTION_MS ) )
+                        .enhancedLeakReport()
+                );
+        CountDownLatch latch = new CountDownLatch( 1 );
+
+        LeakDetectionListener listener = new LeakDetectionListener( currentThread(), latch );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            Connection connection = dataSource.getConnection();
+            assertNotNull( connection.getSchema(), "Expected non null value" );
+            connection.unwrap( Connection.class ).close();
+
+            try {
+                logger.info( format( "Holding connection from the pool and waiting for leak notification" ) );
+                if ( !latch.await( 3L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
+                    fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
+                }
+                Thread.sleep( 100 ); // hold for a bit to allow for enhanced info
+                assertEquals( 3 + 1, listener.infoCount, "Not enough info on extended leak report" );
+                assertEquals( 1, listener.warningCount, "Not enough info on extended leak report" );
+            } catch ( InterruptedException e ) {
+                fail( "Test fail due to interrupt" );
+            }
+        }
+    }
+
+    @Test
+    @DisplayName( "Single acquisition" )
+    public void basicSingleAcquisitionTest() throws SQLException {
+        int MAX_POOL_SIZE = 10;
+
+        AgroalDataSourceConfigurationSupplier offConfigurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                );
+        AgroalDataSourceConfigurationSupplier warnConfigurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                        .multipleAcquisition( WARN ) );
+        AgroalDataSourceConfigurationSupplier strictConfigurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                        .multipleAcquisition( STRICT ) );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( offConfigurationSupplier, new NoWarningsAgroalListener() ) ) {
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                Connection connection = dataSource.getConnection();
+                assertNotNull( connection.getSchema(), "Expected non null value" );
+                //connection.close();
+            }
+        }
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( strictConfigurationSupplier, new NoWarningsAgroalListener() ) ) {
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                if ( i == 0 ) {
+                    Connection connection = dataSource.getConnection();
+                    assertNotNull( connection.getSchema(), "Expected non null value" );
+                    //connection.close();
+                } else {
+                    assertThrows( SQLException.class, dataSource::getConnection, "Expected exception on multiple acquisition" );
+                    assertEquals( 1, dataSource.getMetrics().acquireCount() );
+                    assertEquals( 1, dataSource.getMetrics().activeCount() );
+                }
+            }
+        }
+    }
+
     // --- //
 
     private static class LeakDetectionListener implements AgroalDataSourceListener {
         private final Thread leakingThread;
         private final CountDownLatch latch;
+        private int infoCount, warningCount;
 
         public LeakDetectionListener(Thread leakingThread, CountDownLatch latch) {
             this.leakingThread = leakingThread;
@@ -300,6 +380,18 @@ public class BasicTests {
         public void onConnectionLeak(Connection connection, Thread thread) {
             assertEquals( leakingThread, thread, "Wrong thread reported" );
             latch.countDown();
+        }
+
+        @Override
+        public void onWarning(String message) {
+            warningCount++;
+            logger.warning( message );
+        }
+
+        @Override
+        public void onInfo(String message) {
+            infoCount++;
+            logger.info( message );
         }
     }
 
@@ -344,6 +436,18 @@ public class BasicTests {
         }
     }
 
+    private static class NoWarningsAgroalListener implements AgroalDataSourceListener {
+        @Override
+        public void onWarning(String message) {
+            fail( "Unexpected warn message: " + message );
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            fail( "Unexpected warn throwable: " + throwable.getMessage() );
+        }
+    }
+
     // --- //
 
     public static class FakeSchemaConnection implements MockConnection {
@@ -363,6 +467,11 @@ public class BasicTests {
         @Override
         public boolean isClosed() throws SQLException {
             return closed;
+        }
+
+        @Override
+        public <T> T unwrap(Class<T> target) throws SQLException {
+            return (T) this;
         }
     }
 }

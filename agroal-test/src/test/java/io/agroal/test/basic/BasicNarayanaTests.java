@@ -4,6 +4,7 @@
 package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
+import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import org.junit.jupiter.api.AfterAll;
@@ -23,6 +24,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement.STRICT;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement.WARN;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.AgroalTestGroup.TRANSACTION;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
@@ -140,7 +143,80 @@ public class BasicNarayanaTests {
                 } catch ( NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException e ) {
                     fail( "Exception: " + e.getMessage() );
                 }
-            }  
+            }
+        }
+    }
+
+    @Test
+    @DisplayName( "Transaction required tests" )
+    public void transactionRequiredTests() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                ), new NoWarningsListener() ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                logger.info( "Got connection " + c );
+            }
+        }
+
+        WarningListener warningListener = new WarningListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                        .transactionRequirement( WARN )
+                ), warningListener ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                assertEquals( 1, warningListener.warnings, "Expected a warning message" );
+                logger.info( "Got connection with warning :" + c );
+            }
+        }
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                        .transactionRequirement( STRICT )
+                ) ) ) {
+            assertThrows( SQLException.class, dataSource::getConnection );
+
+            // Make sure connection is available after getConnection() throws
+            txManager.begin();
+            try ( Connection c = dataSource.getConnection() ) {
+                logger.info( "Got connection with tx :" + c );
+            }
+            txManager.rollback();
+        } catch ( SystemException | NotSupportedException e ) {
+            fail( "Exception: " + e.getMessage() );
+        }
+    }
+
+    // --- //
+    private static class NoWarningsListener implements AgroalDataSourceListener {
+
+        @Override
+        public void onWarning(String message) {
+            fail( "Got warning: " + message );
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            fail( "Got warning: " + throwable.getMessage() );
+        }
+    }
+
+    private static class WarningListener implements AgroalDataSourceListener {
+
+        private int warnings;
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            logger.warning( throwable.getMessage() );
+            warnings++;
         }
     }
 }

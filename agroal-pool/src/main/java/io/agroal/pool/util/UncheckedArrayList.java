@@ -41,8 +41,8 @@ public final class UncheckedArrayList<T> implements List<T> {
 
     @SuppressWarnings( "unchecked" )
     private UncheckedArrayList(Class<?> clazz, int capacity) {
-        this.data = (T[]) newInstance( clazz, capacity );
-        this.size = 0;
+        data = (T[]) newInstance( clazz, capacity );
+        size = 0;
     }
 
     public UncheckedArrayList(Class<?> clazz) {
@@ -51,7 +51,6 @@ public final class UncheckedArrayList<T> implements List<T> {
 
     public UncheckedArrayList(Class<?> clazz, T[] initial) {
         this( clazz, initial.length );
-        this.size = initial.length;
         arraycopy( initial, 0, data, 0, size );
     }
 
@@ -126,12 +125,17 @@ public final class UncheckedArrayList<T> implements List<T> {
 
     @Override
     public boolean contains(Object o) {
-        throw new UnsupportedOperationException();
+        for (T element : this) {
+            if ( element == o ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
     public Iterator<T> iterator() {
-        return size == 0 ? emptyIterator : new UncheckedIterator<>( data );
+        return size == 0 ? emptyIterator : new UncheckedIterator<>( data, size );
     }
 
     @Override
@@ -244,9 +248,9 @@ public final class UncheckedArrayList<T> implements List<T> {
 
         private int index = 0;
 
-        public UncheckedIterator(T[] data) {
+        public UncheckedIterator(T[] data, int size) {
             this.data = data;
-            this.size = data.length;
+            this.size = size;
         }
 
         @Override
