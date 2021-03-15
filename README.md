@@ -1,4 +1,4 @@
-# Agroal
+![agroal-logo](https://design.jboss.org/agroal/logo/final/PNG/agroal_logo_horizontal_default_600px.png)
 
 The natural database connection pool
 
