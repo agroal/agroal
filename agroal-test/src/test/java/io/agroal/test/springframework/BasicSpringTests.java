@@ -9,14 +9,15 @@ import io.agroal.test.MockConnection;
 import io.agroal.test.MockDriver;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.jta.JtaTransactionManager;
 
 import javax.sql.DataSource;
@@ -41,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 @Tag( SPRING )
-@RunWith( SpringRunner.class )
+@ExtendWith( SpringExtension.class )
 @JdbcTest
 @ComponentScan( basePackageClasses = io.agroal.springframework.boot.AgroalDataSource.class ) // tests do not pick META-INF/spring.factories
 @ComponentScan( basePackageClasses = me.snowdrop.boot.narayana.autoconfigure.NarayanaConfiguration.class )
@@ -64,7 +65,7 @@ public class BasicSpringTests {
     @Autowired
     private JtaTransactionManager txManager;
 
-    @org.junit.Test
+    @Test
     @DisplayName( "test deployment on Spring Boot container" )
     public void basicSpringConnectionAcquireTest() throws Exception {
         assertTrue( dataSource instanceof AgroalDataSource );
@@ -81,7 +82,7 @@ public class BasicSpringTests {
         }
     }
 
-    @org.junit.Test
+    @Test
     @DisplayName( "test transaction manager integration on Spring Boot container" )
     public void springTransactionIntegrationTest() throws Exception {
         assertNotNull( txManager.getTransactionManager(), "A TransactionManager is required for this test" );
