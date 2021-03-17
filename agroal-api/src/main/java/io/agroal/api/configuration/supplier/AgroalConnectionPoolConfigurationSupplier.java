@@ -96,14 +96,14 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     /**
      * Sets the configuration for the connection factory.
      */
-    public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Supplier<AgroalConnectionFactoryConfiguration> supplier) {
+    public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Supplier<? extends AgroalConnectionFactoryConfiguration> supplier) {
         return connectionFactoryConfiguration( supplier.get() );
     }
 
     /**
      * Modifies the configuration of the connection pool.
      */
-    public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Function<AgroalConnectionFactoryConfigurationSupplier, AgroalConnectionFactoryConfigurationSupplier> function) {
+    public AgroalConnectionPoolConfigurationSupplier connectionFactoryConfiguration(Function<? super AgroalConnectionFactoryConfigurationSupplier, ? extends AgroalConnectionFactoryConfigurationSupplier> function) {
         return connectionFactoryConfiguration( function.apply( connectionFactoryConfigurationSupplier ) );
     }
 

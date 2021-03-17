@@ -51,14 +51,14 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     /**
      * Sets the configuration of the connection pool.
      */
-    public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Supplier<AgroalConnectionPoolConfiguration> supplier) {
+    public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Supplier<? extends AgroalConnectionPoolConfiguration> supplier) {
         return connectionPoolConfiguration( supplier.get() );
     }
 
     /**
      * Modifies the configuration of the connection pool.
      */
-    public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Function<AgroalConnectionPoolConfigurationSupplier, AgroalConnectionPoolConfigurationSupplier> function) {
+    public AgroalDataSourceConfigurationSupplier connectionPoolConfiguration(Function<? super AgroalConnectionPoolConfigurationSupplier, ? extends AgroalConnectionPoolConfigurationSupplier> function) {
         return connectionPoolConfiguration( function.apply( connectionPoolConfigurationSupplier ) );
     }
 

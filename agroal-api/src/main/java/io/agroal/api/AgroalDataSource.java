@@ -74,7 +74,7 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
     /**
      * Sets pool interceptors.
      */
-    void setPoolInterceptors(Collection<AgroalPoolInterceptor> interceptors);
+    void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> interceptors);
 
     /**
      * Get the list of pool interceptors. Interceptors are sorted from high to low priority.

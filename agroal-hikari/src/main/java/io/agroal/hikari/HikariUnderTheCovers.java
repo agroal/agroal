@@ -93,7 +93,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     // --- //
 
     @Override
-    public void setPoolInterceptors(Collection<AgroalPoolInterceptor> interceptors) {
+    public void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> interceptors) {
         throw new UnsupportedOperationException( "Hikari pool does not support interceptors" );
     }
 

@@ -18,7 +18,7 @@ public final class InterceptorHelper {
     private InterceptorHelper() {
     }
 
-    public static void fireOnConnectionAcquiredInterceptor(List<AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
+    public static void fireOnConnectionAcquiredInterceptor(List<? extends AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
         if ( interceptors != null && interceptors.size() > 0 ) {
             for ( AgroalPoolInterceptor interceptor : interceptors ) {
                 try ( Connection connection = handler.newDetachedConnectionWrapper() ) {
@@ -28,7 +28,7 @@ public final class InterceptorHelper {
         }
     }
 
-    public static void fireOnConnectionReturnInterceptor(List<AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
+    public static void fireOnConnectionReturnInterceptor(List<? extends AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
         if ( interceptors != null && interceptors.size() > 0 ) {
             for ( int i = interceptors.size(); i > 0; ) {
                 try ( Connection connection = handler.newDetachedConnectionWrapper() ) {

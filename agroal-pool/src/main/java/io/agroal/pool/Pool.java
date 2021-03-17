@@ -32,7 +32,7 @@ public interface Pool extends MetricsEnabledListener, AutoCloseable {
 
     List<AgroalPoolInterceptor> getPoolInterceptors();
 
-    void setPoolInterceptors(Collection<AgroalPoolInterceptor> list);
+    void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> list);
 
     void returnConnectionHandler(ConnectionHandler handler) throws SQLException;
 

@@ -182,7 +182,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
 
     @Override
-    public void setPoolInterceptors(Collection<AgroalPoolInterceptor> interceptors) {
+    public void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> interceptors) {
         delegate.setPoolInterceptors( interceptors );
     }
 

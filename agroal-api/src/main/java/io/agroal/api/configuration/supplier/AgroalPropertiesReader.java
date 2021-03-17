@@ -186,14 +186,14 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         return this;
     }
 
-    private <T> void apply(Consumer<T> consumer, Function<String, T> converter, Map<String, String> properties, String key) {
+    private <T> void apply(Consumer<? super T> consumer, Function<? super String, T> converter, Map<String, String> properties, String key) {
         String value = properties.get( prefix + key );
         if ( value != null ) {
             consumer.accept( converter.apply( value ) );
         }
     }
 
-    private void applyJdbcProperties(BiConsumer<String, String> consumer, Map<String, String> properties, String key) {
+    private void applyJdbcProperties(BiConsumer<? super String, ? super String> consumer, Map<String, String> properties, String key) {
         String propertiesArray = properties.get( prefix + key );
         if ( propertiesArray != null && !propertiesArray.isEmpty() ) {
             for ( String property : propertiesArray.split( ";" ) ) {

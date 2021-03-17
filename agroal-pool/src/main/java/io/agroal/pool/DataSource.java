@@ -45,7 +45,7 @@ public final class DataSource implements AgroalDataSource {
     // --- AgroalDataSource methods //
 
     @Override
-    public void setPoolInterceptors(Collection<AgroalPoolInterceptor> interceptors) {
+    public void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> interceptors) {
         connectionPool.setPoolInterceptors( interceptors == null ? emptyList() : interceptors );
     }
 

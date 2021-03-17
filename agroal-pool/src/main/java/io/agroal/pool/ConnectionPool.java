@@ -151,7 +151,7 @@ public final class ConnectionPool implements Pool {
         return unmodifiableList( interceptors );
     }
 
-    public void setPoolInterceptors(Collection<AgroalPoolInterceptor> list) {
+    public void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> list) {
         if ( list.stream().anyMatch( i -> i.getPriority() < 0 ) ) {
             throw new IllegalArgumentException( "Negative priority values on AgroalPoolInterceptor are reserved." );
         }
