@@ -23,30 +23,31 @@ import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.T
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( {"PackageVisibleField", "WeakerAccess"} )
 public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<AgroalConnectionFactoryConfiguration> {
 
     private static final String USER_PROPERTY_NAME = "user";
     private static final String PASSWORD_PROPERTY_NAME = "password";
 
+    boolean autoCommit = true;
+    boolean trackJdbcResources = true;
+    String jdbcUrl = "";
+    String initialSql = "";
+    Class<?> connectionProviderClass;
+    IsolationLevel transactionIsolation = UNDEFINED;
+    Collection<AgroalSecurityProvider> securityProviders = new ArrayList<>();
+    Principal principal;
+    Collection<Object> credentials = new ArrayList<>();
+    Principal recoveryPrincipal;
+    Collection<Object> recoveryCredentials = new ArrayList<>();
+    Properties jdbcProperties = new Properties();
+
     private volatile boolean lock;
 
-    private boolean autoCommit = true;
-    private boolean trackJdbcResources = true;
-    private String jdbcUrl = "";
-    private String initialSql = "";
-    private Class<?> connectionProviderClass;
-    private IsolationLevel transactionIsolation = UNDEFINED;
-    private Collection<AgroalSecurityProvider> securityProviders = new ArrayList<>();
-    private Principal principal;
-    private Collection<Object> credentials = new ArrayList<>();
-    private Principal recoveryPrincipal;
-    private Collection<Object> recoveryCredentials = new ArrayList<>();
-    private Properties jdbcProperties = new Properties();
-
     public AgroalConnectionFactoryConfigurationSupplier() {
-        this.lock = false;
-        this.securityProviders.add( new AgroalDefaultSecurityProvider() );
-        this.securityProviders.add( new AgroalKerberosSecurityProvider() );
+        lock = false;
+        securityProviders.add( new AgroalDefaultSecurityProvider() );
+        securityProviders.add( new AgroalKerberosSecurityProvider() );
     }
 
     public AgroalConnectionFactoryConfigurationSupplier(AgroalConnectionFactoryConfiguration existingConfiguration) {
@@ -54,18 +55,18 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         if ( existingConfiguration == null ) {
             return;
         }
-        this.autoCommit = existingConfiguration.autoCommit();
-        this.jdbcUrl = existingConfiguration.jdbcUrl();
-        this.initialSql = existingConfiguration.initialSql();
-        this.connectionProviderClass = existingConfiguration.connectionProviderClass();
-        this.transactionIsolation = existingConfiguration.jdbcTransactionIsolation();
-        this.principal = existingConfiguration.principal();
-        this.credentials = existingConfiguration.credentials();
-        this.recoveryPrincipal = existingConfiguration.recoveryPrincipal();
-        this.recoveryCredentials = existingConfiguration.recoveryCredentials();
-        this.jdbcProperties = existingConfiguration.jdbcProperties();
-        this.securityProviders = existingConfiguration.securityProviders();
-        this.trackJdbcResources = existingConfiguration.trackJdbcResources();
+        autoCommit = existingConfiguration.autoCommit();
+        jdbcUrl = existingConfiguration.jdbcUrl();
+        initialSql = existingConfiguration.initialSql();
+        connectionProviderClass = existingConfiguration.connectionProviderClass();
+        transactionIsolation = existingConfiguration.jdbcTransactionIsolation();
+        principal = existingConfiguration.principal();
+        credentials = existingConfiguration.credentials();
+        recoveryPrincipal = existingConfiguration.recoveryPrincipal();
+        recoveryCredentials = existingConfiguration.recoveryCredentials();
+        jdbcProperties = existingConfiguration.jdbcProperties();
+        securityProviders = existingConfiguration.securityProviders();
+        trackJdbcResources = existingConfiguration.trackJdbcResources();
     }
 
     private void checkLock() {
@@ -160,7 +161,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
      */
     public AgroalConnectionFactoryConfigurationSupplier addSecurityProvider(AgroalSecurityProvider provider) {
         checkLock();
-        this.securityProviders.add( provider );
+        securityProviders.add( provider );
         return this;
     }
 
@@ -206,7 +207,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
      */
     public AgroalConnectionFactoryConfigurationSupplier jdbcProperty(String key, String value) {
         checkLock();
-        jdbcProperties.put( key, value );
+        jdbcProperties.setProperty( key, value );
         return this;
     }
 
@@ -225,7 +226,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     @SuppressWarnings( "ReturnOfInnerClass" )
     public AgroalConnectionFactoryConfiguration get() {
         validate();
-        this.lock = true;
+        lock = true;
 
         return new AgroalConnectionFactoryConfiguration() {
 

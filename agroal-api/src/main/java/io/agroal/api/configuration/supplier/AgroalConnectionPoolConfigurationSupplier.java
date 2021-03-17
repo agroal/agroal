@@ -24,32 +24,34 @@ import static java.time.Duration.ZERO;
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( {"PackageVisibleField", "WeakerAccess"} )
 public class AgroalConnectionPoolConfigurationSupplier implements Supplier<AgroalConnectionPoolConfiguration> {
+
+    AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = null;
+
+    TransactionIntegration transactionIntegration = none();
+    TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
+    MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
+    boolean enhancedLeakReport = false;
+    boolean flushOnClose = false;
+    int initialSize = 0;
+    volatile int minSize = 0;
+    volatile int maxSize = MAX_VALUE;
+    AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
+    AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = emptyExceptionSorter();
+    Duration idleValidationTimeout = ZERO;
+    Duration leakTimeout = ZERO;
+    Duration validationTimeout = ZERO;
+    Duration reapTimeout = ZERO;
+    Duration maxLifetime = ZERO;
+    volatile Duration acquisitionTimeout = ZERO;
 
     private volatile boolean lock;
 
     private AgroalConnectionFactoryConfigurationSupplier connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier();
-    private AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = null;
-
-    private TransactionIntegration transactionIntegration = none();
-    private TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
-    private MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
-    private boolean enhancedLeakReport = false;
-    private boolean flushOnClose = false;
-    private int initialSize = 0;
-    private volatile int minSize = 0;
-    private volatile int maxSize = MAX_VALUE;
-    private AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
-    private AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = emptyExceptionSorter();
-    private Duration idleValidationTimeout = ZERO;
-    private Duration leakTimeout = ZERO;
-    private Duration validationTimeout = ZERO;
-    private Duration reapTimeout = ZERO;
-    private Duration maxLifetime = ZERO;
-    private volatile Duration acquisitionTimeout = ZERO;
 
     public AgroalConnectionPoolConfigurationSupplier() {
-        this.lock = false;
+        lock = false;
     }
 
     public AgroalConnectionPoolConfigurationSupplier(AgroalConnectionPoolConfiguration existingConfiguration) {
@@ -57,23 +59,23 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( existingConfiguration == null ) {
             return;
         }
-        this.connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( existingConfiguration.connectionFactoryConfiguration() );
-        this.transactionIntegration = existingConfiguration.transactionIntegration();
-        this.transactionRequirement = existingConfiguration.transactionRequirement();
-        this.multipleAcquisitionAction = existingConfiguration.multipleAcquisition();
-        this.flushOnClose = existingConfiguration.flushOnClose();
-        this.enhancedLeakReport = existingConfiguration.enhancedLeakReport();
-        this.initialSize = existingConfiguration.initialSize();
-        this.minSize = existingConfiguration.minSize();
-        this.maxSize = existingConfiguration.maxSize();
-        this.connectionValidator = existingConfiguration.connectionValidator();
-        this.exceptionSorter = existingConfiguration.exceptionSorter();
-        this.idleValidationTimeout = existingConfiguration.idleValidationTimeout();
-        this.leakTimeout = existingConfiguration.leakTimeout();
-        this.validationTimeout = existingConfiguration.validationTimeout();
-        this.reapTimeout = existingConfiguration.reapTimeout();
-        this.maxLifetime = existingConfiguration.maxLifetime();
-        this.acquisitionTimeout = existingConfiguration.acquisitionTimeout();
+        connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( existingConfiguration.connectionFactoryConfiguration() );
+        transactionIntegration = existingConfiguration.transactionIntegration();
+        transactionRequirement = existingConfiguration.transactionRequirement();
+        multipleAcquisitionAction = existingConfiguration.multipleAcquisition();
+        flushOnClose = existingConfiguration.flushOnClose();
+        enhancedLeakReport = existingConfiguration.enhancedLeakReport();
+        initialSize = existingConfiguration.initialSize();
+        minSize = existingConfiguration.minSize();
+        maxSize = existingConfiguration.maxSize();
+        connectionValidator = existingConfiguration.connectionValidator();
+        exceptionSorter = existingConfiguration.exceptionSorter();
+        idleValidationTimeout = existingConfiguration.idleValidationTimeout();
+        leakTimeout = existingConfiguration.leakTimeout();
+        validationTimeout = existingConfiguration.validationTimeout();
+        reapTimeout = existingConfiguration.reapTimeout();
+        maxLifetime = existingConfiguration.maxLifetime();
+        acquisitionTimeout = existingConfiguration.acquisitionTimeout();
     }
 
     private void checkLock() {
@@ -319,7 +321,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     @SuppressWarnings( "ReturnOfInnerClass" )
     public AgroalConnectionPoolConfiguration get() {
         validate();
-        this.lock = true;
+        lock = true;
 
         return new AgroalConnectionPoolConfiguration() {
 

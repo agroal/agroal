@@ -16,19 +16,21 @@ import java.util.function.Supplier;
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( {"PackageVisibleField", "WeakerAccess"} )
 public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDataSourceConfiguration> {
+
+    AgroalConnectionPoolConfiguration connectionPoolConfiguration = null;
+
+    DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
+    volatile boolean metrics = false;
+    volatile MetricsEnabledListener metricsEnabledListener;
 
     private volatile boolean lock;
 
     private AgroalConnectionPoolConfigurationSupplier connectionPoolConfigurationSupplier = new AgroalConnectionPoolConfigurationSupplier();
-    private AgroalConnectionPoolConfiguration connectionPoolConfiguration = null;
-
-    private DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
-    private volatile boolean metrics = false;
-    private volatile MetricsEnabledListener metricsEnabledListener;
 
     public AgroalDataSourceConfigurationSupplier() {
-        this.lock = false;
+        lock = false;
     }
 
     private void checkLock() {
@@ -107,7 +109,7 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     @SuppressWarnings( "ReturnOfInnerClass" )
     public AgroalDataSourceConfiguration get() {
         validate();
-        this.lock = true;
+        lock = true;
 
         return new AgroalDataSourceConfiguration() {
 

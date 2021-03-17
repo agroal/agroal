@@ -93,9 +93,9 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         this( "" );
     }
 
-    public AgroalPropertiesReader(String prefix) {
-        this.prefix = prefix;
-        this.dataSourceSupplier = new AgroalDataSourceConfigurationSupplier();
+    public AgroalPropertiesReader(String readerPrefix) {
+        prefix = readerPrefix;
+        dataSourceSupplier = new AgroalDataSourceConfigurationSupplier();
     }
 
     @Override
@@ -146,29 +146,29 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
 
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );
-        apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationMs, properties, ACQUISITION_TIMEOUT_MS );
-        apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationS, properties, ACQUISITION_TIMEOUT_S );
-        apply( connectionPoolSupplier::acquisitionTimeout, this::parseDurationM, properties, ACQUISITION_TIMEOUT_M );
+        apply( connectionPoolSupplier::acquisitionTimeout, AgroalPropertiesReader::parseDurationMs, properties, ACQUISITION_TIMEOUT_MS );
+        apply( connectionPoolSupplier::acquisitionTimeout, AgroalPropertiesReader::parseDurationS, properties, ACQUISITION_TIMEOUT_S );
+        apply( connectionPoolSupplier::acquisitionTimeout, AgroalPropertiesReader::parseDurationM, properties, ACQUISITION_TIMEOUT_M );
 
         apply( connectionPoolSupplier::validationTimeout, Duration::parse, properties, VALIDATION_TIMEOUT );
-        apply( connectionPoolSupplier::validationTimeout, this::parseDurationMs, properties, VALIDATION_TIMEOUT_MS );
-        apply( connectionPoolSupplier::validationTimeout, this::parseDurationS, properties, VALIDATION_TIMEOUT_S );
-        apply( connectionPoolSupplier::validationTimeout, this::parseDurationM, properties, VALIDATION_TIMEOUT_M );
+        apply( connectionPoolSupplier::validationTimeout, AgroalPropertiesReader::parseDurationMs, properties, VALIDATION_TIMEOUT_MS );
+        apply( connectionPoolSupplier::validationTimeout, AgroalPropertiesReader::parseDurationS, properties, VALIDATION_TIMEOUT_S );
+        apply( connectionPoolSupplier::validationTimeout, AgroalPropertiesReader::parseDurationM, properties, VALIDATION_TIMEOUT_M );
 
         apply( connectionPoolSupplier::leakTimeout, Duration::parse, properties, LEAK_TIMEOUT );
-        apply( connectionPoolSupplier::leakTimeout, this::parseDurationMs, properties, LEAK_TIMEOUT_MS );
-        apply( connectionPoolSupplier::leakTimeout, this::parseDurationS, properties, LEAK_TIMEOUT_S );
-        apply( connectionPoolSupplier::leakTimeout, this::parseDurationM, properties, LEAK_TIMEOUT_M );
+        apply( connectionPoolSupplier::leakTimeout, AgroalPropertiesReader::parseDurationMs, properties, LEAK_TIMEOUT_MS );
+        apply( connectionPoolSupplier::leakTimeout, AgroalPropertiesReader::parseDurationS, properties, LEAK_TIMEOUT_S );
+        apply( connectionPoolSupplier::leakTimeout, AgroalPropertiesReader::parseDurationM, properties, LEAK_TIMEOUT_M );
 
         apply( connectionPoolSupplier::reapTimeout, Duration::parse, properties, REAP_TIMEOUT );
-        apply( connectionPoolSupplier::reapTimeout, this::parseDurationMs, properties, REAP_TIMEOUT_MS );
-        apply( connectionPoolSupplier::reapTimeout, this::parseDurationS, properties, REAP_TIMEOUT_S );
-        apply( connectionPoolSupplier::reapTimeout, this::parseDurationM, properties, REAP_TIMEOUT_M );
+        apply( connectionPoolSupplier::reapTimeout, AgroalPropertiesReader::parseDurationMs, properties, REAP_TIMEOUT_MS );
+        apply( connectionPoolSupplier::reapTimeout, AgroalPropertiesReader::parseDurationS, properties, REAP_TIMEOUT_S );
+        apply( connectionPoolSupplier::reapTimeout, AgroalPropertiesReader::parseDurationM, properties, REAP_TIMEOUT_M );
 
         apply( connectionPoolSupplier::maxLifetime, Duration::parse, properties, MAX_LIFETIME );
-        apply( connectionPoolSupplier::maxLifetime, this::parseDurationMs, properties, MAX_LIFETIME_MS );
-        apply( connectionPoolSupplier::maxLifetime, this::parseDurationS, properties, MAX_LIFETIME_S );
-        apply( connectionPoolSupplier::maxLifetime, this::parseDurationM, properties, MAX_LIFETIME_M );
+        apply( connectionPoolSupplier::maxLifetime, AgroalPropertiesReader::parseDurationMs, properties, MAX_LIFETIME_MS );
+        apply( connectionPoolSupplier::maxLifetime, AgroalPropertiesReader::parseDurationS, properties, MAX_LIFETIME_S );
+        apply( connectionPoolSupplier::maxLifetime, AgroalPropertiesReader::parseDurationM, properties, MAX_LIFETIME_M );
 
         apply( connectionFactorySupplier::jdbcUrl, identity(), properties, JDBC_URL );
         apply( connectionFactorySupplier::autoCommit, Boolean::parseBoolean, properties, AUTO_COMMIT );
@@ -203,15 +203,15 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         }
     }
 
-    private Duration parseDurationMs(String value) {
+    private static Duration parseDurationMs(String value) {
         return Duration.ofMillis( parseLong( value ) );
     }
 
-    private Duration parseDurationS(String value) {
+    private static Duration parseDurationS(String value) {
         return Duration.ofSeconds( parseLong( value ) );
     }
 
-    private Duration parseDurationM(String value) {
+    private static Duration parseDurationM(String value) {
         return Duration.ofMinutes( parseLong( value ) );
     }
 }
