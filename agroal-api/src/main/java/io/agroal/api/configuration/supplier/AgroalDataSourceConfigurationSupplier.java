@@ -19,10 +19,10 @@ import java.util.function.Supplier;
 @SuppressWarnings( {"PackageVisibleField", "WeakerAccess"} )
 public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDataSourceConfiguration> {
 
-    AgroalConnectionPoolConfiguration connectionPoolConfiguration = null;
+    AgroalConnectionPoolConfiguration connectionPoolConfiguration;
 
     DataSourceImplementation dataSourceImplementation = DataSourceImplementation.AGROAL;
-    volatile boolean metrics = false;
+    volatile boolean metrics;
     volatile MetricsEnabledListener metricsEnabledListener;
 
     private volatile boolean lock;

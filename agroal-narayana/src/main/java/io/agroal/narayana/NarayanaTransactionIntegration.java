@@ -149,12 +149,14 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         private final ResourceRecoveryFactory connectionFactory;
         private final String name;
 
-        public AgroalXAResourceRecovery(ResourceRecoveryFactory factory, String jndiName) {
+        @SuppressWarnings( "WeakerAccess" )
+        AgroalXAResourceRecovery(ResourceRecoveryFactory factory, String jndiName) {
             connectionFactory = factory;
             name = jndiName;
         }
 
         @Override
+        @SuppressWarnings( "resource" )
         public XAResource[] getXAResources() {
             XAConnection xaConnection = connectionFactory.getRecoveryConnection();
             try {
@@ -169,7 +171,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
         private final TransactionAware transactionAware;
 
-        private InterposedSynchronization(TransactionAware transactionAware) {
+        @SuppressWarnings( "WeakerAccess" )
+        InterposedSynchronization(TransactionAware transactionAware) {
             this.transactionAware = transactionAware;
         }
 

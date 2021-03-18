@@ -36,6 +36,8 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  */
 public final class CallableStatementWrapper extends StatementWrapper implements CallableStatement {
 
+    static final String CLOSED_CALLABLE_STATEMENT_STRING = CallableStatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
+
     private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -45,7 +47,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
                 case "isClosed":
                     return Boolean.TRUE;
                 case "toString":
-                    return StatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
+                    return CLOSED_CALLABLE_STATEMENT_STRING;
                 default:
                     throw new SQLException( "CallableStatement is closed" );
             }

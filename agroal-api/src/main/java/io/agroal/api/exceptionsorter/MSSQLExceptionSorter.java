@@ -8,13 +8,14 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSo
 import java.sql.SQLException;
 
 /**
- * Execption sorter for MSSQL databases.
+ * Exception sorter for MSSQL databases.
  *
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public class MSSQLExceptionSorter implements ExceptionSorter {
 
     @Override
+    @SuppressWarnings( "CallToSuspiciousStringMethod" )
     public boolean isFatal(SQLException e) {
         return "08S01".equals( e.getSQLState() );
     }

@@ -15,6 +15,7 @@ import java.sql.SQLException;
 public class DB2ExceptionSorter implements ExceptionSorter {
 
     @Override
+    @SuppressWarnings( "MagicNumber" )
     public boolean isFatal(SQLException e) {
         int code = Math.abs( e.getErrorCode() );
         return code == 4470 || code == 4499;

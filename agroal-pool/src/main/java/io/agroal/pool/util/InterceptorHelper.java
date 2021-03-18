@@ -13,13 +13,14 @@ import java.util.List;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( {"UtilityClass", "ObjectAllocationInLoop"} )
 public final class InterceptorHelper {
 
     private InterceptorHelper() {
     }
 
     public static void fireOnConnectionAcquiredInterceptor(List<? extends AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
-        if ( interceptors != null && interceptors.size() > 0 ) {
+        if ( interceptors != null && !interceptors.isEmpty() ) {
             for ( AgroalPoolInterceptor interceptor : interceptors ) {
                 try ( Connection connection = handler.newDetachedConnectionWrapper() ) {
                     interceptor.onConnectionAcquire( connection );
@@ -29,7 +30,7 @@ public final class InterceptorHelper {
     }
 
     public static void fireOnConnectionReturnInterceptor(List<? extends AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
-        if ( interceptors != null && interceptors.size() > 0 ) {
+        if ( interceptors != null && !interceptors.isEmpty() ) {
             for ( int i = interceptors.size(); i > 0; ) {
                 try ( Connection connection = handler.newDetachedConnectionWrapper() ) {
                     interceptors.get( --i ).onConnectionReturn( connection );

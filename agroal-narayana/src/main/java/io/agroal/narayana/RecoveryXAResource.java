@@ -17,10 +17,10 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
     private final String jndiName;
     private XAConnection xaConnection;
 
-    public RecoveryXAResource(XAConnection connection, String jndiName) throws SQLException {
-        this.xaConnection = connection;
-        this.wrappedResource = connection.getXAResource();
-        this.jndiName = jndiName;
+    public RecoveryXAResource(XAConnection connection, String name) throws SQLException {
+        xaConnection = connection;
+        wrappedResource = connection.getXAResource();
+        jndiName = name;
     }
 
     @Override

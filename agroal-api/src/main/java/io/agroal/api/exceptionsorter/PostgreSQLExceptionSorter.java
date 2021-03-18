@@ -15,6 +15,7 @@ import java.sql.SQLException;
 public class PostgreSQLExceptionSorter implements ExceptionSorter {
 
     @Override
+    @SuppressWarnings( "CallToSuspiciousStringMethod" )
     public boolean isFatal(SQLException e) {
         return "08006".equals( e.getSQLState() );
     }

@@ -35,20 +35,6 @@
                     <execution>
                         <goals>
                             <goal>generate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <packages>io.agroal.api.*</packages>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.netbeans.tools</groupId>
-                <artifactId>sigtest-maven-plugin</artifactId>
-                <version>${version.org.netbeans.tools.sigtest-maven-plugin}</version>
-                <executions>
-                    <execution>
-                        <goals>
                             <goal>check</goal>
                         </goals>
                     </execution>

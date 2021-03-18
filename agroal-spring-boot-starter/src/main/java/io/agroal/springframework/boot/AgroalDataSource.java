@@ -28,17 +28,24 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
+
+import static java.lang.System.lineSeparator;
+import static java.util.stream.Collectors.joining;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class AgroalDataSource implements io.agroal.api.AgroalDataSource, InitializingBean {
 
+    private static final long serialVersionUID = 3633107290245258196L;
+
     private final Log logger = LogFactory.getLog( AgroalDataSource.class );
 
+    @SuppressWarnings( "NonSerializableFieldInSerializableClass" )
     private final AgroalDataSourceConfigurationSupplier datasourceConfiguration;
+    @SuppressWarnings( "NonSerializableFieldInSerializableClass" )
     private final AgroalConnectionPoolConfigurationSupplier connectionPoolConfiguration;
+    @SuppressWarnings( "NonSerializableFieldInSerializableClass" )
     private final AgroalConnectionFactoryConfigurationSupplier connectionFactoryConfiguration;
 
     private io.agroal.api.AgroalDataSource delegate;
@@ -53,6 +60,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
 
     @Override
+    @SuppressWarnings( "StringConcatenation" )
     public void afterPropertiesSet() throws SQLException {
         connectionPoolConfiguration.connectionFactoryConfiguration( connectionFactoryConfiguration );
         datasourceConfiguration.connectionPoolConfiguration( connectionPoolConfiguration );
@@ -111,6 +119,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setJtaTransactionIntegration(JtaTransactionManager jtaPlatform) {
         connectionPoolConfiguration.transactionIntegration( new NarayanaTransactionIntegration( jtaPlatform.getTransactionManager(), jtaPlatform.getTransactionSynchronizationRegistry() ) );
+    }
+
+    public void setEnhancedLeakReport(boolean enhanced) {
+        connectionPoolConfiguration.enhancedLeakReport( enhanced );
     }
 
     // --- //
@@ -187,6 +199,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
 
     @Override
+    @SuppressWarnings( "StringConcatenation" )
     public void close() {
         logger.debug( "Closing DataSource " + datasourceName );
         delegate.close();
@@ -242,11 +255,13 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     // --- //
 
+    @SuppressWarnings( "StringConcatenation" )
     private static class LoggingListener implements AgroalDataSourceListener {
 
         private final Log logger;
 
-        private LoggingListener(String name) {
+        @SuppressWarnings( {"WeakerAccess", "SingleCharacterStringConcatenation"} )
+        LoggingListener(String name) {
             logger = LogFactory.getLog( io.agroal.api.AgroalDataSource.class.getName() + ".'" + name + "'" );
         }
 
@@ -288,8 +303,8 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
         @Override
         public void onConnectionLeak(Connection connection, Thread thread) {
-            logger.info( "Connection " + connection + "leak! Acquired by " + thread.getName() );
-            logger.info( Arrays.stream( thread.getStackTrace() ).map( StackTraceElement::toString ).collect( Collectors.joining( System.lineSeparator() ) ) );
+            logger.info( "Connection " + connection + " leak! Acquired by " + thread.getName() );
+            logger.info( Arrays.stream( thread.getStackTrace() ).map( StackTraceElement::toString ).collect( joining( lineSeparator() ) ) );
         }
 
         @Override

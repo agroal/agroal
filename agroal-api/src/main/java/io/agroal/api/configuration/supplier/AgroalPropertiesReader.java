@@ -33,6 +33,7 @@ import static java.util.function.Function.identity;
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( "WeakerAccess" )
 public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfiguration> {
 
     public static final String IMPLEMENTATION = "implementation";
@@ -186,6 +187,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         return this;
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     private <T> void apply(Consumer<? super T> consumer, Function<? super String, T> converter, Map<String, String> properties, String key) {
         String value = properties.get( prefix + key );
         if ( value != null ) {
@@ -193,6 +195,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         }
     }
 
+    @SuppressWarnings( {"SameParameterValue", "StringConcatenation"} )
     private void applyJdbcProperties(BiConsumer<? super String, ? super String> consumer, Map<String, String> properties, String key) {
         String propertiesArray = properties.get( prefix + key );
         if ( propertiesArray != null && !propertiesArray.isEmpty() ) {
@@ -202,6 +205,8 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
             }
         }
     }
+
+    // --- //
 
     private static Duration parseDurationMs(String value) {
         return Duration.ofMillis( parseLong( value ) );

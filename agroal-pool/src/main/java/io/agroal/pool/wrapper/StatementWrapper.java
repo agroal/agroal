@@ -21,6 +21,8 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  */
 public class StatementWrapper implements Statement {
 
+    static final String CLOSED_STATEMENT_STRING = StatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
+
     private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -30,7 +32,7 @@ public class StatementWrapper implements Statement {
                 case "isClosed":
                     return Boolean.TRUE;
                 case "toString":
-                    return StatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
+                    return CLOSED_STATEMENT_STRING;
                 default:
                     throw new SQLException( "Statement is closed" );
             }
@@ -41,6 +43,7 @@ public class StatementWrapper implements Statement {
 
     // --- //
 
+    @SuppressWarnings( "ProtectedField" )
     protected final ConnectionWrapper connection;
 
     // Collection of ResultSet to close them on close(). If null ResultSet are not tracked.
@@ -65,7 +68,7 @@ public class StatementWrapper implements Statement {
         return resultSet;
     }
 
-    protected void closeTrackedResultSets() throws SQLException {
+    private void closeTrackedResultSets() throws SQLException {
         if ( trackedResultSets != null && !trackedResultSets.isEmpty() ) {
             for ( ResultSet resultSet : trackedResultSets ) {
                 resultSet.close();
@@ -524,9 +527,9 @@ public class StatementWrapper implements Statement {
     }
 
     @Override
-    public void setLargeMaxRows(long max) throws SQLException {
+    public long getLargeMaxRows() throws SQLException {
         try {
-            wrappedStatement.setLargeMaxRows( max );
+            return wrappedStatement.getLargeMaxRows();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -534,9 +537,9 @@ public class StatementWrapper implements Statement {
     }
 
     @Override
-    public long getLargeMaxRows() throws SQLException {
+    public void setLargeMaxRows(long max) throws SQLException {
         try {
-            return wrappedStatement.getLargeMaxRows();
+            wrappedStatement.setLargeMaxRows( max );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;

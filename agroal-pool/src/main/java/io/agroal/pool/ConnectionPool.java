@@ -430,15 +430,11 @@ public final class ConnectionPool implements Pool {
 
     @Override
     public void onMetricsEnabled(boolean metricsEnabled) {
-        setMetricsRepository( metricsEnabled ? new DefaultMetricsRepository( this ) : new EmptyMetricsRepository() );
+        metricsRepository = metricsEnabled ? new DefaultMetricsRepository( this ) : new EmptyMetricsRepository();
     }
 
     public MetricsRepository getMetrics() {
         return metricsRepository;
-    }
-
-    public void setMetricsRepository(MetricsRepository metricsRepository) {
-        this.metricsRepository = metricsRepository;
     }
 
     public long activeCount() {
@@ -523,12 +519,14 @@ public final class ConnectionPool implements Pool {
         private final AgroalDataSource.FlushMode mode;
         private final ConnectionHandler handler;
 
-        public FlushTask(AgroalDataSource.FlushMode mode) {
+        @SuppressWarnings( "WeakerAccess" )
+        FlushTask(AgroalDataSource.FlushMode mode) {
             this.mode = mode;
             this.handler = null;
         }
 
-        public FlushTask(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
+        @SuppressWarnings( "WeakerAccess" )
+        FlushTask(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
             this.mode = mode;
             this.handler = handler;
         }
@@ -586,7 +584,7 @@ public final class ConnectionPool implements Pool {
             }
         }
 
-        public void flushHandler(ConnectionHandler handler) {
+        private void flushHandler(ConnectionHandler handler) {
             allConnections.remove( handler );
             metricsRepository.afterConnectionFlush();
             fireOnConnectionFlush( listeners, handler );
@@ -640,7 +638,7 @@ public final class ConnectionPool implements Pool {
 
             private final ConnectionHandler handler;
 
-            public LeakConnectionTask(ConnectionHandler handler) {
+            LeakConnectionTask(ConnectionHandler handler) {
                 this.handler = handler;
             }
 
@@ -672,7 +670,7 @@ public final class ConnectionPool implements Pool {
 
             private final ConnectionHandler handler;
 
-            public ValidateConnectionTask(ConnectionHandler handler) {
+            ValidateConnectionTask(ConnectionHandler handler) {
                 this.handler = handler;
             }
 
@@ -715,7 +713,7 @@ public final class ConnectionPool implements Pool {
 
             private final ConnectionHandler handler;
 
-            public ReapConnectionTask(ConnectionHandler handler) {
+            ReapConnectionTask(ConnectionHandler handler) {
                 this.handler = handler;
             }
 
@@ -743,7 +741,7 @@ public final class ConnectionPool implements Pool {
 
         private final ConnectionHandler handler;
 
-        public DestroyConnectionTask(ConnectionHandler handler) {
+        DestroyConnectionTask(ConnectionHandler handler) {
             this.handler = handler;
         }
 

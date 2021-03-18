@@ -65,6 +65,7 @@ public final class ConnectionHandler implements TransactionAware {
     private Thread holdingThread;
 
     // Enhanced leak report
+    @SuppressWarnings( "VolatileArrayField" )
     private volatile StackTraceElement[] acquisitionStackTrace;
     private StackTraceElement[] lastOperationStackTrace;
     private List<String> connectionOperations;
@@ -104,6 +105,7 @@ public final class ConnectionHandler implements TransactionAware {
         return new ConnectionWrapper( this, connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources(), true );
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     public void onConnectionWrapperClose(ConnectionWrapper wrapper, ConnectionWrapper.JdbcResourcesLeakReport leakReport) throws SQLException {
         if ( leakReport.hasLeak() ) {
             fireOnWarning( connectionPool.getListeners(), "JDBC resources leaked: " + leakReport.resultSetCount() + " ResultSet(s) and " + leakReport.statementCount() + " Statement(s)" );
@@ -123,6 +125,7 @@ public final class ConnectionHandler implements TransactionAware {
         return xaResource;
     }
 
+    @SuppressWarnings( "MagicConstant" )
     public void resetConnection() throws SQLException {
         transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
@@ -195,7 +198,7 @@ public final class ConnectionHandler implements TransactionAware {
         stateUpdater.set( this, newState );
     }
 
-    public boolean isActive() {
+    private boolean isActive() {
         return stateUpdater.get( this ) == State.CHECKED_OUT;
     }
 
@@ -230,11 +233,12 @@ public final class ConnectionHandler implements TransactionAware {
     /**
      * Abbreviated list of all operation on the connection, for enhanced leak report
      */
+    @SuppressWarnings( "VariableNotUsedInsideIf" )
     public void traceConnectionOperation(String operation) {
         if ( acquisitionStackTrace != null ) {
             connectionOperations.add( operation );
             StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-            lastOperationStackTrace = Arrays.copyOfRange(trace, 3, trace.length);
+            lastOperationStackTrace = Arrays.copyOfRange( trace, 3, trace.length );
         }
     }
 
@@ -253,13 +257,6 @@ public final class ConnectionHandler implements TransactionAware {
     }
 
     /**
-     * Stack trace for the last operation on this connection
-     */
-    public StackTraceElement[] getLastOperationStackTrace() {
-        return lastOperationStackTrace;
-    }
-
-    /**
      * Stores a stack trace for leak report. Setting a value != null also enables tracing of operations on the connection
      */
     public void setAcquisitionStackTrace(StackTraceElement[] stackTrace) {
@@ -269,6 +266,13 @@ public final class ConnectionHandler implements TransactionAware {
         }
         connectionOperations.clear();
         acquisitionStackTrace = stackTrace;
+    }
+
+    /**
+     * Stack trace for the last operation on this connection
+     */
+    public StackTraceElement[] getLastOperationStackTrace() {
+        return lastOperationStackTrace;
     }
 
     public void setDirtyAttribute(DirtyAttribute attribute) {

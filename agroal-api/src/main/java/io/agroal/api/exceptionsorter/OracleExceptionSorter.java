@@ -16,6 +16,7 @@ import java.util.Locale;
 public class OracleExceptionSorter implements ExceptionSorter {
 
     @Override
+    @SuppressWarnings( {"CallToSuspiciousStringMethod", "MagicNumber"} )
     public boolean isFatal(SQLException e) {
         int errorCode = Math.abs( e.getErrorCode() );
 

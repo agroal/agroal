@@ -119,6 +119,7 @@ public final class Poolless implements Pool {
         return unmodifiableList( interceptors );
     }
 
+    @SuppressWarnings( {"StringConcatenation", "SingleCharacterStringConcatenation"} )
     public void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> list) {
         if ( list.stream().anyMatch( i -> i.getPriority() < 0 ) ) {
             throw new IllegalArgumentException( "Negative priority values on AgroalPoolInterceptor are reserved." );
@@ -235,6 +236,7 @@ public final class Poolless implements Pool {
         }
     }
 
+    @SuppressWarnings( "SingleCharacterStringConcatenation" )
     private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) throws SQLException {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
@@ -285,15 +287,11 @@ public final class Poolless implements Pool {
 
     @Override
     public void onMetricsEnabled(boolean metricsEnabled) {
-        setMetricsRepository( metricsEnabled ? new DefaultMetricsRepository( this ) : new EmptyMetricsRepository() );
+        metricsRepository = metricsEnabled ? new DefaultMetricsRepository( this ) : new EmptyMetricsRepository();
     }
 
     public MetricsRepository getMetrics() {
         return metricsRepository;
-    }
-
-    public void setMetricsRepository(MetricsRepository metricsRepository) {
-        this.metricsRepository = metricsRepository;
     }
 
     public long activeCount() {
@@ -318,7 +316,7 @@ public final class Poolless implements Pool {
 
     // --- create //
 
-    public ConnectionHandler createConnection() throws SQLException {
+    private ConnectionHandler createConnection() throws SQLException {
         fireBeforeConnectionCreation( listeners );
         long metricsStamp = metricsRepository.beforeConnectionCreation();
 
@@ -359,7 +357,7 @@ public final class Poolless implements Pool {
         }
     }
 
-    public void flushHandler(ConnectionHandler handler) {
+    private void flushHandler(ConnectionHandler handler) {
         handler.setState( FLUSH );
         allConnections.remove( handler );
         activeCount.decrementAndGet();
@@ -371,7 +369,7 @@ public final class Poolless implements Pool {
 
     // --- destroy //
 
-    public void destroyConnection(ConnectionHandler handler) {
+    private void destroyConnection(ConnectionHandler handler) {
         fireBeforeConnectionDestroy( listeners, handler );
         try {
             handler.closeConnection();

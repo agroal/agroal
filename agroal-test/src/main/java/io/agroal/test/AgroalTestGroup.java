@@ -6,7 +6,8 @@ package io.agroal.test;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class AgroalTestGroup {
+@SuppressWarnings( "UtilityClass" )
+public final class AgroalTestGroup {
 
     public static final String FUNCTIONAL = "functional";
     public static final String TRANSACTION = "transaction";

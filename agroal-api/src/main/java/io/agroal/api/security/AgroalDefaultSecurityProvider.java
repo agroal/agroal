@@ -14,6 +14,7 @@ import java.util.Properties;
 public class AgroalDefaultSecurityProvider implements AgroalSecurityProvider {
 
     @Override
+    @SuppressWarnings( "InstanceofConcreteClass" )
     public Properties getSecurityProperties(Object securityObject) {
         if ( securityObject instanceof NamePrincipal ) {
             return ( (NamePrincipal) securityObject ).asProperties();

@@ -17,9 +17,9 @@ public class ErrorConditionXAResource implements AutoCloseable, XAResourceWrappe
     private final SQLException error;
     private final String jndiName;
 
-    public ErrorConditionXAResource(XAConnection xaConnection, SQLException e, String jndiName) {
+    public ErrorConditionXAResource(XAConnection xaConnection, SQLException error, String jndiName) {
         this.xaConnection = xaConnection;
-        this.error = e;
+        this.error = error;
         this.jndiName = jndiName;
     }
 

@@ -11,6 +11,7 @@ import java.util.Arrays;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( "UtilityClass" )
 public final class ListenerHelper {
 
     private ListenerHelper() {
@@ -64,6 +65,7 @@ public final class ListenerHelper {
         }
     }
 
+    @SuppressWarnings( {"StringConcatenation", "ObjectAllocationInLoop"} )
     public static void fireOnConnectionLeak(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
             listener.onConnectionLeak( handler.getConnection(), handler.getHoldingThread() );

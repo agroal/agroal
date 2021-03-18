@@ -56,7 +56,7 @@ public class NamePrincipal implements Serializable, Principal {
 
     public Properties asProperties() {
         Properties properties = new Properties();
-        properties.setProperty( "user", getName() );
+        properties.setProperty( "user", name );
         return properties;
     }
 }

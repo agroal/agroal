@@ -19,6 +19,7 @@ public final class PropertyInjector {
 
     private final Map<String, Method> propertySetter = new HashMap<>();
 
+    @SuppressWarnings( "CallToSuspiciousStringMethod" )
     public PropertyInjector(Class<?> cls) {
         this.cls = cls;
 
@@ -32,6 +33,7 @@ public final class PropertyInjector {
         }
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     public void inject(Object target, String propertyName, String propertyValue) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
         String realName = propertyName.substring( 0, 1 ).toUpperCase( Locale.ROOT ) + propertyName.substring( 1 );
         if ( propertySetter.containsKey( realName ) ) {

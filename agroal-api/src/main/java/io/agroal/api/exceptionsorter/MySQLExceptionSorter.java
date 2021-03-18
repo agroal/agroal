@@ -15,6 +15,7 @@ import java.sql.SQLException;
 public class MySQLExceptionSorter implements ExceptionSorter {
 
     @Override
+    @SuppressWarnings( "MagicNumber" )
     public boolean isFatal(SQLException e) {
         if ( e.getSQLState() != null && e.getSQLState().startsWith( "08" ) ) {
             return true;

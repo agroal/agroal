@@ -47,7 +47,7 @@ public class LocalXAResource implements XAResourceWrapper {
                 transactionAware.transactionStart();
             } catch ( Exception t ) {
                 transactionAware.setFlushOnly();
-                throw xaException( XAER_RMERR, "Error trying to start local transaction: " + t.getMessage(), t );
+                throw xaException( XAER_RMERR, "Error trying to start local transaction: ", t );
             }
             currentXid = xid;
         } else {
@@ -68,7 +68,7 @@ public class LocalXAResource implements XAResourceWrapper {
             transactionAware.transactionCommit();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();
-            throw xaException( onePhase ? XA_RBROLLBACK : XAER_RMERR, "Error trying to transactionCommit local transaction: " + t.getMessage(), t );
+            throw xaException( onePhase ? XA_RBROLLBACK : XAER_RMERR, "Error trying to transactionCommit local transaction: ", t );
         }
     }
 
@@ -83,7 +83,7 @@ public class LocalXAResource implements XAResourceWrapper {
             transactionAware.transactionRollback();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();
-            throw xaException( XAER_RMERR, "Error trying to transactionRollback local transaction: " + t.getMessage(), t );
+            throw xaException( XAER_RMERR, "Error trying to transactionRollback local transaction: ", t );
         }
     }
 
@@ -127,8 +127,9 @@ public class LocalXAResource implements XAResourceWrapper {
         return false;
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     private static XAException xaException(int errorCode, String message, Throwable cause) {
-        XAException xaException = xaException( errorCode, message );
+        XAException xaException = xaException( errorCode, message + cause.getMessage() );
         xaException.initCause( cause );
         return xaException;
     }

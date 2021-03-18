@@ -47,22 +47,23 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
         this.listeners = listeners;
-        this.jdbcProperties = new Properties();
+
+        jdbcProperties = new Properties();
         configuration.jdbcProperties().forEach( jdbcProperties::put );
 
-        this.factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
+        factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
         switch ( factoryMode ) {
             case XA_DATASOURCE:
-                this.injector = new PropertyInjector( configuration.connectionProviderClass() );
-                this.xaDataSource = newXADataSource( jdbcProperties );
-                this.xaRecoveryDataSource = newXADataSource( jdbcProperties );
+                injector = new PropertyInjector( configuration.connectionProviderClass() );
+                xaDataSource = newXADataSource( jdbcProperties );
+                xaRecoveryDataSource = newXADataSource( jdbcProperties );
                 break;
             case DATASOURCE:
-                this.injector = new PropertyInjector( configuration.connectionProviderClass() );
-                this.dataSource = newDataSource( jdbcProperties );
+                injector = new PropertyInjector( configuration.connectionProviderClass() );
+                dataSource = newDataSource( jdbcProperties );
                 break;
             case DRIVER:
-                this.driver = newDriver();
+                driver = newDriver();
                 break;
         }
     }
@@ -98,6 +99,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         return newDataSource;
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     private java.sql.Driver newDriver() {
         if ( configuration.connectionProviderClass() == null ) {
             try {
@@ -120,6 +122,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     private void injectUrlProperty(Object target, String propertyName, String propertyValue) {
         try {
             injector.inject( target, propertyName, propertyValue );
@@ -133,6 +136,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
+    @SuppressWarnings( {"ObjectAllocationInLoop", "StringConcatenation"} )
     private void injectJdbcProperties(Object target, Properties properties) {
         boolean ignoring = false;
         for ( String propertyName : properties.stringPropertyNames() ) {
@@ -209,6 +213,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
+    @SuppressWarnings( "MagicConstant" )
     private Connection connectionSetup(Connection connection) throws SQLException {
         if ( connection == null ) {
             // AG-90: Driver can return null if the URL is not supported (see java.sql.Driver#connect() documentation)
@@ -240,6 +245,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     // --- //
 
     @Override
+    @SuppressWarnings( "StringConcatenation" )
     public XAConnection getRecoveryConnection() {
         try {
             if ( factoryMode == Mode.XA_DATASOURCE ) {
@@ -259,7 +265,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
 
         DRIVER, DATASOURCE, XA_DATASOURCE;
 
-        private static Mode fromClass(Class<?> providerClass) {
+        @SuppressWarnings( "WeakerAccess" )
+        static Mode fromClass(Class<?> providerClass) {
             if ( providerClass == null ) {
                 return DRIVER;
             } else if ( javax.sql.XADataSource.class.isAssignableFrom( providerClass ) ) {

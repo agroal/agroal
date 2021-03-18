@@ -246,9 +246,10 @@ public final class UncheckedArrayList<T> implements List<T> {
 
         private final T[] data;
 
-        private int index = 0;
+        private int index;
 
-        public UncheckedIterator(T[] data, int size) {
+        @SuppressWarnings( "WeakerAccess" )
+        UncheckedIterator(T[] data, int size) {
             this.data = data;
             this.size = size;
         }

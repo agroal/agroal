@@ -35,14 +35,17 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
         setRemoveOnCancelPolicy( true );
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     public void executeNow(Runnable priorityTask) {
         executeNow( new FutureTask<>( priorityTask, null ) );
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     public <T> Future<T> executeNow(Callable<T> priorityTask) {
         return executeNow( new FutureTask<>( priorityTask ) );
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     public <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
         if ( isShutdown() ) {
             throw new RejectedExecutionException( "Task " + priorityFuture + " rejected from " + this );
@@ -95,7 +98,8 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
         private final AtomicLong threadCount;
         private final String threadPrefix;
 
-        public PriorityExecutorThreadFactory(String threadPrefix) {
+        @SuppressWarnings( "WeakerAccess" )
+        PriorityExecutorThreadFactory(String threadPrefix) {
             this.threadPrefix = threadPrefix;
             threadCount = new AtomicLong();
         }

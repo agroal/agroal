@@ -27,15 +27,15 @@ import static java.time.Duration.ZERO;
 @SuppressWarnings( {"PackageVisibleField", "WeakerAccess"} )
 public class AgroalConnectionPoolConfigurationSupplier implements Supplier<AgroalConnectionPoolConfiguration> {
 
-    AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = null;
+    AgroalConnectionFactoryConfiguration connectionFactoryConfiguration;
 
     TransactionIntegration transactionIntegration = none();
     TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
     MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
-    boolean enhancedLeakReport = false;
-    boolean flushOnClose = false;
-    int initialSize = 0;
-    volatile int minSize = 0;
+    boolean enhancedLeakReport;
+    boolean flushOnClose;
+    int initialSize;
+    volatile int minSize;
     volatile int maxSize = MAX_VALUE;
     AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
     AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = emptyExceptionSorter();

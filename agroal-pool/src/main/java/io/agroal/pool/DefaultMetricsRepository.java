@@ -37,7 +37,7 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     private final LongAccumulator maxAcquireDuration = new LongAccumulator( Long::max, 0 );
 
     public DefaultMetricsRepository(Pool pool) {
-        this.connectionPool = pool;
+        connectionPool = pool;
     }
 
     @Override

@@ -117,7 +117,6 @@ public interface AgroalDataSourceListener {
 
     /**
      * Callback to allow reporting information of interest, for which a warning might be considered excessive.
-     * @param message
      */
     default void onInfo(String message) {}
 

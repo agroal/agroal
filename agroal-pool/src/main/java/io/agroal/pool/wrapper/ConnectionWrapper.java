@@ -35,10 +35,11 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  */
 public final class ConnectionWrapper implements Connection {
 
+    private static final String CLOSED_HANDLER_STRING = ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
+
     private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
         switch ( method.getName() ) {
             case "abort":
-                return Void.TYPE;
             case "close":
                 return Void.TYPE;
             case "isClosed":
@@ -46,7 +47,7 @@ public final class ConnectionWrapper implements Connection {
             case "isValid":
                 return Boolean.FALSE;
             case "toString":
-                return ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
+                return CLOSED_HANDLER_STRING;
             default:
                 throw new SQLException( "Connection is closed" );
         }
@@ -819,7 +820,8 @@ public final class ConnectionWrapper implements Connection {
 
         private final int resultSetCount;
 
-        public JdbcResourcesLeakReport(int statementCount, int resultSetCount) {
+        @SuppressWarnings( "WeakerAccess" )
+        JdbcResourcesLeakReport(int statementCount, int resultSetCount) {
             this.statementCount = statementCount;
             this.resultSetCount = resultSetCount;
         }

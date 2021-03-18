@@ -18,11 +18,11 @@ public class SimplePassword implements Serializable {
     private final String word;
 
     public SimplePassword(String password) {
-        this.word = password;
+        word = password;
     }
 
     public SimplePassword(char[] password) {
-        this.word = new String( password );
+        word = new String( password );
     }
 
     public String getWord() {
@@ -31,7 +31,7 @@ public class SimplePassword implements Serializable {
 
     public Properties asProperties() {
         Properties properties = new Properties();
-        properties.setProperty( "password", getWord() );
+        properties.setProperty( "password", word );
         return properties;
     }
 

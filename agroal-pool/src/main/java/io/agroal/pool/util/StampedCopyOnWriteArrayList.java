@@ -50,7 +50,7 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
         optimisticStamp = lock.tryOptimisticRead();
     }
 
-    public T[] getUnderlyingArray() {
+    private T[] getUnderlyingArray() {
         T[] array = data;
         if ( lock.validate( optimisticStamp ) ) {
             return array;
@@ -127,7 +127,8 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
         try {
             if ( index >= data.length || element != data[index] ) {
                 // contents changed, need to recheck the position of the element in the array
-                for ( index = 0; index < data.length; index++ ) {
+                int length = data.length;
+                for ( index = 0; index < length; index++ ) {
                     if ( element == data[index] ) {
                         break;
                     }
@@ -202,7 +203,8 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     @Override
     public int indexOf(Object o) {
         T[] array = getUnderlyingArray();
-        for ( int i = 0; i < array.length; i++ ) {
+        int length = array.length;
+        for ( int i = 0; i < length; i++ ) {
             if ( o == array[i] ) {
                 return i;
             }
@@ -312,9 +314,10 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
 
         private final T[] data;
 
-        private int index = 0;
+        private int index;
 
-        public UncheckedIterator(T[] array) {
+        @SuppressWarnings( "WeakerAccess" )
+        UncheckedIterator(T[] array) {
             data = array;
             size = data.length;
         }

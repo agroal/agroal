@@ -87,7 +87,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     }
 
     /**
-     * Sets if JBDC resources are tracked to be closed if leaked. Default is true.
+     * Sets if JDBC resources are tracked to be closed if leaked. Default is true.
      */
     public AgroalConnectionFactoryConfigurationSupplier trackJdbcResources(boolean trackJdbcResourcesEnabled) {
         checkLock();
@@ -213,6 +213,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
 
     // --- //
 
+    @SuppressWarnings( "stringConcatenation" )
     private void validate() {
         if ( jdbcProperties.containsKey( USER_PROPERTY_NAME ) ) {
             throw new IllegalArgumentException( "Invalid JDBC property '" + USER_PROPERTY_NAME + "': use principal instead." );

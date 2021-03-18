@@ -36,6 +36,8 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  */
 public final class ResultSetWrapper implements ResultSet {
 
+    static final String CLOSED_RESULT_SET_STRING = ResultSetWrapper.class.getSimpleName() + ".CLOSED_RESULT_SET";
+
     private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -45,7 +47,7 @@ public final class ResultSetWrapper implements ResultSet {
                 case "isClosed":
                     return Boolean.TRUE;
                 case "toString":
-                    return ResultSetWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
+                    return CLOSED_RESULT_SET_STRING;
                 default:
                     throw new SQLException( "ResultSet is closed" );
             }

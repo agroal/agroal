@@ -39,16 +39,18 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     private final AgroalConnectionPoolConfiguration poolConfiguration;
     private final AgroalConnectionFactoryConfiguration factoryConfiguration;
 
+    @SuppressWarnings( "NonSerializableFieldInSerializableClass" )
     private final HikariDataSource hikari;
 
     public HikariUnderTheCovers(AgroalDataSourceConfiguration dataSourceConfiguration, AgroalDataSourceListener... listeners) {
-        this.configuration = dataSourceConfiguration;
-        this.poolConfiguration = dataSourceConfiguration.connectionPoolConfiguration();
-        this.factoryConfiguration = poolConfiguration.connectionFactoryConfiguration();
-        this.hikari = new HikariDataSource( getHikariConfig( dataSourceConfiguration ) );
+        configuration = dataSourceConfiguration;
+        poolConfiguration = dataSourceConfiguration.connectionPoolConfiguration();
+        factoryConfiguration = poolConfiguration.connectionFactoryConfiguration();
+        hikari = new HikariDataSource( getHikariConfig() );
     }
 
-    private HikariConfig getHikariConfig(AgroalDataSourceConfiguration dataSourceConfiguration) {
+    @SuppressWarnings( "StringConcatenation" )
+    private HikariConfig getHikariConfig() {
         HikariConfig hikariConfig = new HikariConfig();
 
         // hikariConfig.setDataSourceJNDI( dataSourceConfiguration.jndiName() );

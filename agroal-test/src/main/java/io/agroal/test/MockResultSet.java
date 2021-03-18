@@ -91,7 +91,7 @@ public interface MockResultSet extends ResultSet {
     }
 
     @Override
-    @SuppressWarnings( "deprecation" )
+    @Deprecated
     default BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
         return null;
     }
@@ -122,7 +122,7 @@ public interface MockResultSet extends ResultSet {
     }
 
     @Override
-    @SuppressWarnings( "deprecation" )
+    @Deprecated
     default InputStream getUnicodeStream(int columnIndex) throws SQLException {
         return null;
     }
@@ -173,7 +173,7 @@ public interface MockResultSet extends ResultSet {
     }
 
     @Override
-    @SuppressWarnings( "deprecation" )
+    @Deprecated
     default BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException {
         return null;
     }
@@ -204,7 +204,7 @@ public interface MockResultSet extends ResultSet {
     }
 
     @Override
-    @SuppressWarnings( "deprecation" )
+    @Deprecated
     default InputStream getUnicodeStream(String columnLabel) throws SQLException {
         return null;
     }

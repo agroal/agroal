@@ -25,6 +25,7 @@ import javax.sql.DataSource;
 public class AgroalDataSourceConfiguration {
 
     @Autowired( required = false )
+    @SuppressWarnings( "WeakerAccess" )
     public JtaTransactionManager jtaPlatform;
 
     @Bean
