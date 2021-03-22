@@ -12,6 +12,7 @@ import static java.lang.System.identityHashCode;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( "InterfaceWithOnlyOneDirectInheritor" )
 public interface MockXAResource extends XAResource {
 
     @Override

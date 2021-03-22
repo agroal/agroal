@@ -26,7 +26,6 @@ import javax.transaction.TransactionSynchronizationRegistry;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
-import java.time.Duration;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -47,15 +46,15 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Tag( TRANSACTION )
 public class MultipleWrappersTests {
 
-    private static final Logger logger = getLogger( MultipleWrappersTests.class.getName() );
+    static final Logger logger = getLogger( MultipleWrappersTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver( CommitTrackerConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -63,7 +62,7 @@ public class MultipleWrappersTests {
 
     @Test
     @DisplayName( "Test concurrent Synchronization" )
-    public void testConcurrentSynchronizations() throws SQLException {
+    void testConcurrentSynchronizations() throws SQLException {
         JTAEnvironmentBean jta = jtaPropertyManager.getJTAEnvironmentBean();
         TransactionManager txManager = jta.getTransactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = jta.getTransactionSynchronizationRegistry();
@@ -112,6 +111,10 @@ public class MultipleWrappersTests {
 
     private static class WarningsAgroalDatasourceListener implements AgroalDataSourceListener {
 
+        @SuppressWarnings( "WeakerAccess" )
+        WarningsAgroalDatasourceListener() {
+        }
+
         @Override
         public void onWarning(String message) {
             if ( !message.startsWith( "Closing open connection" ) ) {
@@ -125,6 +128,7 @@ public class MultipleWrappersTests {
         }
     }
 
+    @SuppressWarnings( "ObjectToString" )
     public static class CommitTrackerConnection implements MockConnection {
 
         @Override

@@ -47,17 +47,17 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 @Tag( FUNCTIONAL )
 @Tag( TRANSACTION )
-public class EnlistmentTests {
+class EnlistmentTests {
 
     private static final Logger logger = getLogger( EnlistmentTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -65,7 +65,7 @@ public class EnlistmentTests {
 
     @Test
     @DisplayName( "Enroll connection after previous connection close test" )
-    public void enrollConnectionCloseTest() throws SQLException {
+    void enrollConnectionCloseTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -104,7 +104,7 @@ public class EnlistmentTests {
 
     @Test
     @DisplayName( "Connection outside the scope of a transaction test" )
-    public void connectionOutsideTransactionTest() throws SQLException {
+    void connectionOutsideTransactionTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -124,7 +124,7 @@ public class EnlistmentTests {
 
     @Test
     @DisplayName( "Deferred enlistment test" )
-    public void deferredEnlistmentTest() throws SQLException {
+    void deferredEnlistmentTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -152,8 +152,9 @@ public class EnlistmentTests {
     }
 
     @Test
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
     @DisplayName( "De-enlistment test" )
-    public void deEnlistmentTest() throws SQLException {
+    void deEnlistmentTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -187,7 +188,7 @@ public class EnlistmentTests {
 
     @Test
     @DisplayName( "Test the type of enlisted resource" )
-    public void enlistedResourceTypeTest() throws SQLException, SystemException {
+    void enlistedResourceTypeTest() throws SQLException, SystemException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -219,7 +220,7 @@ public class EnlistmentTests {
         verifyEnlistedResourceType( xaConfiguration, txManager, "xa", BaseXAResource.class );
     }
 
-    private void verifyEnlistedResourceType(AgroalDataSourceConfiguration configuration, TransactionManager txManager, String type, Class<?> resourceClass) throws SQLException, SystemException {
+    private static void verifyEnlistedResourceType(AgroalDataSourceConfiguration configuration, TransactionManager txManager, String type, Class<?> resourceClass) throws SQLException, SystemException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configuration ) ) {
             txManager.begin();
             try ( Connection connection = dataSource.getConnection() ) {

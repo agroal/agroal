@@ -42,12 +42,12 @@ public class LifetimeTests {
     private static final String FAKE_SCHEMA = "skeema";
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver( FakeSchemaConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -55,7 +55,7 @@ public class LifetimeTests {
 
     @Test
     @DisplayName( "Lifetime Test" )
-    public void basicLifetimeTest() throws SQLException {
+    void basicLifetimeTest() throws SQLException {
         int MIN_POOL_SIZE = 40, MAX_POOL_SIZE = 100, MAX_LIFETIME_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -94,7 +94,7 @@ public class LifetimeTests {
 
     @Test
     @DisplayName( "Connection in use reaches maxLifetime" )
-    public void inUseLifetimeTest() throws SQLException {
+    void inUseLifetimeTest() throws SQLException {
         int MAX_LIFETIME_MS = 200;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -142,7 +142,8 @@ public class LifetimeTests {
         private final LongAdder flushCount;
         private final CountDownLatch destroyLatch;
 
-        public MaxLifetimeListener(CountDownLatch allLatch, LongAdder flushCount, CountDownLatch destroyLatch) {
+        @SuppressWarnings( "WeakerAccess" )
+        MaxLifetimeListener(CountDownLatch allLatch, LongAdder flushCount, CountDownLatch destroyLatch) {
             this.allLatch = allLatch;
             this.flushCount = flushCount;
             this.destroyLatch = destroyLatch;
@@ -168,7 +169,7 @@ public class LifetimeTests {
 
     public static class FakeSchemaConnection implements MockConnection {
 
-        private boolean closed = false;
+        private boolean closed;
 
         @Override
         public String getSchema() throws SQLException {

@@ -51,12 +51,12 @@ public class BasicConcurrencyTests {
     private static final Logger logger = getLogger( BasicConcurrencyTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -64,7 +64,8 @@ public class BasicConcurrencyTests {
 
     @Test
     @DisplayName( "Multiple threads" )
-    public void basicConnectionAcquireTest() throws SQLException {
+    @SuppressWarnings( "ObjectAllocationInLoop" )
+    void basicConnectionAcquireTest() throws SQLException {
         int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 32, CALLS = 50000, SLEEP_TIME = 1;
 
         ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
@@ -108,15 +109,16 @@ public class BasicConcurrencyTests {
         logger.info( format( "Main thread proceeding with assertions" ) );
 
         assertAll( () -> {
-            assertEquals( MAX_POOL_SIZE, listener.creationCount.longValue() );
-            assertEquals( CALLS, listener.acquireCount.longValue() );
-            assertEquals( CALLS, listener.returnCount.longValue() );
+            assertEquals( MAX_POOL_SIZE, listener.getCreationCount().longValue() );
+            assertEquals( CALLS, listener.getAcquireCount().longValue() );
+            assertEquals( CALLS, listener.getReturnCount().longValue() );
         } );
     }
 
     @Test
     @DisplayName( "Concurrent DataSource in closed state" )
-    public void concurrentDataSourceCloseTest() throws SQLException, InterruptedException {
+    @SuppressWarnings( {"BusyWait", "JDBCResourceOpenedButNotSafelyClosed", "MethodCallInLoopCondition"} )
+    void concurrentDataSourceCloseTest() throws SQLException, InterruptedException {
         int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 2, ACQUISITION_TIMEOUT_MS = 2000;
 
         BasicConcurrencyTestsListener listener = new BasicConcurrencyTestsListener();
@@ -175,12 +177,12 @@ public class BasicConcurrencyTests {
 
         assertAll( () -> {
             assertThrows( SQLException.class, dataSource::getConnection );
-            assertFalse( listener.warning.get(), "Unexpected warning" );
-            assertEquals( MAX_POOL_SIZE, listener.creationCount.longValue() );
-            assertEquals( MAX_POOL_SIZE, listener.acquireCount.longValue() );
-            assertEquals( MAX_POOL_SIZE, listener.destroyCount.longValue() );
+            assertFalse( listener.getWarning().get(), "Unexpected warning" );
+            assertEquals( MAX_POOL_SIZE, listener.getCreationCount().longValue() );
+            assertEquals( MAX_POOL_SIZE, listener.getAcquireCount().longValue() );
+            assertEquals( MAX_POOL_SIZE, listener.getDestroyCount().longValue() );
             assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().destroyCount(), "Destroy count" );
-            assertEquals( 0, listener.returnCount.longValue() );
+            assertEquals( 0, listener.getReturnCount().longValue() );
             assertEquals( 0, dataSource.getMetrics().activeCount(), "Active connections" );
             assertEquals( 0, dataSource.getMetrics().availableCount(), "Should not be any available connections" );
         } );
@@ -191,7 +193,7 @@ public class BasicConcurrencyTests {
 
     @Test
     @DisplayName( "DataSource close" )
-    public void dataSourceCloseTest() throws SQLException, InterruptedException {
+    void dataSourceCloseTest() throws SQLException, InterruptedException {
         int MAX_POOL_SIZE = 10, TIMEOUT_MS = 1000;
 
         ShutdownListener listener = new ShutdownListener( MAX_POOL_SIZE );
@@ -208,7 +210,7 @@ public class BasicConcurrencyTests {
 
         AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener );
 
-        if ( !listener.startupLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
+        if ( !listener.getStartupLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
             fail( "Did not execute within the required amount of time" );
         }
 
@@ -223,7 +225,7 @@ public class BasicConcurrencyTests {
         // Connections take a while to be destroyed because the executor has to wait on the listener.
         // We check right after close() to make sure all were destroyed when the method returns.
         assertAll( () -> {
-            assertFalse( listener.warning, "Datasource closed but there are tasks to run" );
+            assertFalse( listener.getWarning(), "Datasource closed but there are tasks to run" );
             assertEquals( 0, dataSource.getMetrics().availableCount() );
             assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().destroyCount() );
         } );
@@ -231,11 +233,15 @@ public class BasicConcurrencyTests {
 
     // --- //
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class BasicConcurrencyTestsListener implements AgroalDataSourceListener {
 
         private final LongAdder creationCount = new LongAdder(), acquireCount = new LongAdder(), returnCount = new LongAdder(), destroyCount = new LongAdder();
 
         private final AtomicBoolean warning = new AtomicBoolean( false );
+
+        BasicConcurrencyTestsListener() {
+        }
 
         @Override
         public void onConnectionPooled(Connection connection) {
@@ -266,13 +272,36 @@ public class BasicConcurrencyTests {
         public void onWarning(Throwable throwable) {
             warning.set( true );
         }
+
+        // --- //
+
+        LongAdder getCreationCount() {
+            return creationCount;
+        }
+
+        LongAdder getAcquireCount() {
+            return acquireCount;
+        }
+
+        LongAdder getReturnCount() {
+            return returnCount;
+        }
+
+        LongAdder getDestroyCount() {
+            return destroyCount;
+        }
+
+        AtomicBoolean getWarning() {
+            return warning;
+        }
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class ShutdownListener implements AgroalDataSourceListener {
-        private boolean warning = false;
-        private CountDownLatch startupLatch;
+        private boolean warning;
+        private final CountDownLatch startupLatch;
 
-        private ShutdownListener(int poolSize) {
+        ShutdownListener(int poolSize) {
             startupLatch = new CountDownLatch( poolSize );
         }
 
@@ -294,6 +323,14 @@ public class BasicConcurrencyTests {
         @Override
         public void onWarning(String message) {
             warning = true;
+        }
+
+        CountDownLatch getStartupLatch() {
+            return startupLatch;
+        }
+
+        boolean getWarning() {
+            return warning;
         }
     }
 }

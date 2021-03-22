@@ -43,12 +43,12 @@ public class CompletionExceptionTests {
     private static final Logger logger = getLogger( CompletionExceptionTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver( CompletionExceptionConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -56,7 +56,7 @@ public class CompletionExceptionTests {
 
     @Test
     @DisplayName( "Commit exception test" )
-    public void testCommitException() throws SQLException {
+    void testCommitException() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -83,7 +83,7 @@ public class CompletionExceptionTests {
 
     @Test
     @DisplayName( "Rollback exception test" )
-    public void testRollbackException() throws SQLException {
+    void testRollbackException() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 

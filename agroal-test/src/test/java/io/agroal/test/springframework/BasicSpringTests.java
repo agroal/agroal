@@ -60,14 +60,16 @@ public class BasicSpringTests {
     public static final int MIN_SIZE = 13, INITIAL_SIZE = 7, MAX_SIZE = 37;
 
     @Autowired
+    @SuppressWarnings( "unused" )
     private DataSource dataSource;
 
     @Autowired
+    @SuppressWarnings( "unused" )
     private JtaTransactionManager txManager;
 
     @Test
     @DisplayName( "test deployment on Spring Boot container" )
-    public void basicSpringConnectionAcquireTest() throws Exception {
+    void basicSpringConnectionAcquireTest() throws Exception {
         assertTrue( dataSource instanceof AgroalDataSource );
         AgroalConnectionPoolConfiguration poolConfiguration = ( (AgroalDataSource) dataSource ).getConfiguration().connectionPoolConfiguration();
 
@@ -83,8 +85,9 @@ public class BasicSpringTests {
     }
 
     @Test
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
     @DisplayName( "test transaction manager integration on Spring Boot container" )
-    public void springTransactionIntegrationTest() throws Exception {
+    void springTransactionIntegrationTest() throws Exception {
         assertNotNull( txManager.getTransactionManager(), "A TransactionManager is required for this test" );
         assertNotNull( txManager.getTransactionManager().getTransaction(), "A Transaction is required for this test" );
         assertEquals( STATUS_ACTIVE , txManager.getTransactionManager().getTransaction().getStatus(), "An ACTIVE Transaction is required for this test" );

@@ -45,12 +45,12 @@ public class BasicOSGiTests {
     private static final Logger logger = getLogger( BasicOSGiTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -58,7 +58,7 @@ public class BasicOSGiTests {
 
     @Test
     @DisplayName( "test deployment on OSGi container" )
-    public void basicOSGiConnectionAcquireTest() throws Exception {
+    void basicOSGiConnectionAcquireTest() throws Exception {
         ExamSystem examSystem = PaxExamRuntime.createTestSystem(
                 CoreOptions.systemProperty( "org.ops4j.pax.logging.DefaultServiceLog.level" ).value( "WARN" ),
                 CoreOptions.mavenBundle().groupId( "io.agroal" ).artifactId( "agroal-api" ).versionAsInProject(),
@@ -87,21 +87,23 @@ public class BasicOSGiTests {
     /**
      * This class is turned into a Bundled and then deployed to the OSGi container
      */
-    public static class AgroalProbe {
+    @SuppressWarnings( {"UtilityClass", "WeakerAccess"} )
+    private static final class AgroalProbe {
 
-        private static final Logger probeLogger = getLogger( AgroalProbe.class.getName() );
+        static final Logger probeLogger = getLogger( AgroalProbe.class.getName() );
 
-        private static TestProbeBuilder getTestProbeBuilder(ExamSystem examSystem) throws IOException {
+        static TestProbeBuilder getTestProbeBuilder(ExamSystem examSystem) throws IOException {
             TestProbeBuilder testProbeBuilder = examSystem.createProbe();
             testProbeBuilder.addTest( AgroalProbe.class );
             return testProbeBuilder;
         }
 
         /**
-         * AgroalDataSource.from( ... ) wont't work due to limitations of ServiceLoader on OSGi environments.
+         * AgroalDataSource.from( ... ) won't work due to limitations of ServiceLoader on OSGi environments.
          * For this test, and OSGi deployments in general, the datasource implementation is instantiated directly.
          */
-        public void probe(BundleReference bundleReference) throws SQLException {
+        @SuppressWarnings( "unused" )
+        public static void probe(BundleReference bundleReference) throws SQLException {
             probeLogger.info( "In OSGi container running from a Bundle named " + bundleReference.getBundle().getSymbolicName() );
 
             AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -123,6 +125,7 @@ public class BasicOSGiTests {
 
     // --- //
 
+    @SuppressWarnings( "unused" )
     public static class CredentialsDataSource implements MockDataSource {
 
         private static final String DEFAULT_USER = "def_user";
@@ -140,6 +143,7 @@ public class BasicOSGiTests {
         }
 
         @Override
+        @SuppressWarnings( "CallToSuspiciousStringMethod" )
         public Connection getConnection() throws SQLException {
             if ( !DEFAULT_USER.equals( user ) ) {
                 throw new RuntimeException( "Expecting user '" + DEFAULT_USER + "' but got '" + user + "' instead" );

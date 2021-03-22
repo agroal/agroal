@@ -15,6 +15,7 @@ public class Fruit {
 
     @Id
     @GeneratedValue
+    @SuppressWarnings( "unused" )
     private Long id;
 
     private String name;

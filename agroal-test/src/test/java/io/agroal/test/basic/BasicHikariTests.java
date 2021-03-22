@@ -46,12 +46,12 @@ public class BasicHikariTests {
     private static final Driver fakeDriver = new FakeDriver();
 
     @BeforeAll
-    public static void setupMockDriver() throws SQLException {
+    static void setupMockDriver() throws SQLException {
         DriverManager.registerDriver( fakeDriver );
     }
 
     @AfterAll
-    public static void teardown() throws SQLException {
+    static void teardown() throws SQLException {
         DriverManager.deregisterDriver( fakeDriver );
     }
 
@@ -59,7 +59,7 @@ public class BasicHikariTests {
 
     @Test
     @DisplayName( "Mock driver providing fake connections" )
-    public void basicConnectionAcquireTest() throws SQLException {
+    void basicConnectionAcquireTest() throws SQLException {
         int VALIDATION_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -83,7 +83,7 @@ public class BasicHikariTests {
 
     @Test
     @DisplayName( "Connection wrapper in closed state" )
-    public void basicConnectionCloseTest() throws SQLException {
+    void basicConnectionCloseTest() throws SQLException {
         int VALIDATION_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -115,7 +115,8 @@ public class BasicHikariTests {
 
     @Test
     @DisplayName( "Acquisition timeout" )
-    public void basicAcquisitionTimeoutTest() throws SQLException {
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    void basicAcquisitionTimeoutTest() throws SQLException {
         int MAX_POOL_SIZE = 100, ACQUISITION_TIMEOUT_MS = 1000, VALIDATION_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -159,6 +160,9 @@ public class BasicHikariTests {
         private static class FakeConnection implements MockConnection {
 
             private static final String FAKE_SCHEMA = "skeema";
+
+            FakeConnection() {
+            }
 
             @Override
             public String getSchema() {

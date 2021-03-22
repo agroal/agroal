@@ -37,20 +37,21 @@ public class ResizeTests {
     private static final Logger logger = getLogger( ResizeTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
     // --- //
 
+    @SuppressWarnings( "AnonymousInnerClassMayBeStatic" )
     @Test
     @DisplayName( "resize Max" )
-    public void resizeMax() throws SQLException {
+    void resizeMax() throws SQLException {
         int INITIAL_SIZE = 10, MAX_SIZE = 6, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -104,7 +105,7 @@ public class ResizeTests {
 
     @Test
     @DisplayName( "resize Min" )
-    public void resizeMin() throws SQLException {
+    void resizeMin() throws SQLException {
         int INITIAL_SIZE = 10, NEW_MIN_SIZE = 15, MAX_SIZE = 35, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -115,14 +116,7 @@ public class ResizeTests {
                 );
 
         CountDownLatch creationLatch = new CountDownLatch( INITIAL_SIZE );
-        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
-            @Override
-            public void onConnectionPooled(Connection connection) {
-                creationLatch.countDown();
-            }
-        };
-
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new ReadyDataSourceListener( creationLatch ) ) ) {
             logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", INITIAL_SIZE ) );
             if ( !creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
                 fail( format( "{0} connections not created", creationLatch.getCount() ) );
@@ -144,6 +138,20 @@ public class ResizeTests {
             assertEquals( INITIAL_SIZE + 1, dataSource.getMetrics().availableCount(), "Pool not resized" );
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );
+        }
+    }
+
+    private static class ReadyDataSourceListener implements AgroalDataSourceListener {
+        private final CountDownLatch creationLatch;
+
+        @SuppressWarnings( "WeakerAccess" )
+        ReadyDataSourceListener(CountDownLatch creationLatch) {
+            this.creationLatch = creationLatch;
+        }
+
+        @Override
+        public void onConnectionPooled(Connection connection) {
+            creationLatch.countDown();
         }
     }
 }

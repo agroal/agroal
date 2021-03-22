@@ -39,17 +39,17 @@ import static org.junit.jupiter.api.Assertions.fail;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 @Tag( FUNCTIONAL )
-public class PoollessTests {
+class PoollessTests {
 
-    private static final Logger logger = getLogger( PoollessTests.class.getName() );
+    static final Logger logger = getLogger( PoollessTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -57,7 +57,8 @@ public class PoollessTests {
 
     @Test
     @DisplayName( "Pool-less Test" )
-    public void poollessTest() throws SQLException {
+    @SuppressWarnings( {"AnonymousInnerClassMayBeStatic", "ObjectAllocationInLoop", "JDBCResourceOpenedButNotSafelyClosed"} )
+    void poollessTest() throws SQLException {
         int TIMEOUT_MS = 100, NUM_THREADS = 4;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -162,7 +163,7 @@ public class PoollessTests {
         }
     }
 
-    private Thread newConnectionThread(DataSource dataSource) {
+    private static Thread newConnectionThread(DataSource dataSource) {
         return new Thread( () -> {
             logger.info( currentThread().getName() + " is on the race for a connection" );
             try {

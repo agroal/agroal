@@ -43,7 +43,8 @@ public class SecurityTests {
 
     @Test
     @DisplayName( "Test password rotation" )
-    public void passwordRotation() throws SQLException {
+    @SuppressWarnings( "InstantiationOfUtilityClass" )
+    void passwordRotation() throws SQLException {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( RotationPassword.PASSWORDS.size() )
@@ -71,35 +72,49 @@ public class SecurityTests {
 
     // --- //
 
-    private static class RotationPassword {
+    @SuppressWarnings( {"UtilityClass", "UtilityClassWithoutPrivateConstructor"} )
+    private static final class RotationPassword {
 
         public static final List<String> PASSWORDS = Collections.unmodifiableList( Arrays.asList( "one", "two", "secret", "unknown" ) );
 
         private static final AtomicInteger COUNTER = new AtomicInteger( 0 );
 
-        private Properties asProperties() {
+        @SuppressWarnings( "WeakerAccess" )
+        RotationPassword() {
+        }
+
+        static Properties asProperties() {
             Properties properties = new Properties();
             properties.setProperty( "password", getWord() );
             return properties;
         }
 
-        private String getWord() {
+        private static String getWord() {
             return PASSWORDS.get( COUNTER.getAndIncrement() );
         }
     }
 
     private static class PasswordRotationProvider implements AgroalSecurityProvider {
 
+        @SuppressWarnings( "WeakerAccess" )
+        PasswordRotationProvider() {
+        }
+
         @Override
+        @SuppressWarnings( "InstanceofConcreteClass" )
         public Properties getSecurityProperties(Object securityObject) {
             if ( securityObject instanceof RotationPassword ) {
-                return ( (RotationPassword) securityObject ).asProperties();
+                return RotationPassword.asProperties();
             }
             return null;
         }
     }
 
     private static class WarningsAgroalDatasourceListener implements AgroalDataSourceListener {
+
+        @SuppressWarnings( "WeakerAccess" )
+        WarningsAgroalDatasourceListener() {
+        }
 
         @Override
         public void onWarning(String message) {
@@ -130,11 +145,12 @@ public class SecurityTests {
         }
     }
 
-    public static class CredentialsConnection implements MockConnection {
+    @SuppressWarnings( "WeakerAccess" )
+    private static class CredentialsConnection implements MockConnection {
 
-        private String user, password;
+        private final String user, password;
 
-        public CredentialsConnection(String user, String password) {
+        CredentialsConnection(String user, String password) {
             this.user = user;
             this.password = password;
         }
@@ -144,11 +160,11 @@ public class SecurityTests {
             return iface.cast( this );
         }
 
-        public String getUser() {
+        String getUser() {
             return user;
         }
 
-        public String getPassword() {
+        String getPassword() {
             return password;
         }
     }

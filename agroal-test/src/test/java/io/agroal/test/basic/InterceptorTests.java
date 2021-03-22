@@ -33,21 +33,21 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Tag( FUNCTIONAL )
 public class InterceptorTests {
 
-    private static final Logger logger = getLogger( InterceptorTests.class.getName() );
+    static final Logger logger = getLogger( InterceptorTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver( FakeSchemaConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
     // --- //
 
-    public static void setSchema(String value, Connection connection) {
+    protected static void setSchema(String value, Connection connection) {
         try {
             connection.setSchema( value );
         } catch ( SQLException e ) {
@@ -55,7 +55,7 @@ public class InterceptorTests {
         }
     }
 
-    public static void assertSchema(String expected, Connection connection) {
+    protected static void assertSchema(String expected, Connection connection) {
         try {
             assertEquals( expected, connection.getSchema() );
         } catch ( SQLException e ) {
@@ -67,7 +67,7 @@ public class InterceptorTests {
 
     @Test
     @DisplayName( "Interceptor basic test" )
-    public void basicInterceptorTest() throws SQLException {
+    void basicInterceptorTest() throws SQLException {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 ) );
@@ -83,7 +83,7 @@ public class InterceptorTests {
 
     @Test
     @DisplayName( "Negative priority test" )
-    public void negativePriorityTest() throws SQLException {
+    void negativePriorityTest() throws SQLException {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 ) );
@@ -99,6 +99,10 @@ public class InterceptorTests {
     // --- //
 
     private static class InterceptorListener implements AgroalDataSourceListener {
+
+        @SuppressWarnings( "WeakerAccess" )
+        InterceptorListener() {
+        }
 
         @Override
         public void onConnectionPooled(Connection connection) {
@@ -117,6 +121,11 @@ public class InterceptorTests {
     }
 
     private static class MainInterceptor implements AgroalPoolInterceptor {
+
+        @SuppressWarnings( "WeakerAccess" )
+        MainInterceptor() {
+        }
+
         @Override
         public void onConnectionAcquire(Connection connection) {
             setSchema( "during", connection );
@@ -130,6 +139,11 @@ public class InterceptorTests {
 
     // This interceptor should be "inner" of the main one because has lower priority.
     private static class LowPriorityInterceptor implements AgroalPoolInterceptor {
+
+        @SuppressWarnings( "WeakerAccess" )
+        LowPriorityInterceptor() {
+        }
+
         @Override
         public void onConnectionAcquire(Connection connection) {
             assertSchema( "during", connection );
@@ -148,6 +162,11 @@ public class InterceptorTests {
 
     // This interceptor is invalid because priority is negative.
     private static class NegativePriorityInterceptor implements AgroalPoolInterceptor {
+
+        @SuppressWarnings( "WeakerAccess" )
+        NegativePriorityInterceptor() {
+        }
+
         @Override
         public int getPriority() {
             return -1;

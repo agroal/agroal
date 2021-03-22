@@ -44,12 +44,12 @@ public class ExceptionTests {
     private static final Logger logger = getLogger( ExceptionTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -57,7 +57,7 @@ public class ExceptionTests {
 
     @Test
     @DisplayName( "transaction integration get throws test" )
-    public void testGetThrows() throws SQLException {
+    void testGetThrows() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -88,7 +88,7 @@ public class ExceptionTests {
 
     @Test
     @DisplayName( "transaction integration associate throws test" )
-    public void testAssociateThrows() throws SQLException {
+    void testAssociateThrows() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -119,7 +119,7 @@ public class ExceptionTests {
 
     @Test
     @DisplayName( "transaction integration disassociate throws test" )
-    public void testDisassociateThrows() throws SQLException {
+    void testDisassociateThrows() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -152,7 +152,7 @@ public class ExceptionTests {
 
     @Test
     @DisplayName( "test leak when getConnection() in rollback state" )
-    public void testBogusApp() throws SQLException {
+    void testBogusApp() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -184,7 +184,8 @@ public class ExceptionTests {
 
     private static class GetThrows extends NarayanaTransactionIntegration {
 
-        public GetThrows(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
+        @SuppressWarnings( "WeakerAccess" )
+        GetThrows(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
             super( transactionManager, transactionSynchronizationRegistry );
         }
 
@@ -196,7 +197,8 @@ public class ExceptionTests {
 
     private static class AssociateThrows extends NarayanaTransactionIntegration {
 
-        public AssociateThrows(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
+        @SuppressWarnings( "WeakerAccess" )
+        AssociateThrows(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
             super( transactionManager, transactionSynchronizationRegistry );
         }
 
@@ -208,7 +210,8 @@ public class ExceptionTests {
 
     private static class DisssociateThrows extends NarayanaTransactionIntegration {
 
-        public DisssociateThrows(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
+        @SuppressWarnings( "WeakerAccess" )
+        DisssociateThrows(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
             super( transactionManager, transactionSynchronizationRegistry );
         }
 

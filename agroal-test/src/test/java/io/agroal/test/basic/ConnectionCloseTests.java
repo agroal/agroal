@@ -44,12 +44,12 @@ public class ConnectionCloseTests {
     private static final Logger logger = getLogger( ConnectionCloseTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver( FakeSchemaConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -57,7 +57,7 @@ public class ConnectionCloseTests {
 
     @Test
     @DisplayName( "Connection wrapper in closed state" )
-    public void basicConnectionCloseTest() throws SQLException {
+    void basicConnectionCloseTest() throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             Connection connection = dataSource.getConnection();
 
@@ -79,7 +79,7 @@ public class ConnectionCloseTests {
 
     @Test
     @DisplayName( "Connection closes Statements and ResultSets" )
-    public void statementCloseTest() throws SQLException {
+    void statementCloseTest() throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             Connection connection = dataSource.getConnection();
             logger.info( format( "Creating 2 Statements on Connection {0}", connection ) );
@@ -113,7 +113,8 @@ public class ConnectionCloseTests {
 
     @Test
     @DisplayName( "Connection closed multiple times" )
-    public void multipleCloseTest() throws SQLException {
+    @SuppressWarnings( "RedundantExplicitClose" )
+    void multipleCloseTest() throws SQLException {
         ReturnListener returnListener = new ReturnListener();
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), returnListener ) ) {
@@ -123,7 +124,7 @@ public class ConnectionCloseTests {
             }
 
             assertAll( () -> {
-                assertEquals( 1, returnListener.returnCount.longValue(), "Expecting connection to be returned once to the pool" );
+                assertEquals( 1, returnListener.getReturnCount().longValue(), "Expecting connection to be returned once to the pool" );
                 assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
             } );
         }
@@ -131,7 +132,7 @@ public class ConnectionCloseTests {
 
     @Test
     @DisplayName( "Statement close" )
-    public void statementClose() throws SQLException {
+    void statementClose() throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             try ( Connection connection = dataSource.getConnection() ) {
                 try ( Statement statement = connection.createStatement() ) {
@@ -145,7 +146,8 @@ public class ConnectionCloseTests {
 
     @Test
     @DisplayName( "ResultSet leak" )
-    public void resultSetLeak() throws SQLException {
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    void resultSetLeak() throws SQLException {
         ResultSet resultSet;
         OnWarningListener listener = new OnWarningListener();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), listener ) ) {
@@ -155,13 +157,14 @@ public class ConnectionCloseTests {
             }
         }
         assertTrue( resultSet.isClosed(), "Leaked ResultSet not closed" );
-        assertTrue( listener.warning.get(), "No warning message on ResultSet leak" );
+        assertTrue( listener.getWarning().get(), "No warning message on ResultSet leak" );
         resultSet.close();
     }
 
     @Test
     @DisplayName( "JDBC resources tracking disabled" )
-    public void jdbcResourcesTrackingDisabled() throws SQLException {
+    @SuppressWarnings( "InstanceofConcreteClass" )
+    void jdbcResourcesTrackingDisabled() throws SQLException {
         Statement statement;
         OnWarningListener listener = new OnWarningListener();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.trackJdbcResources( false ) ) ), listener ) ) {
@@ -171,17 +174,25 @@ public class ConnectionCloseTests {
                 assertThrows( ClassCastException.class, () -> statement.unwrap( StatementWrapper.class ), "Wrapped Statement when tracking is disabled" );
             }
         }
-        assertFalse( listener.warning.get(), "Leak warning when tracking is disabled " );
+        assertFalse( listener.getWarning().get(), "Leak warning when tracking is disabled " );
         assertFalse( statement.isClosed(), "Tracking is disabled, but acted to clean leak!" );
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class ReturnListener implements AgroalDataSourceListener {
 
-        private LongAdder returnCount = new LongAdder();
+        private final LongAdder returnCount = new LongAdder();
+
+        ReturnListener() {
+        }
 
         @Override
         public void beforeConnectionReturn(Connection connection) {
             returnCount.increment();
+        }
+
+        LongAdder getReturnCount() {
+            return returnCount;
         }
     }
 
@@ -208,12 +219,12 @@ public class ConnectionCloseTests {
 
         @Override
         public void close() throws SQLException {
-            this.closed = true;
+            closed = true;
         }
 
         @Override
         public boolean isClosed() throws SQLException {
-            return this.closed;
+            return closed;
         }
 
         @Override
@@ -222,13 +233,21 @@ public class ConnectionCloseTests {
         }
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class OnWarningListener implements AgroalDataSourceListener {
 
         private final AtomicBoolean warning = new AtomicBoolean( false );
 
+        OnWarningListener() {
+        }
+
         @Override
         public void onWarning(String message) {
             warning.set( true );
+        }
+
+        AtomicBoolean getWarning() {
+            return warning;
         }
     }
 }

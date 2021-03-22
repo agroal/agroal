@@ -44,12 +44,12 @@ public class ConnectionResetTests {
     private static final Logger logger = getLogger( ConnectionResetTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver( FakeConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -57,7 +57,7 @@ public class ConnectionResetTests {
 
     @Test
     @DisplayName( "Test connection isolation remains the same after being changed" )
-    public void isolationTest() throws SQLException {
+    void isolationTest() throws SQLException {
         isolation( NONE, Connection.TRANSACTION_NONE );
         isolation( READ_UNCOMMITTED, Connection.TRANSACTION_READ_UNCOMMITTED );
         isolation( READ_COMMITTED, Connection.TRANSACTION_READ_COMMITTED );
@@ -65,7 +65,7 @@ public class ConnectionResetTests {
         isolation( SERIALIZABLE, Connection.TRANSACTION_SERIALIZABLE );
     }
 
-    private void isolation(AgroalConnectionFactoryConfiguration.TransactionIsolation isolation, int level) throws SQLException {
+    private static void isolation(AgroalConnectionFactoryConfiguration.TransactionIsolation isolation, int level) throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
                 cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( isolation ) )
         ) ) ) {
@@ -85,7 +85,7 @@ public class ConnectionResetTests {
 
     @Test
     @DisplayName( "Test connection with custom transaction isolation level" )
-    public void customIsolationTest() throws SQLException {
+    void customIsolationTest() throws SQLException {
         int level = 42;
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
                 cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( level ) )
@@ -100,12 +100,12 @@ public class ConnectionResetTests {
 
     @Test
     @DisplayName( "Test connection autoCommit status remains the same after being changed" )
-    public void autoCommitTest() throws SQLException {
+    void autoCommitTest() throws SQLException {
         autocommit( false );
         autocommit( true );
     }
 
-    private void autocommit(boolean autoCommit) throws SQLException {
+    private static void autocommit(boolean autoCommit) throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
                 cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.autoCommit( autoCommit ) )
         ) ) ) {
@@ -125,12 +125,12 @@ public class ConnectionResetTests {
 
     @Test
     @DisplayName( "Test connection with warnings" )
-    public void warningsTest() throws SQLException {
+    void warningsTest() throws SQLException {
         warnings( false );
         warnings( true );
     }
 
-    private void warnings(boolean fatal) throws SQLException {
+    private static void warnings(boolean fatal) throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp.maxSize( 1 ).exceptionSorter( fatal ? fatalExceptionSorter() : emptyExceptionSorter() ) )
         ) ) {
@@ -149,11 +149,11 @@ public class ConnectionResetTests {
 
     @Test
     @DisplayName( "Test exception during reset" )
-    public void resetExceptionTest() throws SQLException {
+    void resetExceptionTest() throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration(
                         cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.connectionProviderClass( SneakyDataSource.class ) ) ) ) ) {
             try ( Connection c = dataSource.getConnection() ) {
-                assertThrows( SQLException.class, () -> c.getWarnings() );
+                assertThrows( SQLException.class, c::getWarnings );
             }
         }
     }
@@ -193,7 +193,7 @@ public class ConnectionResetTests {
 
         @Override
         public void clearWarnings() throws SQLException {
-            this.warnings = false;
+            warnings = false;
         }
     }
 

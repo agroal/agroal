@@ -30,6 +30,7 @@ import static java.lang.System.identityHashCode;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
+@SuppressWarnings( "InterfaceWithOnlyOneDirectInheritor" )
 public interface MockResultSet extends ResultSet {
 
     byte[] BYTES = new byte[0];

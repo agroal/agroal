@@ -42,12 +42,12 @@ public class NewConnectionTests {
     private static final Logger logger = getLogger( NewConnectionTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver( FakeConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -55,7 +55,7 @@ public class NewConnectionTests {
 
     @Test
     @DisplayName( "Test connection isolation" )
-    public void isolationTest() throws SQLException {
+    void isolationTest() throws SQLException {
         isolation( NONE, Connection.TRANSACTION_NONE );
         isolation( READ_UNCOMMITTED, Connection.TRANSACTION_READ_UNCOMMITTED );
         isolation( READ_COMMITTED, Connection.TRANSACTION_READ_COMMITTED );
@@ -63,7 +63,7 @@ public class NewConnectionTests {
         isolation( SERIALIZABLE, Connection.TRANSACTION_SERIALIZABLE );
     }
 
-    private void isolation(AgroalConnectionFactoryConfiguration.TransactionIsolation isolation, int level) throws SQLException {
+    private static void isolation(AgroalConnectionFactoryConfiguration.TransactionIsolation isolation, int level) throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( isolation ) ) ) ) ) {
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getTransactionIsolation(), level );
@@ -74,12 +74,12 @@ public class NewConnectionTests {
 
     @Test
     @DisplayName( "Test connection autoCommit status" )
-    public void autoCommitTest() throws SQLException {
+    void autoCommitTest() throws SQLException {
         autocommit( false );
         autocommit( true );
     }
 
-    private void autocommit(boolean autoCommit) throws SQLException {
+    private static void autocommit(boolean autoCommit) throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( cf -> cf.autoCommit( autoCommit ) ) ) ) ) {
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getAutoCommit(), autoCommit );
@@ -90,7 +90,7 @@ public class NewConnectionTests {
 
     @Test
     @DisplayName( "Test faulty URL setter" )
-    public void faultyUrlTest() throws SQLException {
+    void faultyUrlTest() throws SQLException {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
@@ -124,7 +124,7 @@ public class NewConnectionTests {
 
     public static class FaultyUrlDataSource implements MockDataSource {
 
-        private String url = null;
+        private String url;
 
         public void setURL(String url) {
             this.url = url;

@@ -28,11 +28,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 @Tag( SPRING )
-public class SpringBootIntegrationTests {
+class SpringBootIntegrationTests {
 
     @Test
     @DisplayName( "test deployment on spring boot container" )
-    public void basicSpringConnectionAcquireTest() throws Exception {
+    void basicSpringConnectionAcquireTest() throws Exception {
         try ( ConfigurableApplicationContext application = SpringApplication.run( AgroalApplication.class ) ) {
             assertTrue( application.isActive() );
         }
@@ -40,13 +40,18 @@ public class SpringBootIntegrationTests {
 
     @SpringBootApplication
     @PropertySource( "SpringBootIntegrationTests/application.properties" )
-    public static class AgroalApplication {
+    @SuppressWarnings( {"HardcodedFileSeparator", "UtilityClass", "NonFinalUtilityClass"} )
+    private static class AgroalApplication {
 
         private static final Logger log = LoggerFactory.getLogger( AgroalApplication.class );
 
+        @SuppressWarnings( "WeakerAccess" )
+        AgroalApplication() {
+        }
+
         @Bean
         @Transactional
-        public CommandLineRunner demo(FruitRepository repository, DataSource dataSource) {
+        public static CommandLineRunner demo(FruitRepository repository, DataSource dataSource) {
             assertTrue( dataSource instanceof io.agroal.api.AgroalDataSource );
             return (args) -> {
                 log.info( Arrays.toString( repository.findAll().toArray() ) );

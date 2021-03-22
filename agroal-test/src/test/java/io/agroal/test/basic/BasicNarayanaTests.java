@@ -46,15 +46,15 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Tag( TRANSACTION )
 public class BasicNarayanaTests {
 
-    private static final Logger logger = getLogger( BasicNarayanaTests.class.getName() );
+    static final Logger logger = getLogger( BasicNarayanaTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -62,7 +62,8 @@ public class BasicNarayanaTests {
 
     @Test
     @DisplayName( "Connection acquire test" )
-    public void basicConnectionAcquireTest() throws SQLException {
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    void basicConnectionAcquireTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -96,7 +97,7 @@ public class BasicNarayanaTests {
 
     @Test
     @DisplayName( "Basic rollback test" )
-    public void basicRollbackTest() throws SQLException {
+    void basicRollbackTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -122,7 +123,7 @@ public class BasicNarayanaTests {
 
     @Test
     @DisplayName( "Multiple close test" )
-    public void multipleCloseTest() throws SQLException {
+    void multipleCloseTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -149,7 +150,7 @@ public class BasicNarayanaTests {
 
     @Test
     @DisplayName( "Transaction required tests" )
-    public void transactionRequiredTests() throws SQLException {
+    void transactionRequiredTests() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -171,7 +172,7 @@ public class BasicNarayanaTests {
                         .transactionRequirement( WARN )
                 ), warningListener ) ) {
             try ( Connection c = dataSource.getConnection() ) {
-                assertEquals( 1, warningListener.warnings, "Expected a warning message" );
+                assertEquals( 1, warningListener.getWarnings(), "Expected a warning message" );
                 logger.info( "Got connection with warning :" + c );
             }
         }
@@ -198,6 +199,10 @@ public class BasicNarayanaTests {
     // --- //
     private static class NoWarningsListener implements AgroalDataSourceListener {
 
+        @SuppressWarnings( "WeakerAccess" )
+        NoWarningsListener() {
+        }
+
         @Override
         public void onWarning(String message) {
             fail( "Got warning: " + message );
@@ -209,14 +214,22 @@ public class BasicNarayanaTests {
         }
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class WarningListener implements AgroalDataSourceListener {
 
         private int warnings;
+
+        WarningListener() {
+        }
 
         @Override
         public void onWarning(Throwable throwable) {
             logger.warning( throwable.getMessage() );
             warnings++;
+        }
+
+        int getWarnings() {
+            return warnings;
         }
     }
 }

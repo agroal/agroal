@@ -46,23 +46,24 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Tag( TRANSACTION )
 public class RecoveryTests {
 
-    private static final Logger logger = getLogger( RecoveryTests.class.getName() );
+    static final Logger logger = getLogger( RecoveryTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver();
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
     // --- //
 
     @Test
+    @SuppressWarnings( "ConstantConditions" )
     @DisplayName( "Register ConnectionFactory into XAResourceRecoveryRegistry" )
-    public void registerXAResourceRecoveryTest() throws SQLException {
+    void registerXAResourceRecoveryTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -78,7 +79,7 @@ public class RecoveryTests {
 
         assertFalse( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory prematurely registered in XAResourceRecoveryRegistry" );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, xaResourceRecoveryRegistry.listener ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, xaResourceRecoveryRegistry.getListener() ) ) {
             logger.info( "Test for recovery registration created datasource " + dataSource );
 
             assertTrue( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory not registered in XAResourceRecoveryRegistry" );
@@ -89,7 +90,7 @@ public class RecoveryTests {
 
     @Test
     @DisplayName( "Use supplied recovery specific credentials" )
-    public void recoveryCredentials() throws SQLException {
+    void recoveryCredentials() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
         RecoveryCredentialsXAResourceRecoveryRegistry xaResourceRecoveryRegistry = new RecoveryCredentialsXAResourceRecoveryRegistry();
@@ -113,9 +114,10 @@ public class RecoveryTests {
         }
     }
 
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
     @Test
     @DisplayName( "Reuse credentials when no recovery specific credentials are supplied" )
-    public void reuseCredentials() throws SQLException {
+    void reuseCredentials() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
         RecoveryCredentialsXAResourceRecoveryRegistry xaResourceRecoveryRegistry = new RecoveryCredentialsXAResourceRecoveryRegistry();
@@ -138,7 +140,7 @@ public class RecoveryTests {
 
     @Test
     @DisplayName( "Close recovery connection" )
-    public void closeRecoveryConnection() throws SQLException, InterruptedException {
+    void closeRecoveryConnection() throws SQLException, InterruptedException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -163,14 +165,17 @@ public class RecoveryTests {
             recoveryManager.scan();
             logger.info( "Two recovery scans completed" );
         }
-        assertEquals( 2, RequiresCloseXADataSource.closed, "Recovery connection not closed" );
+        assertEquals( 2, RequiresCloseXADataSource.getClosed(), "Recovery connection not closed" );
     }
 
     // --- //
 
     private static class DriverAgroalDataSourceListener implements AgroalDataSourceListener {
 
-        private boolean warning = false;
+        private boolean warning;
+
+        DriverAgroalDataSourceListener() {
+        }
 
         @Override
         public void onWarning(String message) {
@@ -184,16 +189,20 @@ public class RecoveryTests {
             warning = true;
         }
 
-        public boolean hasWarning() {
+        boolean hasWarning() {
             return warning;
         }
     }
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class DriverResourceRecoveryRegistry implements XAResourceRecoveryRegistry {
 
         private final DriverAgroalDataSourceListener listener = new DriverAgroalDataSourceListener();
         private final Collection<XAResourceRecovery> xaResourceRecoverySet = new HashSet<>();
-        private boolean registered = false;
+        private boolean registered;
+
+        DriverResourceRecoveryRegistry() {
+        }
 
         @Override
         public void addXAResourceRecovery(XAResourceRecovery recovery) {
@@ -213,14 +222,22 @@ public class RecoveryTests {
             registered = false;
         }
 
-        public boolean isRegistered() {
+        boolean isRegistered() {
             return registered;
+        }
+
+        DriverAgroalDataSourceListener getListener() {
+            return listener;
         }
     }
 
     // --- //
 
     private static class WarningsAgroalDatasourceListener implements AgroalDataSourceListener {
+
+        @SuppressWarnings( "WeakerAccess" )
+        WarningsAgroalDatasourceListener() {
+        }
 
         @Override
         public void onWarning(String message) {
@@ -254,7 +271,7 @@ public class RecoveryTests {
         }
 
         public void setUseDefault(boolean reuseDefault) {
-            this.useDefault = reuseDefault;
+            useDefault = reuseDefault;
         }
 
         @Override
@@ -274,6 +291,10 @@ public class RecoveryTests {
 
         private final Collection<XAResourceRecovery> xaResourceRecoverySet = new HashSet<>();
 
+        @SuppressWarnings( "WeakerAccess" )
+        RecoveryCredentialsXAResourceRecoveryRegistry() {
+        }
+
         @Override
         public void addXAResourceRecovery(XAResourceRecovery recovery) {
             xaResourceRecoverySet.add( recovery );
@@ -291,17 +312,32 @@ public class RecoveryTests {
 
     public static class RequiresCloseXADataSource implements MockXADataSource {
 
-        private static int closed = 0;
+        private static int closed;
+
+        static void incrementClosed() {
+            closed++;
+        }
+
+        @SuppressWarnings( "WeakerAccess" )
+        static int getClosed() {
+            return closed;
+        }
 
         @Override
         public XAConnection getXAConnection() throws SQLException {
-            return new MockXAConnection() {
-                @Override
-                public void close() throws SQLException {
-                    logger.info( "Closing XAConnection " + this );
-                    closed++;
-                }
-            };
+            return new MyMockXAConnection();
+        }
+
+        private static class MyMockXAConnection implements MockXAConnection {
+            MyMockXAConnection() {
+            }
+
+            @Override
+            @SuppressWarnings( "ObjectToString" )
+            public void close() throws SQLException {
+                logger.info( "Closing XAConnection " + this );
+                incrementClosed();
+            }
         }
     }
 }

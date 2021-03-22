@@ -22,7 +22,7 @@ import static java.util.logging.Logger.getLogger;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 @Tag( FUNCTIONAL )
-public class PropertiesReaderTests {
+class PropertiesReaderTests {
 
     private static final Logger logger = getLogger( PropertiesReaderTests.class.getName() );
 
@@ -32,7 +32,7 @@ public class PropertiesReaderTests {
 
     @Test
     @DisplayName( "Properties File" )
-    public void basicPropertiesReaderTest() throws IOException {
+    void basicPropertiesReaderTest() throws IOException {
         AgroalPropertiesReader reader = new AgroalPropertiesReader().readProperties( basePath.resolve( "agroal.properties" ) );
 
         logger.info( reader.get().toString() );

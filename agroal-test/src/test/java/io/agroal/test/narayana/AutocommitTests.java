@@ -42,12 +42,12 @@ public class AutocommitTests {
     private static final Logger logger = getLogger( AutocommitTests.class.getName() );
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         registerMockDriver( AutoCommitTrackerConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -55,7 +55,7 @@ public class AutocommitTests {
 
     @Test
     @DisplayName( "AutoCommit reset test" )
-    public void testAutoCommitReset() throws SQLException {
+    void testAutoCommitReset() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -86,7 +86,7 @@ public class AutocommitTests {
 
         private boolean autoCommit = true;
 
-        private int count = 0;
+        private int count;
 
         @Override
         public void setAutoCommit(boolean autoCommit) throws SQLException {

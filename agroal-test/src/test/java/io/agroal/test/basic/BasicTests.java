@@ -7,6 +7,7 @@ import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
+import io.agroal.test.MockStatement;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,17 +50,17 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Tag( FUNCTIONAL )
 public class BasicTests {
 
-    private static final Logger logger = getLogger( BasicTests.class.getName() );
+    static final Logger logger = getLogger( BasicTests.class.getName() );
 
     private static final String FAKE_SCHEMA = "skeema";
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver( FakeSchemaConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -66,7 +68,7 @@ public class BasicTests {
 
     @Test
     @DisplayName( "Mock driver providing fake connections" )
-    public void basicConnectionAcquireTest() throws SQLException {
+    void basicConnectionAcquireTest() throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getSchema(), FAKE_SCHEMA );
@@ -77,7 +79,8 @@ public class BasicTests {
 
     @Test
     @DisplayName( "DataSource in closed state" )
-    public void basicDataSourceCloseTest() throws SQLException {
+    @SuppressWarnings( "AnonymousInnerClassMayBeStatic" )
+    void basicDataSourceCloseTest() throws SQLException {
         AtomicBoolean warning = new AtomicBoolean( false );
 
         AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 2 ) ), new AgroalDataSourceListener() {
@@ -111,7 +114,8 @@ public class BasicTests {
 
     @Test
     @DisplayName( "Acquisition timeout" )
-    public void basicAcquisitionTimeoutTest() throws SQLException {
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    void basicAcquisitionTimeoutTest() throws SQLException {
         int MAX_POOL_SIZE = 100, ACQUISITION_TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -140,7 +144,8 @@ public class BasicTests {
 
     @Test
     @DisplayName( "Leak detection" )
-    public void basicLeakDetectionTest() throws SQLException {
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    void basicLeakDetectionTest() throws SQLException {
         int MAX_POOL_SIZE = 100, LEAK_DETECTION_MS = 1000;
         Thread leakingThread = currentThread();
 
@@ -174,7 +179,7 @@ public class BasicTests {
 
     @Test
     @DisplayName( "Connection Validation" )
-    public void basicValidationTest() throws SQLException {
+    void basicValidationTest() throws SQLException {
         int MAX_POOL_SIZE = 100, CALLS = 1000, VALIDATION_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -207,7 +212,7 @@ public class BasicTests {
 
     @Test
     @DisplayName( "Idle Connection Validation" )
-    public void basicIdleValidationTest() throws SQLException {
+    void basicIdleValidationTest() throws SQLException {
         int CALLS = 10, IDLE_VALIDATION_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -248,7 +253,7 @@ public class BasicTests {
 
     @Test
     @DisplayName( "Connection Reap" )
-    public void basicReapTest() throws SQLException {
+    void basicReapTest() throws SQLException {
         int MIN_POOL_SIZE = 40, MAX_POOL_SIZE = 100, CALLS = 1000, REAP_TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -289,7 +294,7 @@ public class BasicTests {
 
     @Test
     @DisplayName( "Enhanced leak report" )
-    public void enhancedLeakReportTest() throws SQLException {
+    void enhancedLeakReportTest() throws SQLException {
         int LEAK_DETECTION_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -314,8 +319,8 @@ public class BasicTests {
                     fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
                 }
                 Thread.sleep( 100 ); // hold for a bit to allow for enhanced info
-                assertEquals( 3 + 1, listener.infoCount, "Not enough info on extended leak report" );
-                assertEquals( 1, listener.warningCount, "Not enough info on extended leak report" );
+                assertEquals( 3 + 1, listener.getInfoCount(), "Not enough info on extended leak report" );
+                assertEquals( 1, listener.getWarningCount(), "Not enough info on extended leak report" );
             } catch ( InterruptedException e ) {
                 fail( "Test fail due to interrupt" );
             }
@@ -323,8 +328,28 @@ public class BasicTests {
     }
 
     @Test
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    @DisplayName( "Initial SQL test" )
+    void initialSQLTest() throws SQLException {
+        int MAX_POOL_SIZE = 10;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                        .connectionFactoryConfiguration( cf -> cf.initialSql( "Initial SQL" ) )
+                );
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                assertEquals( "Initial SQL", dataSource.getConnection().unwrap( FakeSchemaConnection.class ).initialSQL(), "Connection not initialized" );
+                //connection.close();
+            }
+        }
+    }
+
+    @Test
     @DisplayName( "Single acquisition" )
-    public void basicSingleAcquisitionTest() throws SQLException {
+    @SuppressWarnings( {"JDBCResourceOpenedButNotSafelyClosed", "ObjectAllocationInLoop"} )
+    void basicSingleAcquisitionTest() throws SQLException {
         int MAX_POOL_SIZE = 10;
 
         AgroalDataSourceConfigurationSupplier offConfigurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -348,7 +373,15 @@ public class BasicTests {
                 //connection.close();
             }
         }
-
+        WarningsAgroalListener warningsAgroalListener = new WarningsAgroalListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( warnConfigurationSupplier, warningsAgroalListener ) ) {
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                Connection connection = dataSource.getConnection();
+                assertNotNull( connection.getSchema(), "Expected non null value" );
+                //connection.close();
+            }
+            assertEquals( MAX_POOL_SIZE - 1, warningsAgroalListener.getWarningCount(), "Wrong number of warning messages" );
+        }
         try ( AgroalDataSource dataSource = AgroalDataSource.from( strictConfigurationSupplier, new NoWarningsAgroalListener() ) ) {
             for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
                 if ( i == 0 ) {
@@ -366,12 +399,13 @@ public class BasicTests {
 
     // --- //
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class LeakDetectionListener implements AgroalDataSourceListener {
         private final Thread leakingThread;
         private final CountDownLatch latch;
         private int infoCount, warningCount;
 
-        public LeakDetectionListener(Thread leakingThread, CountDownLatch latch) {
+        LeakDetectionListener(Thread leakingThread, CountDownLatch latch) {
             this.leakingThread = leakingThread;
             this.latch = latch;
         }
@@ -393,12 +427,21 @@ public class BasicTests {
             infoCount++;
             logger.info( message );
         }
+
+        int getInfoCount() {
+            return infoCount;
+        }
+
+        int getWarningCount() {
+            return warningCount;
+        }
     }
 
     private static class ValidationListener implements AgroalDataSourceListener {
         private final CountDownLatch latch;
 
-        public ValidationListener(CountDownLatch latch) {
+        @SuppressWarnings( "WeakerAccess" )
+        ValidationListener(CountDownLatch latch) {
             this.latch = latch;
         }
 
@@ -414,7 +457,8 @@ public class BasicTests {
         private final LongAdder reapCount;
         private final CountDownLatch destroyLatch;
 
-        public ReapListener(CountDownLatch allLatch, LongAdder reapCount, CountDownLatch destroyLatch) {
+        @SuppressWarnings( "WeakerAccess" )
+        ReapListener(CountDownLatch allLatch, LongAdder reapCount, CountDownLatch destroyLatch) {
             this.allLatch = allLatch;
             this.reapCount = reapCount;
             this.destroyLatch = destroyLatch;
@@ -437,6 +481,11 @@ public class BasicTests {
     }
 
     private static class NoWarningsAgroalListener implements AgroalDataSourceListener {
+
+        @SuppressWarnings( "WeakerAccess" )
+        NoWarningsAgroalListener() {
+        }
+
         @Override
         public void onWarning(String message) {
             fail( "Unexpected warn message: " + message );
@@ -448,11 +497,38 @@ public class BasicTests {
         }
     }
 
+    @SuppressWarnings( "WeakerAccess" )
+    private static class WarningsAgroalListener implements AgroalDataSourceListener {
+        private int warningCount;
+
+        WarningsAgroalListener() {
+        }
+
+        @Override
+        public void onWarning(String message) {
+            warningCount++;
+            logger.warning( message );
+        }
+
+        @Override
+        public void onWarning(Throwable t) {
+            warningCount++;
+            logger.warning( t.getMessage() );
+
+        }
+
+        int getWarningCount() {
+            return warningCount;
+        }
+    }
+
+
     // --- //
 
     public static class FakeSchemaConnection implements MockConnection {
 
-        private boolean closed = false;
+        private boolean closed;
+        private final RecordingStatement statement = new RecordingStatement();
 
         @Override
         public String getSchema() throws SQLException {
@@ -470,8 +546,38 @@ public class BasicTests {
         }
 
         @Override
+        public Statement createStatement() throws SQLException {
+            return statement;
+        }
+
+        @SuppressWarnings( "WeakerAccess" )
+        String initialSQL() {
+            return statement.getInitialSQL();
+        }
+
+        @Override
+        @SuppressWarnings( "unchecked" )
         public <T> T unwrap(Class<T> target) throws SQLException {
             return (T) this;
+        }
+
+        private static class RecordingStatement implements MockStatement {
+
+            private String initialSQL;
+
+            @SuppressWarnings( "WeakerAccess" )
+            RecordingStatement(){
+            }
+
+            @Override
+            public boolean execute(String sql) throws SQLException {
+                initialSQL = sql;
+                return true;
+            }
+
+            String getInitialSQL() {
+                return initialSQL;
+            }
         }
     }
 }

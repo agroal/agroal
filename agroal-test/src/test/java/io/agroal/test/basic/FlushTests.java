@@ -6,7 +6,6 @@ package io.agroal.test.basic;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
-import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
 import org.junit.jupiter.api.AfterAll;
@@ -47,12 +46,12 @@ public class FlushTests {
     private static final Logger logger = getLogger( FlushTests.class.getName() );
 
     @BeforeAll
-    public static void setupMockDriver() {
+    static void setupMockDriver() {
         registerMockDriver( FakeConnection.class );
     }
 
     @AfterAll
-    public static void teardown() {
+    static void teardown() {
         deregisterMockDriver();
     }
 
@@ -60,7 +59,7 @@ public class FlushTests {
 
     @Test
     @DisplayName( "FlushMode.ALL" )
-    public void modeAll() throws SQLException {
+    void modeAll() throws SQLException {
         int MIN_POOL_SIZE = 40, MAX_POOL_SIZE = 100, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -75,10 +74,10 @@ public class FlushTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
 
             logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", MAX_POOL_SIZE ) );
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created", listener.getCreationLatch().getCount() ) );
             }
-            listener.creationLatch = new CountDownLatch( MIN_POOL_SIZE );
+            listener.resetCreationLatch( MIN_POOL_SIZE );
 
             Connection connection = dataSource.getConnection();
             assertFalse( connection.isClosed() );
@@ -86,24 +85,24 @@ public class FlushTests {
             dataSource.flush( AgroalDataSource.FlushMode.ALL );
 
             logger.info( format( "Awaiting flush of all the {0} connections on the pool", MAX_POOL_SIZE ) );
-            if ( !listener.flushLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not flush", listener.flushLatch.getCount() ) );
+            if ( !listener.getFlushLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not flush", listener.getFlushLatch().getCount() ) );
             }
             logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE - MIN_POOL_SIZE ) );
-            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} flushed connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            if ( !listener.getDestroyLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} flushed connections not sent for destruction", listener.getDestroyLatch().getCount() ) );
             }
             logger.info( format( "Awaiting fill of all the {0} min connections on the pool", MIN_POOL_SIZE ) );
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created", listener.getCreationLatch().getCount() ) );
             }
 
             assertAll( () -> {
                 assertTrue( connection.isClosed(), "Expecting connection closed after forced flush" );
 
-                assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
-                assertEquals( MAX_POOL_SIZE, listener.destroyCount.longValue(), "Unexpected number of destroyed connections" );
-                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE, listener.getFlushCount().longValue(), "Unexpected number of beforeFlushConnection" );
+                assertEquals( MAX_POOL_SIZE, listener.getDestroyCount().longValue(), "Unexpected number of destroyed connections" );
+                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.getCreationCount().longValue(), "Unexpected number of created connections" );
             } );
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );
@@ -112,7 +111,7 @@ public class FlushTests {
 
     @Test
     @DisplayName( "FlushMode.GRACEFUL" )
-    public void modeGraceful() throws SQLException {
+    void modeGraceful() throws SQLException {
         int MIN_POOL_SIZE = 10, MAX_POOL_SIZE = 30, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -128,11 +127,11 @@ public class FlushTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
 
             logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", MAX_POOL_SIZE ) );
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created", listener.getCreationLatch().getCount() ) );
             }
 
-            listener.creationLatch = new CountDownLatch( MIN_POOL_SIZE - 1 );
+            listener.resetCreationLatch( MIN_POOL_SIZE - 1 );
 
             Connection connection = dataSource.getConnection();
             assertFalse( connection.isClosed() );
@@ -140,25 +139,25 @@ public class FlushTests {
             dataSource.flush( AgroalDataSource.FlushMode.GRACEFUL );
 
             logger.info( format( "Awaiting flush of the {0} connections on the pool", MAX_POOL_SIZE - 1 ) );
-            if ( !listener.flushLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not flush", listener.flushLatch.getCount() ) );
+            if ( !listener.getFlushLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not flush", listener.getFlushLatch().getCount() ) );
             }
             logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE - 1 ) );
-            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} flushed connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            if ( !listener.getDestroyLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} flushed connections not sent for destruction", listener.getDestroyLatch().getCount() ) );
             }
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created after flush", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created after flush", listener.getCreationLatch().getCount() ) );
             }
 
-            listener.creationLatch = new CountDownLatch( 1 );
-            listener.flushLatch = new CountDownLatch( 1 );
-            listener.destroyLatch = new CountDownLatch( 1 );
+            listener.resetCreationLatch( 1 );
+            listener.resetFlushLatch( 1 );
+            listener.resetDestroyLatch( 1 );
 
             assertAll( () -> {
-                assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
-                assertEquals( MAX_POOL_SIZE - 1, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
-                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE - 1, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE, listener.getFlushCount().longValue(), "Unexpected number of beforeFlushConnection" );
+                assertEquals( MAX_POOL_SIZE - 1, listener.getDestroyCount().longValue(), "Unexpected number of destroy connections" );
+                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE - 1, listener.getCreationCount().longValue(), "Unexpected number of created connections" );
 
                 assertEquals( MIN_POOL_SIZE - 1, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
                 assertEquals( 1, dataSource.getMetrics().activeCount(), "Incorrect active count" );
@@ -169,21 +168,21 @@ public class FlushTests {
             connection.close();
 
             logger.info( format( "Awaiting flush of one remaining connection" ) );
-            if ( !listener.flushLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not flush", listener.flushLatch.getCount() ) );
+            if ( !listener.getFlushLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not flush", listener.getFlushLatch().getCount() ) );
             }
             logger.info( format( "Waiting for destruction of one remaining connection" ) );
-            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} flushed connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            if ( !listener.getDestroyLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} flushed connections not sent for destruction", listener.getDestroyLatch().getCount() ) );
             }
             logger.info( format( "Awaiting creation of one additional connections" ) );
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created", listener.getCreationLatch().getCount() ) );
             }
 
             assertAll( () -> {
-                assertEquals( MAX_POOL_SIZE, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
-                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE, listener.getDestroyCount().longValue(), "Unexpected number of destroy connections" );
+                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.getCreationCount().longValue(), "Unexpected number of created connections" );
                 assertEquals( 0, dataSource.getMetrics().activeCount(), "Incorrect active count" );
                 assertEquals( MIN_POOL_SIZE, dataSource.getMetrics().availableCount(), "Pool not fill to min" );
             } );
@@ -194,7 +193,7 @@ public class FlushTests {
 
     @Test
     @DisplayName( "FlushMode.INVALID" )
-    public void modeValid() throws SQLException {
+    void modeValid() throws SQLException {
         int MIN_POOL_SIZE = 10, MAX_POOL_SIZE = 30, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -206,35 +205,35 @@ public class FlushTests {
                 );
 
         FlushListener listener = new FlushListener( new CountDownLatch( MAX_POOL_SIZE ), new CountDownLatch( MAX_POOL_SIZE ), new CountDownLatch( MAX_POOL_SIZE ) );
-        listener.validationLatch = new CountDownLatch( MAX_POOL_SIZE );
+        listener.resetValidationLatch( MAX_POOL_SIZE );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
 
             logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", MAX_POOL_SIZE ) );
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created", listener.getCreationLatch().getCount() ) );
             }
 
-            listener.creationLatch = new CountDownLatch( MIN_POOL_SIZE );
+            listener.resetCreationLatch( MIN_POOL_SIZE );
 
             dataSource.flush( AgroalDataSource.FlushMode.INVALID );
 
             logger.info( format( "Awaiting for validation of all the {0} connections on the pool", MAX_POOL_SIZE ) );
-            if ( !listener.validationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "Missed validation of {0} connections", listener.validationLatch.getCount() ) );
+            if ( !listener.getValidationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "Missed validation of {0} connections", listener.getValidationLatch().getCount() ) );
             }
             logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE - 1 ) );
-            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} invalid connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            if ( !listener.getDestroyLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} invalid connections not sent for destruction", listener.getDestroyLatch().getCount() ) );
             }
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created after flush", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created after flush", listener.getCreationLatch().getCount() ) );
             }
 
             assertAll( () -> {
-                assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
-                assertEquals( MAX_POOL_SIZE, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
-                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE, listener.getFlushCount().longValue(), "Unexpected number of beforeFlushConnection" );
+                assertEquals( MAX_POOL_SIZE, listener.getDestroyCount().longValue(), "Unexpected number of destroy connections" );
+                assertEquals( MAX_POOL_SIZE + MIN_POOL_SIZE, listener.getCreationCount().longValue(), "Unexpected number of created connections" );
             } );
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );
@@ -243,7 +242,8 @@ public class FlushTests {
 
     @Test
     @DisplayName( "FlushMode.IDLE" )
-    public void modeIdle() throws SQLException {
+    @SuppressWarnings( "ConstantConditions" )
+    void modeIdle() throws SQLException {
         int MIN_POOL_SIZE = 25, MAX_POOL_SIZE = 50, CALLS = 30, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -269,15 +269,15 @@ public class FlushTests {
             dataSource.flush( AgroalDataSource.FlushMode.IDLE );
 
             logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE - max( MIN_POOL_SIZE, CALLS ) ) );
-            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} invalid connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            if ( !listener.getDestroyLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} invalid connections not sent for destruction", listener.getDestroyLatch().getCount() ) );
             }
 
             assertAll( () -> {
-                assertEquals( MAX_POOL_SIZE - max( MIN_POOL_SIZE, CALLS ), listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
+                assertEquals( MAX_POOL_SIZE - max( MIN_POOL_SIZE, CALLS ), listener.getDestroyCount().longValue(), "Unexpected number of destroy connections" );
 
-                assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
-                assertEquals( MAX_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE, listener.getFlushCount().longValue(), "Unexpected number of beforeFlushConnection" );
+                assertEquals( MAX_POOL_SIZE, listener.getCreationCount().longValue(), "Unexpected number of created connections" );
             } );
 
             for ( Connection connection : connections ) {
@@ -285,21 +285,21 @@ public class FlushTests {
             }
 
             int remaining = max( MIN_POOL_SIZE, CALLS ) - min( MIN_POOL_SIZE, CALLS );
-            listener.destroyLatch = new CountDownLatch( remaining );
+            listener.resetDestroyLatch( remaining );
 
             // Flush to MIN_SIZE
             dataSource.flush( AgroalDataSource.FlushMode.IDLE );
 
             logger.info( format( "Waiting for destruction of {0} remaining connection", remaining ) );
-            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} flushed connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            if ( !listener.getDestroyLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} flushed connections not sent for destruction", listener.getDestroyLatch().getCount() ) );
             }
 
             assertAll( () -> {
-                assertEquals( MAX_POOL_SIZE - MIN_POOL_SIZE, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
+                assertEquals( MAX_POOL_SIZE - MIN_POOL_SIZE, listener.getDestroyCount().longValue(), "Unexpected number of destroy connections" );
 
-                assertEquals( MAX_POOL_SIZE + max( MIN_POOL_SIZE, CALLS ), listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
-                assertEquals( MAX_POOL_SIZE, listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE + max( MIN_POOL_SIZE, CALLS ), listener.getFlushCount().longValue(), "Unexpected number of beforeFlushConnection" );
+                assertEquals( MAX_POOL_SIZE, listener.getCreationCount().longValue(), "Unexpected number of created connections" );
             } );
         } catch ( InterruptedException e ) {
             fail( "Test fail due to interrupt" );
@@ -308,7 +308,8 @@ public class FlushTests {
 
     @Test
     @DisplayName( "FlushMode.LEAK" )
-    public void modeLeak() throws SQLException {
+    @SuppressWarnings( "ConstantConditions" )
+    void modeLeak() throws SQLException {
         int MIN_POOL_SIZE = 25, MAX_POOL_SIZE = 50, CALLS = 30, LEAK_MS = 100, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -330,24 +331,24 @@ public class FlushTests {
                 connections.add( dataSource.getConnection() );
             }
 
-            Thread.sleep( LEAK_MS * 2 );
+            Thread.sleep( LEAK_MS << 1 ); // 2 * LEAK_MS
 
             // Flush to CALLS
             dataSource.flush( AgroalDataSource.FlushMode.LEAK );
 
             logger.info( format( "Waiting for destruction of {0} connections ", MAX_POOL_SIZE ) );
-            if ( !listener.destroyLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} leak connections not sent for destruction", listener.destroyLatch.getCount() ) );
+            if ( !listener.getDestroyLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} leak connections not sent for destruction", listener.getDestroyLatch().getCount() ) );
             }
-            if ( !listener.creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
-                fail( format( "{0} connections not created after flush", listener.creationLatch.getCount() ) );
+            if ( !listener.getCreationLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created after flush", listener.getCreationLatch().getCount() ) );
             }
 
             assertAll( () -> {
-                assertEquals( CALLS, listener.destroyCount.longValue(), "Unexpected number of destroy connections" );
+                assertEquals( CALLS, listener.getDestroyCount().longValue(), "Unexpected number of destroy connections" );
 
-                assertEquals( MAX_POOL_SIZE, listener.flushCount.longValue(), "Unexpected number of beforeFlushConnection" );
-                assertEquals( MAX_POOL_SIZE + ( CALLS - MIN_POOL_SIZE ), listener.creationCount.longValue(), "Unexpected number of created connections" );
+                assertEquals( MAX_POOL_SIZE, listener.getFlushCount().longValue(), "Unexpected number of beforeFlushConnection" );
+                assertEquals( MAX_POOL_SIZE + ( CALLS - MIN_POOL_SIZE ), listener.getCreationCount().longValue(), "Unexpected number of created connections" );
 
                 assertTrue( connections.stream().allMatch( c -> {
                     try {
@@ -364,12 +365,13 @@ public class FlushTests {
 
     // --- //
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class FlushListener implements AgroalDataSourceListener {
 
         private final LongAdder creationCount = new LongAdder(), flushCount = new LongAdder(), destroyCount = new LongAdder();
         private CountDownLatch creationLatch, validationLatch, flushLatch, destroyLatch;
 
-        public FlushListener(CountDownLatch creationLatch, CountDownLatch flushLatch, CountDownLatch destroyLatch) {
+        FlushListener(CountDownLatch creationLatch, CountDownLatch flushLatch, CountDownLatch destroyLatch) {
             this.creationLatch = creationLatch;
             this.flushLatch = flushLatch;
             this.destroyLatch = destroyLatch;
@@ -409,13 +411,62 @@ public class FlushTests {
         public void onConnectionDestroy(Connection connection) {
             destroyLatch.countDown();
         }
+
+        // --- //
+
+        void resetCreationLatch(int count) {
+            creationLatch = new CountDownLatch( count );
+        }
+
+        void resetValidationLatch(int count) {
+            validationLatch = new CountDownLatch( count );
+        }
+
+        @SuppressWarnings( "SameParameterValue" )
+        void resetFlushLatch(int count) {
+            flushLatch = new CountDownLatch( count );
+        }
+
+        void resetDestroyLatch(int count) {
+            destroyLatch = new CountDownLatch( count );
+        }
+
+        // --- //
+
+        LongAdder getCreationCount() {
+            return creationCount;
+        }
+
+        LongAdder getFlushCount() {
+            return flushCount;
+        }
+
+        LongAdder getDestroyCount() {
+            return destroyCount;
+        }
+
+        CountDownLatch getCreationLatch() {
+            return creationLatch;
+        }
+
+        CountDownLatch getValidationLatch() {
+            return validationLatch;
+        }
+
+        CountDownLatch getFlushLatch() {
+            return flushLatch;
+        }
+
+        CountDownLatch getDestroyLatch() {
+            return destroyLatch;
+        }
     }
 
     // --- //
 
     public static class FakeConnection implements MockConnection {
 
-        private boolean closed = false;
+        private boolean closed;
 
         @Override
         public void close() throws SQLException {

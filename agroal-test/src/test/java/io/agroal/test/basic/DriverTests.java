@@ -25,13 +25,14 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Tag( FUNCTIONAL )
 public class DriverTests {
 
-    private static final Logger logger = getLogger( DriverTests.class.getName() );
+    static final Logger logger = getLogger( DriverTests.class.getName() );
 
     // --- //
 
     @Test
     @DisplayName( "Driver does not accept the provided URL" )
-    public void basicUnacceptableURL() throws SQLException {
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    void basicUnacceptableURL() throws SQLException {
         AgroalDataSourceConfigurationSupplier configuration = new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
                 cp -> cp.maxSize( 1 ).connectionFactoryConfiguration(
                         cf -> cf.connectionProviderClass( UnacceptableURLDriver.class ).jdbcUrl( "jdbc:unacceptableURL" )
@@ -50,9 +51,13 @@ public class DriverTests {
 
     // --- //
 
+    @SuppressWarnings( "WeakerAccess" )
     private static class DriverAgroalDataSourceListener implements AgroalDataSourceListener {
 
-        private boolean warning = false;
+        private boolean warning;
+
+        DriverAgroalDataSourceListener() {
+        }
 
         @Override
         public void onWarning(String message) {
@@ -66,7 +71,7 @@ public class DriverTests {
             warning = true;
         }
 
-        public boolean hasWarning() {
+        boolean hasWarning() {
             return warning;
         }
     }
