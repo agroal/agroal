@@ -87,8 +87,8 @@ public class BasicOSGiTests {
     /**
      * This class is turned into a Bundled and then deployed to the OSGi container
      */
-    @SuppressWarnings( {"UtilityClass", "WeakerAccess"} )
-    private static final class AgroalProbe {
+    @SuppressWarnings( {"UtilityClass", "WeakerAccess", "UtilityClassWithoutPrivateConstructor"} )
+    public static final class AgroalProbe {
 
         static final Logger probeLogger = getLogger( AgroalProbe.class.getName() );
 
