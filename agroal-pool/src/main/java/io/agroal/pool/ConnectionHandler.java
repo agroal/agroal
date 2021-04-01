@@ -59,7 +59,7 @@ public final class ConnectionHandler implements TransactionAware {
 
     // Can use annotation to get (in theory) a little better performance
     // @Contended
-    private volatile State state;
+    private volatile State state = State.NEW;
 
     // for leak detection (only valid for CHECKED_OUT connections)
     private Thread holdingThread;
@@ -89,7 +89,6 @@ public final class ConnectionHandler implements TransactionAware {
         xaResource = xaConnection.getXAResource();
 
         connectionPool = pool;
-        state = State.NEW;
         touch();
     }
 
@@ -166,8 +165,9 @@ public final class ConnectionHandler implements TransactionAware {
         }
         maxLifetimeTask = null;
         try {
-            if ( state != State.FLUSH ) {
-                throw new SQLException( "Closing connection in incorrect state " + state );
+            State observedState = stateUpdater.get( this );
+            if ( observedState != State.FLUSH ) {
+                throw new SQLException( "Closing connection in incorrect state " + observedState );
             }
         } finally {
             connection.close();
