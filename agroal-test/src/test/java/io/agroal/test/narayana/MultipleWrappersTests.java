@@ -10,6 +10,7 @@ import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.test.MockConnection;
+import io.agroal.test.MockXADataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -107,7 +108,91 @@ public class MultipleWrappersTests {
         }
     }
 
+    @Test
+    @DisplayName( "Close after completion test" )
+    void closeAfterCompletionTest() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+        ReturnCounterListener returnCounter = new ReturnCounterListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( MockXADataSource.Empty.class ) )
+                ), returnCounter ) ) {
+
+            logger.info( "Test for closing XA connection after completion (commit) on datasource " + dataSource );
+
+            txManager.begin();
+            Connection connectionCommit = dataSource.getConnection();
+            assertEquals( 0, returnCounter.getAttemptsCount(), "Early return of Connection" );
+            txManager.commit();
+            assertEquals( 1, returnCounter.getAttemptsCount(), "Connection not returned when expected" );
+            assertEquals( 1, returnCounter.getReturnCount(), "Connection not returned when expected" );
+            connectionCommit.close();
+            assertEquals( 1, returnCounter.getAttemptsCount(), "Multiple return of Connection" );
+            assertEquals( 1, returnCounter.getWarningCount(), "Did not get a warning indicating the connection was closed by Agroal" );
+
+            returnCounter.reset();
+            logger.info( "Test for closing XA connection after completion (rollback) on datasource " + dataSource );
+
+            txManager.begin();
+            Connection connectionRollback = dataSource.getConnection();
+            assertEquals( 0, returnCounter.getAttemptsCount(), "Early return of Connection" );
+            txManager.rollback();
+            assertEquals( 1, returnCounter.getAttemptsCount(), "Connection not returned when expected" );
+            assertEquals( 1, returnCounter.getReturnCount(), "Connection not returned when expected" );
+            connectionRollback.close();
+            assertEquals( 1, returnCounter.getAttemptsCount(), "Multiple return of Connection" );
+            assertEquals( 1, returnCounter.getWarningCount(), "Did not get a warning indicating the connection was closed by Agroal" );
+        } catch ( SystemException | NotSupportedException | HeuristicRollbackException | HeuristicMixedException | RollbackException e ) {
+            fail( "Transaction exception", e );
+        }
+    }
+
     // --- //
+
+    private static class ReturnCounterListener implements AgroalDataSourceListener {
+
+        private int attemptsCount, returnCount, warningCount;
+
+        ReturnCounterListener() {
+        }
+
+        @Override
+        public void beforeConnectionReturn(Connection connection) {
+            attemptsCount++;
+        }
+
+        @Override
+        public void onConnectionReturn(Connection connection) {
+            returnCount++;
+        }
+
+        @Override
+        public void onWarning(String message) {
+            warningCount++;
+            logger.warning( message );
+        }
+
+        public int getAttemptsCount() {
+            return attemptsCount;
+        }
+
+        public int getReturnCount() {
+            return returnCount;
+        }
+
+        public int getWarningCount() {
+            return warningCount;
+        }
+
+        public void reset() {
+            attemptsCount = returnCount = warningCount = 0;
+        }
+    }
 
     private static class WarningsAgroalDatasourceListener implements AgroalDataSourceListener {
 

@@ -321,6 +321,10 @@ public final class ConnectionHandler implements TransactionAware {
 
     @Override
     public void transactionEnd() throws SQLException {
+        for ( ConnectionWrapper wrapper : enlistedOpenWrappers ) {
+            fireOnWarning( connectionPool.getListeners(), "Closing open connection after completion" );
+            wrapper.close();
+        }
         enlisted = false;
         connectionPool.returnConnectionHandler( this );
     }
