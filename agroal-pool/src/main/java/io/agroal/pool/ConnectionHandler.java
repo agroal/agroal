@@ -37,16 +37,16 @@ public final class ConnectionHandler implements TransactionAware {
 
     private static final AtomicReferenceFieldUpdater<ConnectionHandler, State> stateUpdater = newUpdater( ConnectionHandler.class, State.class, "state" );
 
-    private static final TransactionAware.SQLCallable<Boolean> NO_ACTIVE_TRANSACTION = new SQLCallable<Boolean>() {
-        @Override
-        public Boolean call() throws SQLException {
-            return false;
-        }
-    };
+    private static final TransactionAware.SQLCallable<Boolean> NO_ACTIVE_TRANSACTION = () -> false;
 
+    // --- //
+
+    private final XAConnection xaConnection;
+
+    // Single Connection reference from xaConnection.getConnection()
     private final Connection connection;
 
-    //used in XA mode, otherwise null
+    // Single XAResource reference from xaConnection.getXAResource(). Can be null for no XA datasources.
     private final XAResource xaResource;
 
     private final Pool connectionPool;
@@ -84,7 +84,8 @@ public final class ConnectionHandler implements TransactionAware {
     // If there is no transaction integration this should just return false
     private TransactionAware.SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
-    public ConnectionHandler(XAConnection xaConnection, Pool pool) throws SQLException {
+    public ConnectionHandler(XAConnection xa, Pool pool) throws SQLException {
+        xaConnection = xa;
         connection = xaConnection.getConnection();
         xaResource = xaConnection.getXAResource();
 
@@ -170,7 +171,11 @@ public final class ConnectionHandler implements TransactionAware {
                 throw new SQLException( "Closing connection in incorrect state " + observedState );
             }
         } finally {
-            connection.close();
+            try {
+                xaConnection.close();
+            } finally {
+                stateUpdater.set( this, State.DESTROYED );
+            }
         }
     }
 

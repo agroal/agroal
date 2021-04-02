@@ -753,7 +753,6 @@ public final class ConnectionPool implements Pool {
             } catch ( SQLException e ) {
                 fireOnWarning( listeners, e );
             }
-            handler.setState( DESTROYED );
             metricsRepository.afterConnectionDestroy();
             fireOnConnectionDestroy( listeners, handler );
         }
