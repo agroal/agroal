@@ -238,7 +238,9 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
             xaConnection.close();
             throw new SQLException( "null XAResource from XADataSource" );
         }
-        connectionSetup( xaConnection.getConnection() );
+        try ( Connection connection = xaConnection.getConnection() ) {
+            connectionSetup( connection );
+        }
         return xaConnection;
     }
 
