@@ -30,7 +30,7 @@ public class XAConnectionAdaptor implements XAConnection {
 
     @Override
     public void close() throws SQLException {
-        throw new SQLException( "XA close on non-XA connection" );
+        connection.close();
     }
 
     @Override
