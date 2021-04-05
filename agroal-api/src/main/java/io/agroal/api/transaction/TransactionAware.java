@@ -19,6 +19,13 @@ public interface TransactionAware {
     void transactionStart() throws SQLException;
 
     /**
+     * The transaction is about to complete.
+     *
+     * @param successful If the transaction is to complete successfully (commit) or unsuccessfully (rollback)
+     */
+    void transactionBeforeCompletion(boolean successful);
+
+    /**
      * The resource must commit.
      */
     void transactionCommit() throws SQLException;
