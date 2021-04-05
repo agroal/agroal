@@ -65,6 +65,7 @@ public class LocalXAResource implements XAResourceWrapper {
 
         currentXid = null;
         try {
+            transactionAware.transactionBeforeCompletion( true );
             transactionAware.transactionCommit();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();
@@ -80,6 +81,7 @@ public class LocalXAResource implements XAResourceWrapper {
 
         currentXid = null;
         try {
+            transactionAware.transactionBeforeCompletion( false );
             transactionAware.transactionRollback();
         } catch ( Exception t ) {
             transactionAware.setFlushOnly();

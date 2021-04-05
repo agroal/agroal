@@ -54,6 +54,7 @@ public class BaseXAResource implements XAResourceWrapper {
     @Override
     public void commit(Xid xid, boolean onePhase) throws XAException {
         try {
+            transactionAware.transactionBeforeCompletion( true );
             xaResource.commit( xid, onePhase );
         } catch ( XAException xe ) {
             transactionAware.setFlushOnly();
@@ -124,6 +125,7 @@ public class BaseXAResource implements XAResourceWrapper {
     @Override
     public void rollback(Xid xid) throws XAException {
         try {
+            transactionAware.transactionBeforeCompletion( false );
             xaResource.rollback( xid );
         } catch ( XAException xe ) {
             transactionAware.setFlushOnly();
