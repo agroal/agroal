@@ -49,7 +49,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         this.listeners = listeners;
 
         jdbcProperties = new Properties();
-        configuration.jdbcProperties().forEach( jdbcProperties::put );
+        jdbcProperties.putAll( configuration.jdbcProperties() );
 
         factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
         switch ( factoryMode ) {

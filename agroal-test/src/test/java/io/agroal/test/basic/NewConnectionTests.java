@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.NONE;
@@ -31,6 +32,7 @@ import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -107,6 +109,25 @@ public class NewConnectionTests {
         }
     }
 
+    @Test
+    @DisplayName( "Properties injection test" )
+    void propertiesInjectionTest() throws SQLException {
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( PropertiesDataSource.class )
+                                .jdbcProperty( "connectionProperties", "url=some_url;custom=some_custom_prop" )
+                        )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new NoWarningsAgroalListener() ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                logger.info( "Got connection " + c + " with some URL" );
+            }
+        }
+    }
+
     // --- //
 
     public static class NoWarningsAgroalListener implements AgroalDataSourceListener {
@@ -136,6 +157,24 @@ public class NewConnectionTests {
             return new MockConnection.Empty();
         }
     }
+
+    public static class PropertiesDataSource implements MockDataSource {
+
+        private Properties connectionProperties;
+
+        public void setConnectionProperties(Properties properties) {
+            connectionProperties = properties;
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            assertEquals( "some_url", connectionProperties.getProperty( "url" ), "Expected URL property to be set before getConnection()" );
+            assertEquals( "some_custom_prop", connectionProperties.getProperty( "custom" ), "Expected Custom property to be set before getConnection()" );
+            assertNull( connectionProperties.getProperty( "connectionProperties" ), "Not expecting property to be set before getConnection()" );
+            return new MockConnection.Empty();
+        }
+    }
+
 
     public static class FakeConnection implements MockConnection {
 
