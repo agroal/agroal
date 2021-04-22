@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -50,6 +51,25 @@ public final class PropertyInjector {
         return propertySetter.keySet();
     }
 
+    private static Properties typeConvertProperties(String properties) {
+        if ( properties == null ) {
+            return new Properties();
+        }
+        properties = properties.trim();
+        if ( properties.isEmpty() ) {
+            return new Properties();
+        }
+        Properties result = new Properties();
+        for ( String property : properties.split( ";" ) ) {
+            String[] keyValue = property.split( "=" );
+            if ( keyValue.length != 2 ) {
+                throw new IllegalArgumentException( "Can't convert properties '" + properties + "' to " + Properties.class.getName() );
+            }
+            result.put( keyValue[0].trim(), keyValue[1].trim() );
+        }
+        return result;
+    }
+
     private Object typeConvert(String value, Class<?> target) {
         if ( target == String.class ) {
             return value;
@@ -73,6 +93,8 @@ public final class PropertyInjector {
             } catch ( ClassNotFoundException e ) {
                 throw new IllegalArgumentException( "ClassNotFoundException: " + e.getMessage() );
             }
+        } else if ( Properties.class.isAssignableFrom( target ) ) {
+            return typeConvertProperties( value );
         } else {
             throw new IllegalArgumentException( "Can't convert to " + target.getName() );
         }
