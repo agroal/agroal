@@ -368,8 +368,7 @@ public final class ConnectionPool implements Pool {
             }
             checkedOutHandler.setHoldingThread( currentThread() );
             if ( configuration.enhancedLeakReport() ) {
-                StackTraceElement[] trace = currentThread().getStackTrace();
-                checkedOutHandler.setAcquisitionStackTrace( copyOfRange( trace, 4, trace.length) );
+                checkedOutHandler.setAcquisitionStackTrace( currentThread().getStackTrace() );
             }
         }
         return checkedOutHandler.newConnectionWrapper();
@@ -381,7 +380,9 @@ public final class ConnectionPool implements Pool {
         fireBeforeConnectionReturn( listeners, handler );
         if ( leakEnabled ) {
             handler.setHoldingThread( null );
-            handler.setAcquisitionStackTrace( null );
+            if ( configuration.enhancedLeakReport() ) {
+                handler.setAcquisitionStackTrace( null );
+            }
         }
         if ( idleValidationEnabled || reapEnabled ) {
             handler.touch();

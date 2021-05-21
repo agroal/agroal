@@ -24,7 +24,6 @@ import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
-import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionReturnInterceptor;

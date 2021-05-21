@@ -15,7 +15,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -27,6 +26,8 @@ import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 import static java.lang.System.nanoTime;
+import static java.lang.Thread.currentThread;
+import static java.util.Arrays.copyOfRange;
 import static java.util.EnumSet.noneOf;
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
 
@@ -242,8 +243,7 @@ public final class ConnectionHandler implements TransactionAware {
     public void traceConnectionOperation(String operation) {
         if ( acquisitionStackTrace != null ) {
             connectionOperations.add( operation );
-            StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-            lastOperationStackTrace = Arrays.copyOfRange( trace, 3, trace.length );
+            lastOperationStackTrace = currentThread().getStackTrace();
         }
     }
 
@@ -258,7 +258,7 @@ public final class ConnectionHandler implements TransactionAware {
      * Stack trace of the first acquisition for this connection
      */
     public StackTraceElement[] getAcquisitionStackTrace() {
-        return acquisitionStackTrace;
+        return acquisitionStackTrace == null ? null : copyOfRange( acquisitionStackTrace, 4, acquisitionStackTrace.length);
     }
 
     /**
@@ -277,7 +277,7 @@ public final class ConnectionHandler implements TransactionAware {
      * Stack trace for the last operation on this connection
      */
     public StackTraceElement[] getLastOperationStackTrace() {
-        return lastOperationStackTrace;
+        return lastOperationStackTrace == null ? null : copyOfRange( lastOperationStackTrace, 3, lastOperationStackTrace.length );
     }
 
     public void setDirtyAttribute(DirtyAttribute attribute) {
