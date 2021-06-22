@@ -3,6 +3,7 @@
 
 package io.agroal.pool;
 
+import io.agroal.api.cache.Acquirable;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionAware;
@@ -34,7 +35,7 @@ import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class ConnectionHandler implements TransactionAware {
+public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     private static final AtomicReferenceFieldUpdater<ConnectionHandler, State> stateUpdater = newUpdater( ConnectionHandler.class, State.class, "state" );
 
@@ -178,6 +179,15 @@ public final class ConnectionHandler implements TransactionAware {
                 stateUpdater.set( this, State.DESTROYED );
             }
         }
+    }
+
+    public boolean acquire() {
+        return setState( State.CHECKED_IN, State.CHECKED_OUT );
+    }
+
+    public boolean isAcquirable() {
+        State observedState = stateUpdater.get( this );
+        return observedState != State.FLUSH && observedState != State.DESTROYED;
     }
 
     public boolean setState(State expected, State newState) {

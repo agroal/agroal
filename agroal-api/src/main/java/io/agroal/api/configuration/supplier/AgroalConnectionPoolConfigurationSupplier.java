@@ -3,6 +3,8 @@
 
 package io.agroal.api.configuration.supplier;
 
+import io.agroal.api.cache.ConnectionCache;
+import io.agroal.api.cache.LocalConnectionCache;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
@@ -29,6 +31,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     AgroalConnectionFactoryConfiguration connectionFactoryConfiguration;
 
+    ConnectionCache connectionCache = LocalConnectionCache.fixed( 4 );
     TransactionIntegration transactionIntegration = none();
     TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
     MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
@@ -60,6 +63,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             return;
         }
         connectionFactoryConfigurationSupplier = new AgroalConnectionFactoryConfigurationSupplier( existingConfiguration.connectionFactoryConfiguration() );
+        connectionCache = existingConfiguration.connectionCache();
         transactionIntegration = existingConfiguration.transactionIntegration();
         transactionRequirement = existingConfiguration.transactionRequirement();
         multipleAcquisitionAction = existingConfiguration.multipleAcquisition();
@@ -117,6 +121,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     // --- //
 
     /**
+     * Sets the connection cache implementation. Default is {@link LocalConnectionCache#fixed(int)} with size 4.
+     */
+    public AgroalConnectionPoolConfigurationSupplier connectionCache(ConnectionCache cache) {
+        checkLock();
+        connectionCache = cache;
+        return this;
+    }
+
+    /**
      * Sets the transaction integration instance to use. Default is {@link TransactionIntegration#none()}.
      */
     public AgroalConnectionPoolConfigurationSupplier transactionIntegration(TransactionIntegration integration) {
@@ -126,7 +139,6 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     /**
-     * <<<<<<< HEAD
      * Sets the transaction requirements for the pool. Default is {@link TransactionRequirement#OFF}.
      */
     public AgroalConnectionPoolConfigurationSupplier transactionRequirement(TransactionRequirement requirement) {
@@ -328,6 +340,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public AgroalConnectionFactoryConfiguration connectionFactoryConfiguration() {
                 return connectionFactoryConfiguration;
+            }
+
+            @Override
+            public ConnectionCache connectionCache() {
+                return connectionCache;
             }
 
             @Override

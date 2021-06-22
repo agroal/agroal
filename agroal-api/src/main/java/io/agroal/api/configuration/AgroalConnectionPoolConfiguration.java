@@ -3,6 +3,7 @@
 
 package io.agroal.api.configuration;
 
+import io.agroal.api.cache.ConnectionCache;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.sql.Connection;
@@ -30,6 +31,11 @@ public interface AgroalConnectionPoolConfiguration {
      * Allows a custom exception sorter. This determines if a connection is still usable after an exception.
      */
     ExceptionSorter exceptionSorter();
+
+    /**
+     * Customizable strategy for connection caching.
+     */
+    ConnectionCache connectionCache();
 
     /**
      * The transaction layer integration to use.
