@@ -5,6 +5,7 @@ package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.api.cache.LocalConnectionCache;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -111,6 +112,7 @@ public class ResizeTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
+                        .connectionCache( LocalConnectionCache.single() ) // this test expects thread local cache
                         .maxSize( MAX_SIZE )
                         .initialSize( INITIAL_SIZE )
                 );

@@ -6,13 +6,13 @@ package io.agroal.pool;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalPoolInterceptor;
+import io.agroal.api.cache.ConnectionCache;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
 import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
-import io.agroal.pool.util.UncheckedArrayList;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -94,7 +94,7 @@ public final class ConnectionPool implements Pool {
     private final LongAdder activeCount = new LongAdder();
 
     private MetricsRepository metricsRepository;
-    private ThreadLocal<List<ConnectionHandler>> localCache;
+    private ConnectionCache localCache;
     private List<AgroalPoolInterceptor> interceptors;
 
     public ConnectionPool(AgroalConnectionPoolConfiguration configuration, AgroalDataSourceListener... listeners) {
@@ -102,7 +102,7 @@ public final class ConnectionPool implements Pool {
         this.listeners = listeners;
 
         allConnections = new StampedCopyOnWriteArrayList<>( ConnectionHandler.class );
-        localCache = new ConnectionHandlerThreadLocal();
+        localCache = configuration.connectionCache();
 
         synchronizer = new AgroalSynchronizer();
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
@@ -236,7 +236,7 @@ public final class ConnectionPool implements Pool {
 
         try {
             do {
-                checkedOutHandler = handlerFromLocalCache();
+                checkedOutHandler = (ConnectionHandler) localCache.get();
                 if ( checkedOutHandler == null ) {
                     checkedOutHandler = handlerFromSharedCache();
                 }
@@ -257,17 +257,6 @@ public final class ConnectionPool implements Pool {
 
     private ConnectionHandler handlerFromTransaction() throws SQLException {
         return (ConnectionHandler) transactionIntegration.getTransactionAware();
-    }
-
-    private ConnectionHandler handlerFromLocalCache() {
-        List<ConnectionHandler> cachedConnections = localCache.get();
-        while ( !cachedConnections.isEmpty() ) {
-            ConnectionHandler handler = cachedConnections.remove( cachedConnections.size() - 1 );
-            if ( handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
-                return handler;
-            }
-        }
-        return null;
     }
 
     private ConnectionHandler handlerFromSharedCache() throws SQLException {
@@ -411,7 +400,7 @@ public final class ConnectionPool implements Pool {
         } catch ( SQLException sqlException ) {
             fireOnWarning( listeners, sqlException );
         }
-        localCache.get().add( handler );
+        localCache.put( handler );
         fireOnConnectionReturnInterceptor( interceptors, handler );
 
         if ( handler.setState( CHECKED_OUT, CHECKED_IN ) ) {
@@ -456,16 +445,6 @@ public final class ConnectionPool implements Pool {
 
     public long awaitingCount() {
         return synchronizer.getQueueLength();
-    }
-
-    // --- //
-
-    private final class ConnectionHandlerThreadLocal extends ThreadLocal<List<ConnectionHandler>> {
-
-        @Override
-        protected List<ConnectionHandler> initialValue() {
-            return new UncheckedArrayList<ConnectionHandler>( ConnectionHandler.class );
-        }
     }
 
     // --- create //
@@ -703,7 +682,7 @@ public final class ConnectionPool implements Pool {
             housekeepingExecutor.schedule( this, configuration.reapTimeout().toNanos(), NANOSECONDS );
 
             // reset the thead local cache
-            localCache = new ConnectionHandlerThreadLocal();
+            localCache.reset();
 
             for ( ConnectionHandler handler : allConnections ) {
                 housekeepingExecutor.execute( new ReapConnectionTask( handler ) );
