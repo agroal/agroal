@@ -31,7 +31,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     AgroalConnectionFactoryConfiguration connectionFactoryConfiguration;
 
-    ConnectionCache connectionCache = LocalConnectionCache.fixed( 4 );
+    ConnectionCache connectionCache = LocalConnectionCache.single();
     TransactionIntegration transactionIntegration = none();
     TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
     MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
@@ -121,7 +121,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     // --- //
 
     /**
-     * Sets the connection cache implementation. Default is {@link LocalConnectionCache#fixed(int)} with size 4.
+     * Sets the connection cache implementation. Default is {@link LocalConnectionCache#single}.
      */
     public AgroalConnectionPoolConfigurationSupplier connectionCache(ConnectionCache cache) {
         checkLock();
