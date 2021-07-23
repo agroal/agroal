@@ -20,7 +20,7 @@ public interface LocalConnectionCache {
         return new ConnectionCache() {
 
             @SuppressWarnings( "ThreadLocalNotStaticFinal" )
-            private ThreadLocal<Acquirable> threadLocal;
+            private volatile ThreadLocal<Acquirable> threadLocal;
 
             { // instance initializer
                 reset();
@@ -53,7 +53,7 @@ public interface LocalConnectionCache {
         return new ConnectionCache() {
 
             @SuppressWarnings( "ThreadLocalNotStaticFinal" )
-            private ThreadLocal<Acquirable[]> threadLocal;
+            private volatile ThreadLocal<Acquirable[]> threadLocal;
 
             { // instance initializer
                 reset();
@@ -102,7 +102,7 @@ public interface LocalConnectionCache {
         return new ConnectionCache() {
 
             @SuppressWarnings( "ThreadLocalNotStaticFinal" )
-            private ThreadLocal<Deque<Acquirable>> threadLocal;
+            private volatile ThreadLocal<Deque<Acquirable>> threadLocal;
 
             { // instance initializer
                 reset();
