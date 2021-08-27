@@ -3,6 +3,8 @@
 
 package io.agroal.pool.util;
 
+import io.agroal.api.AgroalDataSourceListener;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -17,6 +19,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
+
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
@@ -29,10 +33,12 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     };
 
     private final Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
+    private final AgroalDataSourceListener[] listeners;
 
-    public PriorityScheduledExecutor(int executorSize, String threadPrefix) {
+    public PriorityScheduledExecutor(int executorSize, String threadPrefix, AgroalDataSourceListener... listeners) {
         super( executorSize, new PriorityExecutorThreadFactory( threadPrefix ), new ThreadPoolExecutor.CallerRunsPolicy() );
         setRemoveOnCancelPolicy( true );
+        this.listeners = listeners;
     }
 
     @SuppressWarnings( "WeakerAccess" )
@@ -65,10 +71,23 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
             if ( isShutdown() ) {
                 priorityTask.cancel( false );
             } else {
-                priorityTask.run();
+                try {
+                    priorityTask.run();
+                    afterExecute( priorityTask, null );
+                } catch ( Throwable t ) {
+                    afterExecute( priorityTask, t );
+                }
             }
         }
         super.beforeExecute( thread, lowPriorityTask );
+    }
+
+    @Override
+    protected void afterExecute(Runnable r, Throwable t) {
+        if ( t != null ) {
+            fireOnWarning( listeners, t );
+        }
+        super.afterExecute( r, t );
     }
 
     @Override
