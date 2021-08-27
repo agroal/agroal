@@ -16,12 +16,15 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor {
 
+    private final Logger logger = Logger.getLogger( PriorityScheduledExecutor.class.getName() );
     private static final Runnable EMPTY_TASK = new Runnable() {
         @Override
         public void run() {
@@ -65,10 +68,22 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
             if ( isShutdown() ) {
                 priorityTask.cancel( false );
             } else {
-                priorityTask.run();
+                try {
+                    priorityTask.run();
+                } catch (Throwable t) {
+                    logger.log(Level.SEVERE, "Failed to execute priority task", t);
+                }
             }
         }
         super.beforeExecute( thread, lowPriorityTask );
+    }
+
+    @Override
+    protected void afterExecute(Runnable r, Throwable t) {
+        if (t != null) {
+            logger.log(Level.SEVERE, "Failed to execute task", t);
+        }
+        super.afterExecute(r, t);
     }
 
     @Override
