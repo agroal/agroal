@@ -7,6 +7,7 @@ import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockDataSource;
 import org.junit.jupiter.api.AfterAll;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.NONE;
@@ -41,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Tag( FUNCTIONAL )
 public class NewConnectionTests {
 
-    private static final Logger logger = getLogger( NewConnectionTests.class.getName() );
+    static final Logger logger = getLogger( NewConnectionTests.class.getName() );
 
     @BeforeAll
     static void setupMockDriver() {
@@ -128,7 +130,54 @@ public class NewConnectionTests {
         }
     }
 
+    @Test
+    @DisplayName( "Exception on new connection" )
+    void newConnectionExceptionTest() throws SQLException {
+        int INITIAL_SIZE = 3, INITIAL_TIMEOUT_MS = 100 * INITIAL_SIZE;
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .initialSize( INITIAL_SIZE )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .credential( new Object() )
+                                .addSecurityProvider( new ExceptionSecurityProvider() )
+                        )
+                );
+
+        WarningsAgroalListener warningsListener = new WarningsAgroalListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, warningsListener ) ) {
+            Thread.sleep( INITIAL_TIMEOUT_MS );
+
+            assertEquals( 0, dataSource.getMetrics().creationCount() );
+            assertEquals( INITIAL_SIZE, warningsListener.warningCount(), "Expected warning(s)" );
+        } catch ( InterruptedException e ) {
+            fail( "Interrupt " + e );
+        }
+    }
+
     // --- //
+
+    public static class WarningsAgroalListener implements AgroalDataSourceListener {
+
+        private final AtomicInteger warnings = new AtomicInteger();
+
+        @Override
+        public void onWarning(String message) {
+            warnings.getAndIncrement();
+            logger.info( "Expected WARN: " + message );
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            warnings.getAndIncrement();
+            logger.info( "Expected WARN" + throwable.getMessage() );
+        }
+
+        public int warningCount() {
+            return warnings.get();
+        }
+    }
 
     public static class NoWarningsAgroalListener implements AgroalDataSourceListener {
 
@@ -175,6 +224,13 @@ public class NewConnectionTests {
         }
     }
 
+    public static class ExceptionSecurityProvider implements AgroalSecurityProvider {
+
+        @Override
+        public Properties getSecurityProperties(Object securityObject) {
+            throw new RuntimeException( "SecurityProvider throws!" );
+        }
+    }
 
     public static class FakeConnection implements MockConnection {
 

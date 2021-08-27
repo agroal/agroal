@@ -106,7 +106,7 @@ public final class ConnectionPool implements Pool {
 
         synchronizer = new AgroalSynchronizer();
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
-        housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet() );
+        housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet(), listeners );
         transactionIntegration = configuration.transactionIntegration();
 
         idleValidationEnabled = !configuration.idleValidationTimeout().isZero();
@@ -485,6 +485,9 @@ public final class ConnectionPool implements Pool {
             } catch ( SQLException e ) {
                 fireOnWarning( listeners, e );
                 throw e;
+            } catch ( Throwable t ) {
+                fireOnWarning( listeners, "Failed to create connection due to " + t.getClass().getSimpleName() );
+                throw t;
             } finally {
                 // not strictly needed, but not harmful either
                 synchronizer.releaseConditional();
