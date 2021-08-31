@@ -215,6 +215,9 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
 
     @SuppressWarnings( "stringConcatenation" )
     private void validate() {
+        if ( lock ) {
+            throw new IllegalStateException( "Configuration already supplied" );
+        }
         if ( jdbcProperties.containsKey( USER_PROPERTY_NAME ) ) {
             throw new IllegalArgumentException( "Invalid JDBC property '" + USER_PROPERTY_NAME + "': use principal instead." );
         }
