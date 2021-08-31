@@ -99,6 +99,9 @@ public class AgroalDataSourceConfigurationSupplier implements Supplier<AgroalDat
     // --- //
 
     private void validate() {
+        if ( lock ) {
+            throw new IllegalStateException( "Configuration already supplied" );
+        }
         if ( connectionPoolConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection pool configuration not defined" );
         }

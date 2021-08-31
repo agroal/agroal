@@ -7,6 +7,7 @@ import com.arjuna.ats.jta.common.JTAEnvironmentBean;
 import com.arjuna.ats.jta.common.jtaPropertyManager;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.test.MockConnection;
@@ -68,14 +69,14 @@ public class MultipleWrappersTests {
         TransactionManager txManager = jta.getTransactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = jta.getTransactionSynchronizationRegistry();
 
-        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+        AgroalDataSourceConfiguration configuration = new AgroalDataSourceConfigurationSupplier()
                 .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
                         .leakTimeout( ofSeconds( 10 ) )
-                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) ) );
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) ) ).get();
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configuration, new WarningsAgroalDatasourceListener() ) ) {
             txManager.begin();
 
             Connection connection = null;
@@ -91,7 +92,7 @@ public class MultipleWrappersTests {
             fail( "Exception: " + e.getMessage() );
         }
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configuration, new WarningsAgroalDatasourceListener() ) ) {
             txManager.begin();
 
             Connection connection = null;

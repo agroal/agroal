@@ -4,6 +4,7 @@
 package io.agroal.test.basic;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalPropertiesReader;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -33,13 +34,13 @@ class PropertiesReaderTests {
     @Test
     @DisplayName( "Properties File" )
     void basicPropertiesReaderTest() throws IOException {
-        AgroalPropertiesReader reader = new AgroalPropertiesReader().readProperties( basePath.resolve( "agroal.properties" ) );
+        AgroalDataSourceConfiguration configuration = new AgroalPropertiesReader().readProperties( basePath.resolve( "agroal.properties" ) ).get();
 
-        logger.info( reader.get().toString() );
+        logger.info( configuration.toString() );
 
         // Not an exhaustive test, just a couple properties
-        Assertions.assertEquals( 1, reader.get().connectionPoolConfiguration().acquisitionTimeout().getSeconds() );
-        Assertions.assertEquals( 60, reader.get().connectionPoolConfiguration().validationTimeout().getSeconds() );
-        Assertions.assertEquals( AgroalConnectionFactoryConfiguration.TransactionIsolation.SERIALIZABLE, reader.get().connectionPoolConfiguration().connectionFactoryConfiguration().jdbcTransactionIsolation() );
+        Assertions.assertEquals( 1, configuration.connectionPoolConfiguration().acquisitionTimeout().getSeconds() );
+        Assertions.assertEquals( 60, configuration.connectionPoolConfiguration().validationTimeout().getSeconds() );
+        Assertions.assertEquals( AgroalConnectionFactoryConfiguration.TransactionIsolation.SERIALIZABLE, configuration.connectionPoolConfiguration().connectionFactoryConfiguration().jdbcTransactionIsolation() );
     }
 }

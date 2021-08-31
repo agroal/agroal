@@ -290,6 +290,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     // --- //
 
     private void validate() {
+        if ( lock ) {
+            throw new IllegalStateException( "Configuration already supplied" );
+        }
         if ( maxSize == MAX_VALUE ) {
             throw new IllegalArgumentException( "max size attribute is mandatory" );
         }
