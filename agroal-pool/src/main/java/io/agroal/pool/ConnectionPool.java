@@ -537,8 +537,9 @@ public final class ConnectionPool implements Pool {
                 case GRACEFUL:
                     if ( handler.setState( CHECKED_IN, FLUSH ) ) {
                         flushHandler( handler );
-                    } else {
-                        handler.setState( FLUSH );
+                    } else if ( !handler.setState( CHECKED_OUT, FLUSH ) && handler.isAcquirable() ) {
+                        // concurrency caused both transitions fail but handler is still acquirable. re-schedule this task.
+                        housekeepingExecutor.execute( this );
                     }
                     break;
                 case LEAK:
