@@ -75,7 +75,7 @@ public final class ConnectionWrapper implements Connection {
 
     public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, boolean detached) {
         handler = connectionHandler;
-        wrappedConnection = connectionHandler.getConnection();
+        wrappedConnection = connectionHandler.rawConnection();
         trackedStatements = trackResources ? new ConcurrentLinkedQueue<>() : null;
         this.detached = detached;
     }
