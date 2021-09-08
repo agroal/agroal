@@ -6,6 +6,7 @@ package io.agroal.pool.util;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.pool.ConnectionHandler;
 
+import java.sql.Connection;
 import java.util.Arrays;
 
 /**
@@ -25,13 +26,13 @@ public final class ListenerHelper {
 
     public static void fireOnConnectionCreation(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionCreation( handler.getConnection() );
+            listener.onConnectionCreation( handler.rawConnection() );
         }
     }
 
     public static void fireOnConnectionPooled(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionPooled( handler.getConnection() );
+            listener.onConnectionPooled( handler.rawConnection() );
         }
     }
 
@@ -43,103 +44,104 @@ public final class ListenerHelper {
 
     public static void fireOnConnectionAcquired(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionAcquire( handler.getConnection() );
+            listener.onConnectionAcquire( handler.rawConnection() );
         }
     }
 
     public static void fireBeforeConnectionReturn(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.beforeConnectionReturn( handler.getConnection() );
+            listener.beforeConnectionReturn( handler.rawConnection() );
         }
     }
 
     public static void fireOnConnectionReturn(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionReturn( handler.getConnection() );
+            listener.onConnectionReturn( handler.rawConnection() );
         }
     }
 
     public static void fireBeforeConnectionLeak(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.beforeConnectionLeak( handler.getConnection() );
+            listener.beforeConnectionLeak( handler.rawConnection() );
         }
     }
 
     @SuppressWarnings( {"StringConcatenation", "ObjectAllocationInLoop"} )
     public static void fireOnConnectionLeak(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionLeak( handler.getConnection(), handler.getHoldingThread() );
+            Connection connection = handler.rawConnection();
+            listener.onConnectionLeak( connection, handler.getHoldingThread() );
             if ( handler.getAcquisitionStackTrace() != null ) {
                 if ( handler.isEnlisted() ) {
-                    listener.onInfo( "Leaked connection " + handler.getConnection() + " is enlisted. Please make sure the associated transaction completes." );
+                    listener.onInfo( "Leaked connection " + connection + " is enlisted. Please make sure the associated transaction completes." );
                 } else {
-                    listener.onInfo( "Leaked connection " + handler.getConnection() + " is not enlisted. To return it to the pool use the flush(LEAK) operation." );
+                    listener.onInfo( "Leaked connection " + connection + " is not enlisted. To return it to the pool use the flush(LEAK) operation." );
                 }
-                listener.onInfo( "Leaked connection " + handler.getConnection() + " acquired at: " + Arrays.toString( handler.getAcquisitionStackTrace() ) );
+                listener.onInfo( "Leaked connection " + connection + " acquired at: " + Arrays.toString( handler.getAcquisitionStackTrace() ) );
             }
             if ( handler.getConnectionOperations() != null ) {
-                listener.onInfo( "Operations executed on leaked connection " + handler.getConnection() + ": " + String.join( ", ", handler.getConnectionOperations() ) );
+                listener.onInfo( "Operations executed on leaked connection " + connection + ": " + String.join( ", ", handler.getConnectionOperations() ) );
             }
             if ( handler.getLastOperationStackTrace() != null ) {
-                listener.onInfo( "Stack trace of last executed operation on " + handler.getConnection() + ": " + Arrays.toString( handler.getLastOperationStackTrace() ) );
+                listener.onInfo( "Stack trace of last executed operation on " + connection + ": " + Arrays.toString( handler.getLastOperationStackTrace() ) );
             }
             if ( handler.getConnectionOperations() != null && handler.getConnectionOperations().contains( "unwrap(Class<T>)" ) ) {
-                listener.onWarning( "A possible cause for the leak of connection " + handler.getConnection() + " is a call to the unwrap() method. close() needs to be called on the connection object provided by the pool." );
+                listener.onWarning( "A possible cause for the leak of connection " + connection + " is a call to the unwrap() method. close() needs to be called on the connection object provided by the pool." );
             }
         }
     }
 
     public static void fireBeforeConnectionValidation(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.beforeConnectionValidation( handler.getConnection() );
+            listener.beforeConnectionValidation( handler.rawConnection() );
         }
     }
 
     public static void fireOnConnectionValid(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionValid( handler.getConnection() );
+            listener.onConnectionValid( handler.rawConnection() );
         }
     }
 
     public static void fireOnConnectionInvalid(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionInvalid( handler.getConnection() );
+            listener.onConnectionInvalid( handler.rawConnection() );
         }
     }
 
     public static void fireBeforeConnectionFlush(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.beforeConnectionFlush( handler.getConnection() );
+            listener.beforeConnectionFlush( handler.rawConnection() );
         }
     }
 
     public static void fireOnConnectionFlush(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionFlush( handler.getConnection() );
+            listener.onConnectionFlush( handler.rawConnection() );
         }
     }
 
     public static void fireBeforeConnectionReap(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.beforeConnectionReap( handler.getConnection() );
+            listener.beforeConnectionReap( handler.rawConnection() );
         }
     }
 
     public static void fireOnConnectionReap(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionReap( handler.getConnection() );
+            listener.onConnectionReap( handler.rawConnection() );
         }
     }
 
     public static void fireBeforeConnectionDestroy(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.beforeConnectionDestroy( handler.getConnection() );
+            listener.beforeConnectionDestroy( handler.rawConnection() );
         }
     }
 
     public static void fireOnConnectionDestroy(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
-            listener.onConnectionDestroy( handler.getConnection() );
+            listener.onConnectionDestroy( handler.rawConnection() );
         }
     }
 

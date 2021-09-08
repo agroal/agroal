@@ -95,15 +95,15 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         touch();
     }
 
-    public ConnectionWrapper newConnectionWrapper() {
-        ConnectionWrapper newWrapper = new ConnectionWrapper( this, connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() );
+    public ConnectionWrapper connectionWrapper() {
+        ConnectionWrapper wrapper = new ConnectionWrapper( this, connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() );
         if ( enlisted ) {
-            enlistedOpenWrappers.add( newWrapper );
+            enlistedOpenWrappers.add( wrapper );
         }
-        return newWrapper;
+        return wrapper;
     }
 
-    public ConnectionWrapper newDetachedConnectionWrapper() {
+    public ConnectionWrapper detachedWrapper() {
         return new ConnectionWrapper( this, connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources(), true );
     }
 
@@ -119,7 +119,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         }
     }
 
-    public Connection getConnection() {
+    public Connection rawConnection() {
         return connection;
     }
 
@@ -134,15 +134,20 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         if ( !dirtyAttributes.isEmpty() ) {
             AgroalConnectionFactoryConfiguration connectionFactoryConfiguration = connectionPool.getConfiguration().connectionFactoryConfiguration();
 
-            if ( dirtyAttributes.contains( AUTOCOMMIT ) ) {
-                connection.setAutoCommit( connectionFactoryConfiguration.autoCommit() );
+            try {
+                if ( dirtyAttributes.contains( AUTOCOMMIT ) ) {
+                    connection.setAutoCommit( connectionFactoryConfiguration.autoCommit() );
+                }
+                if ( dirtyAttributes.contains( TRANSACTION_ISOLATION ) ) {
+                    connection.setTransactionIsolation( connectionFactoryConfiguration.jdbcTransactionIsolation().level() );
+                }
+                // other attributes do not have default values in connectionFactoryConfiguration
+            } catch ( SQLException se ) {
+                setFlushOnly( se );
+                throw se;
+            } finally {
+                dirtyAttributes.clear();
             }
-            if ( dirtyAttributes.contains( TRANSACTION_ISOLATION ) ) {
-                connection.setTransactionIsolation( connectionFactoryConfiguration.jdbcTransactionIsolation().level() );
-            }
-            // other attributes do not have default values in connectionFactoryConfiguration
-
-            dirtyAttributes.clear();
         }
 
         try {
@@ -157,7 +162,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                 }
                 connection.clearWarnings();
             }
-        } catch ( SQLException sqlException ) {
+        } catch ( SQLException se ) {
+            setFlushOnly( se );
+            throw se;
             // keep errors
         }
     }
@@ -234,6 +241,10 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         this.maxLifetimeTask = maxLifetimeTask;
     }
 
+    public boolean isValid() {
+        return connectionPool.getConfiguration().connectionValidator().isValid( detachedWrapper() );
+    }
+
     // --- Leak detection //
 
     public Thread getHoldingThread() {
@@ -268,7 +279,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
      * Stack trace of the first acquisition for this connection
      */
     public StackTraceElement[] getAcquisitionStackTrace() {
-        return acquisitionStackTrace == null ? null : copyOfRange( acquisitionStackTrace, 4, acquisitionStackTrace.length);
+        return acquisitionStackTrace == null ? null : copyOfRange( acquisitionStackTrace, 4, acquisitionStackTrace.length );
     }
 
     /**
@@ -301,12 +312,22 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     // --- TransactionAware //
 
     @Override
+    public Connection getConnection() {
+        return detachedWrapper();
+    }
+    
+    @Override
     public void transactionStart() throws SQLException {
-        if ( !enlisted && connection.getAutoCommit() ) {
-            connection.setAutoCommit( false );
-            setDirtyAttribute( AUTOCOMMIT );
+        try {
+            if ( !enlisted && connection.getAutoCommit() ) {
+                connection.setAutoCommit( false );
+                setDirtyAttribute( AUTOCOMMIT );
+            }
+            enlisted = true;
+        } catch ( SQLException se ) {
+            setFlushOnly( se );
+            throw se;
         }
-        enlisted = true;
     }
 
     @Override
@@ -329,13 +350,23 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     @Override
     public void transactionCommit() throws SQLException {
         verifyEnlistment();
-        connection.commit();
+        try {
+            connection.commit();
+        } catch ( SQLException se ) {
+            setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override
     public void transactionRollback() throws SQLException {
         verifyEnlistment();
-        connection.rollback();
+        try {
+            connection.rollback();
+        } catch ( SQLException se ) {
+            setFlushOnly( se );
+            throw se;
+        }
     }
 
     @Override

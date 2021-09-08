@@ -27,13 +27,11 @@ import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 
-import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
-import static io.agroal.pool.ConnectionHandler.State.DESTROYED;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
 import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
@@ -316,16 +314,13 @@ public final class ConnectionPool implements Pool {
         }
         fireBeforeConnectionValidation( listeners, handler );
         if ( handler.setState( CHECKED_OUT, VALIDATION ) ) {
-            if ( configuration.connectionValidator().isValid( handler.getConnection() ) ) {
-                handler.setState( CHECKED_OUT );
+            if ( handler.isValid() && handler.setState( VALIDATION, CHECKED_OUT ) ) {
                 fireOnConnectionValid( listeners, handler );
                 return true;
             } else {
-                handler.setState( FLUSH );
-                allConnections.remove( handler );
+                removeFromPool( handler );
                 metricsRepository.afterConnectionInvalid();
                 fireOnConnectionInvalid( listeners, handler );
-                housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
             }
         }
         return false;
@@ -360,7 +355,7 @@ public final class ConnectionPool implements Pool {
                 checkedOutHandler.setAcquisitionStackTrace( currentThread().getStackTrace() );
             }
         }
-        return checkedOutHandler.newConnectionWrapper();
+        return checkedOutHandler.connectionWrapper();
     }
 
     // --- //
@@ -388,10 +383,9 @@ public final class ConnectionPool implements Pool {
         // resize on change of max-size, or flush on close
         int currentSize = allConnections.size();
         if ( currentSize > configuration.maxSize() || configuration.flushOnClose() && currentSize > configuration.minSize() ) {
-            handler.setState( FLUSH );
-            allConnections.remove( handler );
-            synchronizer.releaseConditional();
-            housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
+            removeFromPool( handler );
+            metricsRepository.afterConnectionReap();
+            fireOnConnectionReap( listeners, handler );
             return;
         }
 
@@ -410,10 +404,17 @@ public final class ConnectionPool implements Pool {
             fireOnConnectionReturn( listeners, handler );
         } else {
             // handler not in CHECKED_OUT implies FLUSH
-            allConnections.remove( handler );
-            housekeepingExecutor.execute( new FlushTask( ALL, handler ) );
-            housekeepingExecutor.execute( new FillTask() );
+            removeFromPool( handler );
+            metricsRepository.afterConnectionFlush();
+            fireOnConnectionFlush( listeners, handler );
         }
+    }
+
+    private void removeFromPool(ConnectionHandler handler) {
+        allConnections.remove( handler );
+        synchronizer.releaseConditional();
+        housekeepingExecutor.execute( new FillTask() );
+        housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
     }
 
     // --- Exposed statistics //
@@ -472,8 +473,8 @@ public final class ConnectionPool implements Pool {
                     handler.setMaxLifetimeTask( housekeepingExecutor.schedule( new FlushTask( GRACEFUL, handler ), configuration.maxLifetime().toNanos(), NANOSECONDS ) );
                 }
 
-                fireOnConnectionCreation( listeners, handler );
                 metricsRepository.afterConnectionCreation( metricsStamp );
+                fireOnConnectionCreation( listeners, handler );
 
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
@@ -551,9 +552,8 @@ public final class ConnectionPool implements Pool {
                 case INVALID:
                     fireBeforeConnectionValidation( listeners, handler );
                     if ( handler.setState( CHECKED_IN, VALIDATION ) ) {
-                        if ( configuration.connectionValidator().isValid( handler.getConnection() ) ) {
+                        if ( handler.isValid() && handler.setState( VALIDATION, CHECKED_IN ) ) {
                             fireOnConnectionValid( listeners, handler );
-                            handler.setState( CHECKED_IN );
                         } else {
                             fireOnConnectionInvalid( listeners, handler );
                             flushHandler( handler );
@@ -566,6 +566,7 @@ public final class ConnectionPool implements Pool {
 
         private void flushHandler(ConnectionHandler handler) {
             allConnections.remove( handler );
+            synchronizer.releaseConditional();
             metricsRepository.afterConnectionFlush();
             fireOnConnectionFlush( listeners, handler );
             housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
@@ -658,15 +659,12 @@ public final class ConnectionPool implements Pool {
             public void run() {
                 fireBeforeConnectionValidation( listeners, handler );
                 if ( handler.setState( CHECKED_IN, VALIDATION ) ) {
-                    if ( configuration.connectionValidator().isValid( handler.getConnection() ) ) {
-                        handler.setState( CHECKED_IN );
+                    if ( handler.isValid() && handler.setState( VALIDATION, CHECKED_IN ) ) {
                         fireOnConnectionValid( listeners, handler );
                     } else {
-                        handler.setState( FLUSH );
-                        allConnections.remove( handler );
+                        removeFromPool( handler );
                         metricsRepository.afterConnectionInvalid();
                         fireOnConnectionInvalid( listeners, handler );
-                        housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
                     }
                 }
             }
@@ -702,10 +700,9 @@ public final class ConnectionPool implements Pool {
                 fireBeforeConnectionReap( listeners, handler );
                 if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
                     if ( handler.isIdle( configuration.reapTimeout() ) ) {
-                        allConnections.remove( handler );
+                        removeFromPool( handler );
                         metricsRepository.afterConnectionReap();
                         fireOnConnectionReap( listeners, handler );
-                        housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
                     } else {
                         handler.setState( CHECKED_IN );
                         // for debug, something like: fireOnWarning( listeners,  "Connection " + handler.getConnection() + " used recently. Do not reap!" );

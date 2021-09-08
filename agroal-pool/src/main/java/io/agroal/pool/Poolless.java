@@ -264,7 +264,7 @@ public final class Poolless implements Pool {
                 checkedOutHandler.setAcquisitionStackTrace( copyOfRange( stackTrace, 4, stackTrace.length) );
             }
         }
-        return checkedOutHandler.newConnectionWrapper();
+        return checkedOutHandler.connectionWrapper();
     }
 
     // --- //
