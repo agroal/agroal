@@ -17,7 +17,7 @@ import java.util.function.Supplier;
 import static java.util.ServiceLoader.load;
 
 /**
- * Extension of the DataSource interface that exposes some of it internals.
+ * Extension of the DataSource interface that exposes some of its internals.
  * The Agroal project is all about providing a good (reliable, fast, easy to use maintain and understand) implementation of this interface.
  *
  * Agroal - the natural database connection pool!
@@ -80,6 +80,15 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
      * Get the list of pool interceptors. Interceptors are sorted from high to low priority.
      */
     List<AgroalPoolInterceptor> getPoolInterceptors();
+
+    /**
+     * Performs a health check. The newConnection parameter determines that a new database connection is established for this purpose, otherwise attempts to get a connection from the pool.
+     *
+     * WARNING: Using a new connection may cause the size of the pool to go over max-size.
+     */
+    default boolean isHealthy(boolean newConnection) throws SQLException {
+        return true;
+    }
 
     /**
      * {@inheritDoc}

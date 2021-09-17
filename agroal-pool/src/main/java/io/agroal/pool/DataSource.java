@@ -66,7 +66,12 @@ public final class DataSource implements AgroalDataSource {
 
     @Override
     public void flush(FlushMode mode) {
-        connectionPool.flushPool(mode);
+        connectionPool.flushPool( mode );
+    }
+
+    @Override
+    public boolean isHealthy(boolean newConnection) throws SQLException {
+        return connectionPool.isHealthy( newConnection );
     }
 
     @Override

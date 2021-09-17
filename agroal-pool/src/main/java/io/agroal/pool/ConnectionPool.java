@@ -60,7 +60,6 @@ import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
-import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.joining;
@@ -154,7 +153,7 @@ public final class ConnectionPool implements Pool {
             throw new IllegalArgumentException( "Negative priority values on AgroalPoolInterceptor are reserved." );
         }
         if ( list.isEmpty() && ( interceptors == null || interceptors.isEmpty() ) ) {
-            return; 
+            return;
         }
 
         interceptors = list.stream().sorted( AgroalPoolInterceptor.DEFAULT_COMPARATOR ).collect( toList() );
@@ -296,15 +295,21 @@ public final class ConnectionPool implements Pool {
             currentThread().interrupt();
             throw new SQLException( "Interrupted while acquiring" );
         } catch ( ExecutionException e ) {
-            try {
-                throw e.getCause();
-            } catch ( RuntimeException | Error | SQLException e2 ) {
-                throw e2;
-            } catch ( Throwable t ) {
-                throw new SQLException( "Exception while creating new connection", t );
-            }
+            throw unwrapExecutionException( e );
         } catch ( RejectedExecutionException | CancellationException e ) {
             throw new SQLException( "Can't create new connection as the pool is shutting down", e );
+        }
+    }
+
+    private SQLException unwrapExecutionException(ExecutionException ee) {
+        try {
+            throw ee.getCause();
+        } catch ( RuntimeException | Error re ) {
+            throw re;
+        } catch ( SQLException se ) {
+            return se;
+        } catch ( Throwable t ) {
+            return new SQLException( "Exception while creating new connection", t );
         }
     }
 
@@ -312,18 +317,25 @@ public final class ConnectionPool implements Pool {
         if ( !handler.isIdle( configuration.idleValidationTimeout() ) ) {
             return true;
         }
-        fireBeforeConnectionValidation( listeners, handler );
         if ( handler.setState( CHECKED_OUT, VALIDATION ) ) {
-            if ( handler.isValid() && handler.setState( VALIDATION, CHECKED_OUT ) ) {
-                fireOnConnectionValid( listeners, handler );
-                return true;
-            } else {
-                removeFromPool( handler );
-                metricsRepository.afterConnectionInvalid();
-                fireOnConnectionInvalid( listeners, handler );
-            }
+            performValidation( handler, CHECKED_OUT );
         }
         return false;
+    }
+
+    // handler must be in VALIDATION state
+    private boolean performValidation(ConnectionHandler handler, ConnectionHandler.State targetState) {
+        fireBeforeConnectionValidation( listeners, handler );
+        if ( handler.isValid() && handler.setState( VALIDATION, targetState ) ) {
+            fireOnConnectionValid( listeners, handler );
+            synchronizer.releaseConditional();
+            return true;
+        } else {
+            removeFromPool( handler );
+            metricsRepository.afterConnectionInvalid();
+            fireOnConnectionInvalid( listeners, handler );
+            return false;
+        }
     }
 
     private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) throws SQLException {
@@ -448,12 +460,38 @@ public final class ConnectionPool implements Pool {
         return synchronizer.getQueueLength();
     }
 
+    // --- health check //
+
+    @Override
+    public boolean isHealthy(boolean newConnection) throws SQLException {
+        ConnectionHandler healthHandler;
+        if ( newConnection ) {
+            try {
+                do {
+                    healthHandler = housekeepingExecutor.executeNow( new CreateConnectionTask().initial() ).get();
+                } while ( !healthHandler.setState( CHECKED_IN, VALIDATION ) );
+            } catch ( InterruptedException e ) {
+                currentThread().interrupt();
+                throw new SQLException( "Interrupted while acquiring" );
+            } catch ( ExecutionException ee ) {
+                throw unwrapExecutionException( ee );
+            } catch ( RejectedExecutionException | CancellationException e ) {
+                throw new SQLException( "Can't create new connection as the pool is shutting down", e );
+            }
+        } else {
+            healthHandler = handlerFromSharedCache();
+            healthHandler.setState( CHECKED_OUT, VALIDATION );
+        }
+        return performValidation( healthHandler, CHECKED_IN );
+    }
+
     // --- create //
 
     private final class CreateConnectionTask implements Callable<ConnectionHandler> {
 
         private boolean initial;
 
+        // initial connections do not take configuration.maxSize into account
         private CreateConnectionTask initial() {
             initial = true;
             return this;
@@ -661,15 +699,8 @@ public final class ConnectionPool implements Pool {
 
             @Override
             public void run() {
-                fireBeforeConnectionValidation( listeners, handler );
                 if ( handler.setState( CHECKED_IN, VALIDATION ) ) {
-                    if ( handler.isValid() && handler.setState( VALIDATION, CHECKED_IN ) ) {
-                        fireOnConnectionValid( listeners, handler );
-                    } else {
-                        removeFromPool( handler );
-                        metricsRepository.afterConnectionInvalid();
-                        fireOnConnectionInvalid( listeners, handler );
-                    }
+                    performValidation( handler, CHECKED_IN );
                 }
             }
         }
