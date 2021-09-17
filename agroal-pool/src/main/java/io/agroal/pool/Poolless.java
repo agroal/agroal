@@ -25,6 +25,7 @@ import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
 import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
+import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionReturnInterceptor;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionAcquire;
@@ -32,11 +33,14 @@ import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionCreation;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionDestroy;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionFlush;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionReturn;
+import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionValidation;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionAcquired;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreation;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionDestroy;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionFlush;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionInvalid;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionPooled;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionValid;
 import static io.agroal.pool.util.ListenerHelper.fireOnInfo;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 import static java.lang.Integer.toHexString;
@@ -311,6 +315,31 @@ public final class Poolless implements Pool {
 
     public long awaitingCount() {
         return synchronizer.getQueueLength();
+    }
+
+    // --- health check //
+
+    @Override
+    public boolean isHealthy(boolean newConnection) throws SQLException {
+        // the main difference here is that connect will not block (and potentially timeout) on full pool
+        if ( newConnection ) {
+            activeCount.incrementAndGet();
+        }
+        ConnectionHandler healthHandler = newConnection ? createConnection() : handlerFromSharedCache();
+
+        try {
+            fireBeforeConnectionValidation( listeners, healthHandler );
+            if ( healthHandler.setState( CHECKED_OUT, VALIDATION ) && healthHandler.isValid() && healthHandler.setState( VALIDATION, CHECKED_OUT ) ) {
+                fireOnConnectionValid( listeners, healthHandler );
+                return true;
+            } else {
+                metricsRepository.afterConnectionInvalid();
+                fireOnConnectionInvalid( listeners, healthHandler );
+                return false;
+            }
+        } finally {
+           returnConnectionHandler( healthHandler );
+        }
     }
 
     // --- create //

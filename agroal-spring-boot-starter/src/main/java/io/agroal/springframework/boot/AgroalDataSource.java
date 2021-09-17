@@ -189,6 +189,11 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
 
     @Override
+    public boolean isHealthy(boolean newConnection) throws SQLException {
+        return delegate.isHealthy( newConnection );
+    }
+
+    @Override
     public List<AgroalPoolInterceptor> getPoolInterceptors() {
         return delegate.getPoolInterceptors();
     }

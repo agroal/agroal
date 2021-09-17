@@ -26,7 +26,7 @@ import java.util.logging.Logger;
 
 /**
  * Implementation of the Agroal API wrapping the popular connection pool implementation HikariCP.
- * This implementation is not supported. Not all of the features in the Agroal API are implemented (metrics and listeners are not implemented)
+ * This implementation is not supported. Not all features in the Agroal API are implemented (metrics and listeners are not implemented)
  * The main purpose of this implementation is to provide a reference for some test cases and a baseline for benchmarks.
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -41,11 +41,13 @@ public class HikariUnderTheCovers implements AgroalDataSource {
 
     @SuppressWarnings( "NonSerializableFieldInSerializableClass" )
     private final HikariDataSource hikari;
+    private final AgroalDataSourceListener[] agroalListeners;
 
     public HikariUnderTheCovers(AgroalDataSourceConfiguration dataSourceConfiguration, AgroalDataSourceListener... listeners) {
         configuration = dataSourceConfiguration;
         poolConfiguration = dataSourceConfiguration.connectionPoolConfiguration();
         factoryConfiguration = poolConfiguration.connectionFactoryConfiguration();
+        agroalListeners = listeners;
         hikari = new HikariDataSource( getHikariConfig() );
     }
 
@@ -117,6 +119,18 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     @Override
     public void flush(FlushMode mode) {
         hikari.getHikariPoolMXBean().softEvictConnections();
+    }
+
+    @Override
+    public boolean isHealthy(boolean newConnection) throws SQLException {
+        if ( newConnection ) {
+            for ( AgroalDataSourceListener listener : agroalListeners ) {
+                listener.onInfo( "Health check in Hikari performed in pooled connection instead of new connection" );
+            }
+        }
+        try ( Connection connection = getConnection() ) {
+            return configuration.connectionPoolConfiguration().connectionValidator().isValid( connection );
+        }
     }
 
     @Override

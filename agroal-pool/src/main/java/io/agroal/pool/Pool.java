@@ -38,6 +38,8 @@ public interface Pool extends MetricsEnabledListener, AutoCloseable {
 
     void flushPool(FlushMode mode);
 
+    boolean isHealthy(boolean newConnection) throws SQLException;
+
     @Override
     void close();
 
