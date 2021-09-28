@@ -1,0 +1,62 @@
+name: Agroal CI
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 5 * * 0'  # at 05:00 on Sunday
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ 17, 11, 8 ] ### TODO: add more versions (9 is failing ATM)
+    name: Java ${{ matrix.java }} - Compile
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v2
+        with:
+          cache: 'maven'
+          distribution: 'adopt'
+          java-package: jdk
+          java-version: ${{ matrix.java }}
+      - run: mvn -B compile
+
+  build:
+    name: Java 11 - Build and Test
+    runs-on: ubuntu-latest
+    needs: compile
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v2
+        with:
+          cache: 'maven'
+          distribution: 'adopt'
+          java-package: jdk
+          java-version: '11'
+      - run: mvn -B verify
+
+  deploy:
+    if: ${{ github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    needs: build
+    name: Java 8 - Build, Test and Deploy Snapshot Artifacts
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v2
+        with:
+          cache: 'maven'
+          distribution: 'adopt'
+          java-package: jdk
+          java-version: '8'
+          server-id: jboss-snapshots-repository
+          server-username: MAVEN_CI_USERNAME
+          server-password: MAVEN_CI_PASSWORD
+      - id: project
+        run: echo ::set-output name=version::$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+      - if: ${{ endsWith(steps.project.outputs.version, '-SNAPSHOT') }}
+        run: mvn -B deploy
+        env:
+          MAVEN_CI_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_CI_PASSWORD: ${{ secrets.MAVEN_TOKEN }}
+          
