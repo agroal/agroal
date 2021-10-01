@@ -1,6 +1,6 @@
 ![agroal-logo](https://design.jboss.org/agroal/logo/final/PNG/agroal_logo_horizontal_default_600px.png)
 
-[![Build Status](https://travis-ci.org/agroal/agroal.svg?branch=master)](https://travis-ci.org/agroal/agroal)
+[![Agroal CI](https://github.com/agroal/agroal/actions/workflows/maven-action.yml/badge.svg)](https://github.com/agroal/agroal/actions/workflows/maven-action.yml)
 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.agroal/agroal-parent/badge.svg )](https://maven-badges.herokuapp.com/maven-central/io.agroal/agroal-parent)
 
