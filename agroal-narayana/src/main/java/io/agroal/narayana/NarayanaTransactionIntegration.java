@@ -5,6 +5,7 @@ package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
 import io.agroal.api.transaction.TransactionIntegration;
+import org.jboss.tm.TxUtils;
 import org.jboss.tm.XAResourceRecovery;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 
@@ -112,7 +113,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         try {
             Transaction transaction = transactionManager.getTransaction();
             if ( transaction == null ) {
-                return false;
+                // AG-183 - Report running transaction when reaper thread attempts rollback
+                return TxUtils.isTransactionManagerTimeoutThread();
             }
             int status = transaction.getStatus();
             return status != STATUS_UNKNOWN && status != STATUS_NO_TRANSACTION && status != STATUS_COMMITTED && status != STATUS_ROLLEDBACK;
