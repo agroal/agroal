@@ -40,6 +40,8 @@ public interface Pool extends MetricsEnabledListener, AutoCloseable {
 
     boolean isHealthy(boolean newConnection) throws SQLException;
 
+    int defaultJdbcIsolationLevel();
+
     @Override
     void close();
 

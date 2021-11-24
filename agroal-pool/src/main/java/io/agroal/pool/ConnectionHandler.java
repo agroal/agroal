@@ -139,7 +139,8 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                     connection.setAutoCommit( connectionFactoryConfiguration.autoCommit() );
                 }
                 if ( dirtyAttributes.contains( TRANSACTION_ISOLATION ) ) {
-                    connection.setTransactionIsolation( connectionFactoryConfiguration.jdbcTransactionIsolation().level() );
+                    AgroalConnectionFactoryConfiguration.IsolationLevel isolation = connectionFactoryConfiguration.jdbcTransactionIsolation();
+                    connection.setTransactionIsolation( isolation.isDefined() ? isolation.level() : connectionPool.defaultJdbcIsolationLevel() );
                 }
                 // other attributes do not have default values in connectionFactoryConfiguration
             } catch ( SQLException se ) {
