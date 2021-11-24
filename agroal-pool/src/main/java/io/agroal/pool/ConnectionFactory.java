@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Properties;
 
+import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.UNDEFINED;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 
 /**
@@ -43,6 +44,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private javax.sql.XADataSource xaRecoveryDataSource;
 
     private PropertyInjector injector;
+    private Integer defaultIsolationLevel;
 
     public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
@@ -66,6 +68,10 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
                 driver = newDriver();
                 break;
         }
+    }
+
+    public int defaultJdbcIsolationLevel() {
+        return defaultIsolationLevel == null ? UNDEFINED.level() : defaultIsolationLevel;
     }
 
     private javax.sql.XADataSource newXADataSource(Properties properties) {
@@ -223,6 +229,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         connection.setAutoCommit( configuration.autoCommit() );
         if ( configuration.jdbcTransactionIsolation().isDefined() ) {
             connection.setTransactionIsolation( configuration.jdbcTransactionIsolation().level() );
+        } else if ( defaultIsolationLevel == null ) {
+            defaultIsolationLevel = connection.getTransactionIsolation();
         }
         if ( configuration.initialSql() != null && !configuration.initialSql().isEmpty() ) {
             try ( Statement statement = connection.createStatement() ) {

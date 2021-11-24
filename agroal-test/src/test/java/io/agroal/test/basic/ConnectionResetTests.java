@@ -99,6 +99,25 @@ public class ConnectionResetTests {
     // --- //
 
     @Test
+    @DisplayName( "Test connection reset with default (driver) transaction isolation level" )
+    void defaultIsolationResetTest() throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
+                cp -> cp.maxSize( 1 )
+        ) ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertEquals( connection.getTransactionIsolation(), FakeConnection.DEFAULT_ISOLATION );
+                connection.setTransactionIsolation( Connection.TRANSACTION_SERIALIZABLE );
+                assertEquals( connection.getTransactionIsolation(), Connection.TRANSACTION_SERIALIZABLE );
+            }
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertEquals( connection.getTransactionIsolation(), FakeConnection.DEFAULT_ISOLATION );
+            }
+        }
+    }
+
+    // --- //
+
+    @Test
     @DisplayName( "Test connection autoCommit status remains the same after being changed" )
     void autoCommitTest() throws SQLException {
         autocommit( false );
@@ -162,11 +181,14 @@ public class ConnectionResetTests {
 
     public static class FakeConnection implements MockConnection {
 
-        private int isolation;
+        private static final int DEFAULT_ISOLATION = 99;
+
+        private int isolation = DEFAULT_ISOLATION;
         private boolean autoCommit;
         private boolean warnings = true;
 
         @Override
+        @SuppressWarnings( "MagicConstant" )
         public int getTransactionIsolation() {
             return isolation;
         }

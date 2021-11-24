@@ -140,6 +140,10 @@ public final class ConnectionPool implements Pool {
         return configuration;
     }
 
+    public int defaultJdbcIsolationLevel() {
+        return connectionFactory.defaultJdbcIsolationLevel();
+    }
+
     public AgroalDataSourceListener[] getListeners() {
         return listeners;
     }
