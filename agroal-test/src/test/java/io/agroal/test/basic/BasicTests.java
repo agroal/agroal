@@ -138,7 +138,7 @@ public class BasicTests {
 
             long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
             logger.info( format( "Acquisition timeout after {0}ms - Configuration is {1}ms", elapsed, ACQUISITION_TIMEOUT_MS ) );
-            assertTrue( elapsed > ACQUISITION_TIMEOUT_MS, "Acquisition timeout before time" );
+            assertTrue( elapsed >= ACQUISITION_TIMEOUT_MS, "Acquisition timeout before time" );
         }
     }
 
