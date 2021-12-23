@@ -21,7 +21,7 @@ import javax.sql.DataSource;
 @Configuration( proxyBeanMethods = false )
 @ConditionalOnClass( AgroalDataSource.class )
 @ConditionalOnMissingBean( DataSource.class )
-@ConditionalOnProperty( name = "spring.datasource.type", havingValue = "io.agroal.springframework.AgroalDataSource", matchIfMissing = true )
+@ConditionalOnProperty( name = "spring.datasource.type", havingValue = "io.agroal.springframework.boot.AgroalDataSource", matchIfMissing = true )
 public class AgroalDataSourceConfiguration {
 
     @Autowired( required = false )
