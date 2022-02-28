@@ -322,7 +322,7 @@ public final class ConnectionPool implements Pool {
             return true;
         }
         if ( handler.setState( CHECKED_OUT, VALIDATION ) ) {
-            performValidation( handler, CHECKED_OUT );
+            return performValidation( handler, CHECKED_OUT );
         }
         return false;
     }
