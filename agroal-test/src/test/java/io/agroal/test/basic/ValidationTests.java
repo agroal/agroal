@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -92,6 +93,42 @@ public class ValidationTests {
         }
     }
 
+    @Test
+    @DisplayName( "idle validation test" )
+    void idleValidationTest() throws SQLException, InterruptedException {
+        int POOL_SIZE = 1, IDLE_VALIDATION_MS = 100, TIMEOUT_MS = 1000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( POOL_SIZE )
+                        .maxSize( POOL_SIZE )
+                        .idleValidationTimeout( ofMillis( IDLE_VALIDATION_MS ) )
+                        .acquisitionTimeout( ofMillis( TIMEOUT_MS ) )
+                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator() )
+                );
+
+        BeforeValidationListener listener = new BeforeValidationListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+
+            logger.info( format( "Short sleep to trigger idle validation" ) );
+            Thread.sleep( 2 * IDLE_VALIDATION_MS );
+
+            assertEquals( POOL_SIZE, dataSource.getMetrics().availableCount(), "Expected connection available count" );
+            assertEquals( 0, dataSource.getMetrics().invalidCount(), "Expected connection invalid count" );
+            assertEquals( 0, listener.getValidationAttempts(), "Expected validation count" );
+
+            try ( Connection c = dataSource.getConnection() ) {
+                assertEquals( 1, listener.getValidationAttempts(), "Expected validation count" );
+                logger.info( "Got valid idle connection " + c);
+            }
+
+            assertEquals( POOL_SIZE, dataSource.getMetrics().availableCount(), "Expected connection available count" );
+            assertEquals( 1, dataSource.getMetrics().acquireCount(), "Expected connection acquire count" );
+            assertEquals( 0, dataSource.getMetrics().invalidCount(), "Expected connection invalid count" );
+        }
+    }
+
     // --- //
 
     private static class InvalidationListener implements AgroalDataSourceListener {
@@ -116,6 +153,24 @@ public class ValidationTests {
                 fail( "Test fail due to interrupt" );
             }
         }
+    }
+
+    private static class BeforeValidationListener implements AgroalDataSourceListener {
+        private final AtomicInteger counter = new AtomicInteger( 0 );
+
+        @SuppressWarnings( "WeakerAccess" )
+        BeforeValidationListener() {
+        }
+
+        @Override
+        public void beforeConnectionValidation(Connection connection) {
+            counter.incrementAndGet();
+        }
+
+        int getValidationAttempts() {
+            return counter.get();
+        }
+
     }
 
     // --- //
