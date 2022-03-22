@@ -19,6 +19,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
@@ -125,6 +127,27 @@ public class ConnectionCloseTests {
 
             assertAll( () -> {
                 assertEquals( 1, returnListener.getReturnCount().longValue(), "Expecting connection to be returned once to the pool" );
+                assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
+            } );
+        }
+    }
+
+    @Test
+    @DisplayName( "Flush on close" )
+    void flushOnCloseTest() throws SQLException, InterruptedException {
+        OnWarningListener warningListener = new OnWarningListener();
+        OnDestroyListener destroyListener = new OnDestroyListener( 1 );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).flushOnClose() ), warningListener, destroyListener ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertFalse( connection.isClosed() );
+            }
+
+            assertTrue( destroyListener.awaitSeconds( 1 ) );
+
+            assertAll( () -> {
+                assertFalse( warningListener.getWarning().get(), "Unexpected warning on close connection" );
+                assertEquals( 1, dataSource.getMetrics().destroyCount(), "Expecting 1 destroyed connection" );
                 assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
             } );
         }
@@ -246,8 +269,32 @@ public class ConnectionCloseTests {
             warning.set( true );
         }
 
+        @Override
+        public void onWarning(Throwable throwable) {
+            warning.set( true );
+        }
+
         AtomicBoolean getWarning() {
             return warning;
+        }
+    }
+
+    @SuppressWarnings( {"WeakerAccess", "SameParameterValue"} )
+    private static class OnDestroyListener implements AgroalDataSourceListener {
+
+        private final CountDownLatch latch;
+
+        OnDestroyListener(int count) {
+            latch = new CountDownLatch( count );
+        }
+
+        @Override
+        public void onConnectionDestroy(Connection connection) {
+            latch.countDown();
+        }
+
+        boolean awaitSeconds(int timeout) throws InterruptedException {
+            return latch.await( timeout, TimeUnit.SECONDS );
         }
     }
 }

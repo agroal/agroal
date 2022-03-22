@@ -399,6 +399,7 @@ public final class ConnectionPool implements Pool {
         // resize on change of max-size, or flush on close
         int currentSize = allConnections.size();
         if ( currentSize > configuration.maxSize() || configuration.flushOnClose() && currentSize > configuration.minSize() ) {
+            handler.setState( FLUSH );
             removeFromPool( handler );
             metricsRepository.afterConnectionReap();
             fireOnConnectionReap( listeners, handler );
@@ -551,7 +552,7 @@ public final class ConnectionPool implements Pool {
             this.handler = null;
         }
 
-        @SuppressWarnings( "WeakerAccess" )
+        @SuppressWarnings( {"WeakerAccess", "SameParameterValue"} )
         FlushTask(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
             this.mode = mode;
             this.handler = handler;
@@ -586,7 +587,7 @@ public final class ConnectionPool implements Pool {
                     }
                     break;
                 case LEAK:
-                    if ( handler.isLeak( configuration.leakTimeout() ) ) {
+                    if ( handler.isLeak( configuration.leakTimeout() ) && handler.setState( CHECKED_OUT, FLUSH ) ) {
                         flushHandler( handler );
                     }
                     break;
@@ -601,6 +602,7 @@ public final class ConnectionPool implements Pool {
                         if ( handler.isValid() && handler.setState( VALIDATION, CHECKED_IN ) ) {
                             fireOnConnectionValid( listeners, handler );
                         } else {
+                            handler.setState( VALIDATION, FLUSH );
                             fireOnConnectionInvalid( listeners, handler );
                             flushHandler( handler );
                         }
