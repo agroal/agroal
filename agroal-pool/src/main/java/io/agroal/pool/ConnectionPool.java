@@ -21,7 +21,9 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
@@ -263,14 +265,18 @@ public final class ConnectionPool implements Pool {
     private ConnectionHandler handlerFromSharedCache() throws SQLException {
         long remaining = configuration.acquisitionTimeout().toNanos();
         remaining = remaining > 0 ? remaining : Long.MAX_VALUE;
+        Future<ConnectionHandler> task = null;
         try {
             for ( ; ; ) {
                 // If min-size increases, create a connection right away
                 if ( allConnections.size() < configuration.minSize() ) {
-                    ConnectionHandler handler = housekeepingExecutor.executeNow( new CreateConnectionTask() ).get();
+                    long start = nanoTime();
+                    task = housekeepingExecutor.executeNow( new CreateConnectionTask() );
+                    ConnectionHandler handler = task.get( remaining, NANOSECONDS );
                     if ( handler != null && handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
                         return handler;
                     }
+                    remaining -= nanoTime() - start;
                     continue;
                 }
                 // Try to find an available connection in the pool
@@ -281,10 +287,13 @@ public final class ConnectionPool implements Pool {
                 }
                 // If no connections are available and there is room, create one
                 if ( allConnections.size() < configuration.maxSize() ) {
-                    ConnectionHandler handler = housekeepingExecutor.executeNow( new CreateConnectionTask() ).get();
+                    long start = nanoTime();
+                    task = housekeepingExecutor.executeNow( new CreateConnectionTask() );
+                    ConnectionHandler handler = task.get( remaining, NANOSECONDS );
                     if ( handler != null && handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
                         return handler;
                     }
+                    remaining -= nanoTime() - start;
                     continue;
                 }
                 // Pool full, will have to wait for a connection to be returned
@@ -302,6 +311,9 @@ public final class ConnectionPool implements Pool {
             throw unwrapExecutionException( e );
         } catch ( RejectedExecutionException | CancellationException e ) {
             throw new SQLException( "Can't create new connection as the pool is shutting down", e );
+        } catch ( TimeoutException e ) {
+            task.cancel( true );
+            throw new SQLException( "Acquisition timeout while waiting for new connection", e );
         }
     }
 
