@@ -122,6 +122,7 @@ public interface AgroalConnectionPoolConfiguration {
     /**
      * The maximum amount of time a thread may be blocked waiting for a connection. If this time expires and still no connection is available, an exception is thrown.
      * A duration of {@link Duration#ZERO} means that a thread will wait indefinitely.
+     * In Pool-less this timeout can add to {@link AgroalConnectionFactoryConfiguration#loginTimeout()}.
      */
     Duration acquisitionTimeout();
 

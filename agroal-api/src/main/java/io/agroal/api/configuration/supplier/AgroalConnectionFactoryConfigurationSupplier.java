@@ -11,6 +11,7 @@ import io.agroal.api.security.AgroalKerberosSecurityProvider;
 import io.agroal.api.security.AgroalSecurityProvider;
 
 import java.security.Principal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
@@ -31,6 +32,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
 
     boolean autoCommit = true;
     boolean trackJdbcResources = true;
+    Duration loginTimeout = Duration.ZERO;
     String jdbcUrl = "";
     String initialSql = "";
     Class<?> connectionProviderClass;
@@ -56,6 +58,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             return;
         }
         autoCommit = existingConfiguration.autoCommit();
+        loginTimeout = existingConfiguration.loginTimeout();
         jdbcUrl = existingConfiguration.jdbcUrl();
         initialSql = existingConfiguration.initialSql();
         connectionProviderClass = existingConfiguration.connectionProviderClass();
@@ -92,6 +95,15 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     public AgroalConnectionFactoryConfigurationSupplier trackJdbcResources(boolean trackJdbcResourcesEnabled) {
         checkLock();
         trackJdbcResources = trackJdbcResourcesEnabled;
+        return this;
+    }
+
+    /**
+     * Sets the login timeout (in seconds). Default is 0 (waits indefinitely)
+     */
+    public AgroalConnectionFactoryConfigurationSupplier loginTimeout(Duration timeout) {
+        checkLock();
+        loginTimeout = timeout;
         return this;
     }
 
@@ -218,6 +230,9 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         if ( lock ) {
             throw new IllegalStateException( "Configuration already supplied" );
         }
+        if ( loginTimeout.isNegative() ) {
+            throw new IllegalArgumentException( "Login timeout must not be negative" );
+        }
         if ( jdbcProperties.containsKey( USER_PROPERTY_NAME ) ) {
             throw new IllegalArgumentException( "Invalid JDBC property '" + USER_PROPERTY_NAME + "': use principal instead." );
         }
@@ -242,6 +257,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public boolean trackJdbcResources() {
                 return trackJdbcResources;
+            }
+
+            @Override
+            public Duration loginTimeout() {
+                return loginTimeout;
             }
 
             @Override
