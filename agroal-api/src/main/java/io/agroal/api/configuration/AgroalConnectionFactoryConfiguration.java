@@ -7,6 +7,7 @@ import io.agroal.api.security.AgroalSecurityProvider;
 
 import java.security.Principal;
 import java.sql.Connection;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Properties;
 
@@ -26,6 +27,11 @@ public interface AgroalConnectionFactoryConfiguration {
      * If JDBC resources ({@link java.sql.Statement} and {@link java.sql.ResultSet}) should be tracked to be closed if leaked.
      */
     boolean trackJdbcResources();
+
+    /**
+     * Maximum time to wait while attempting to connect to a database. Resolution in seconds.
+     */
+    Duration loginTimeout();
 
     /**
      * The database URL to connect to.

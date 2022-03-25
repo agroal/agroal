@@ -115,6 +115,10 @@ public final class ConnectionPool implements Pool {
     }
 
     public void init() {
+        if ( configuration.acquisitionTimeout().compareTo( configuration.connectionFactoryConfiguration().loginTimeout() ) < 0 ) {
+            fireOnWarning( listeners, "Login timeout should be smaller than acquisition timeout" );
+        }
+
         if ( leakEnabled ) {
             housekeepingExecutor.schedule( new LeakTask(), configuration.leakTimeout().toNanos(), NANOSECONDS );
         }
@@ -482,10 +486,12 @@ public final class ConnectionPool implements Pool {
     @Override
     public boolean isHealthy(boolean newConnection) throws SQLException {
         ConnectionHandler healthHandler;
+        Future<ConnectionHandler> task = null;
         if ( newConnection ) {
             try {
                 do {
-                    healthHandler = housekeepingExecutor.executeNow( new CreateConnectionTask().initial() ).get();
+                    task = housekeepingExecutor.executeNow( new CreateConnectionTask().initial() );
+                    healthHandler = task.get( configuration.acquisitionTimeout().isZero() ? Long.MAX_VALUE : configuration.acquisitionTimeout().toNanos(), NANOSECONDS );
                 } while ( !healthHandler.setState( CHECKED_IN, VALIDATION ) );
             } catch ( InterruptedException e ) {
                 currentThread().interrupt();
@@ -494,6 +500,9 @@ public final class ConnectionPool implements Pool {
                 throw unwrapExecutionException( ee );
             } catch ( RejectedExecutionException | CancellationException e ) {
                 throw new SQLException( "Can't create new connection as the pool is shutting down", e );
+            } catch ( TimeoutException e ) {
+                task.cancel( true );
+                throw new SQLException( "Acquisition timeout on health check" );
             }
         } else {
             healthHandler = handlerFromSharedCache();

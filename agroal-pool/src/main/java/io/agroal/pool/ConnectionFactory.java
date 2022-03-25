@@ -14,6 +14,7 @@ import javax.sql.XAConnection;
 import java.lang.reflect.InvocationTargetException;
 import java.security.Principal;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
@@ -74,6 +75,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         return defaultIsolationLevel == null ? UNDEFINED.level() : defaultIsolationLevel;
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     private javax.sql.XADataSource newXADataSource(Properties properties) {
         javax.sql.XADataSource newDataSource;
         try {
@@ -81,14 +83,21 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.XADataSource", e );
         }
+
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
             injectUrlProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+        }
+        try {
+            newDataSource.setLoginTimeout( (int) configuration.loginTimeout().getSeconds() );
+        } catch ( SQLException e ) {
+            fireOnWarning( listeners, "Unable to set login timeout: " + e.getMessage() );
         }
 
         injectJdbcProperties( newDataSource, properties );
         return newDataSource;
     }
 
+    @SuppressWarnings( "StringConcatenation" )
     private javax.sql.DataSource newDataSource(Properties properties) {
         javax.sql.DataSource newDataSource;
         try {
@@ -100,6 +109,11 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
             injectUrlProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
         }
+        try {
+            newDataSource.setLoginTimeout( (int) configuration.loginTimeout().getSeconds() );
+        } catch ( SQLException e ) {
+            fireOnWarning( listeners, "Unable to set login timeout: " + e.getMessage() );
+        }
 
         injectJdbcProperties( newDataSource, properties );
         return newDataSource;
@@ -107,9 +121,11 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     @SuppressWarnings( "StringConcatenation" )
     private java.sql.Driver newDriver() {
+        DriverManager.setLoginTimeout( (int) configuration.loginTimeout().getSeconds() );
+
         if ( configuration.connectionProviderClass() == null ) {
             try {
-                return driver = java.sql.DriverManager.getDriver( configuration.jdbcUrl() );
+                return driver = DriverManager.getDriver( configuration.jdbcUrl() );
             } catch ( SQLException sql ) {
                 throw new RuntimeException( "Unable to get java.sql.Driver from DriverManager", sql );
             }
