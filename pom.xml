@@ -25,6 +25,7 @@
         <module>agroal-pool</module>
         <module>agroal-spring-boot-starter</module>
         <module>agroal-test</module>
+        <module>jakarta</module>
     </modules>
     <licenses>
         <license>
@@ -55,7 +56,7 @@
         <version.org.apache.felix>7.0.3</version.org.apache.felix>
         <version.org.jboss.jboss-transaction-spi>7.6.1.Final</version.org.jboss.jboss-transaction-spi>
         <version.org.jboss.logging>3.4.2.Final</version.org.jboss.logging>
-        <version.org.jboss.narayana>5.12.4.Final</version.org.jboss.narayana>
+        <version.org.jboss.narayana>5.12.6.Final</version.org.jboss.narayana>
         <version.org.junit.jupiter>5.8.2</version.org.junit.jupiter>
         <version.org.junit.platform>1.8.2</version.org.junit.platform>
         <version.org.ops4j.pax.exam>4.13.5</version.org.ops4j.pax.exam>

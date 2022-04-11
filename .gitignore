@@ -53,3 +53,7 @@ local-repo-eap
 
 #OS X stuff
 .DS_Store
+
+# Jakarta transformed files
+jakarta/agroal-narayana-jakarta/src
+jakarta/agroal-test-jakarta/src

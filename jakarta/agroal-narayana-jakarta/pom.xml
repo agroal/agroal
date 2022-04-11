@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (C) 2017 Red Hat, Inc. and individual contributors as indicated by the @author tags -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.agroal</groupId>
+        <artifactId>agroal-jakarta-parent</artifactId>
+        <version>1.17-SNAPSHOT</version>
+    </parent>
+    <artifactId>agroal-narayana-jakarta</artifactId>
+    <name>Agroal Narayana Integration - Jakarta</name>
+
+    <properties>
+        <jakarta-transformer-sources>${project.basedir}/../../agroal-narayana/src</jakarta-transformer-sources>
+        <jakarta-transformer-target>${project.basedir}/src</jakarta-transformer-target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.agroal</groupId>
+            <artifactId>agroal-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss</groupId>
+            <artifactId>jboss-transaction-spi-jakarta</artifactId>
+            <version>${version.org.jboss.jboss-transaction-spi}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
