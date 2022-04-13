@@ -6,49 +6,63 @@ on:
     - cron: '0 5 * * 0'  # at 05:00 on Sunday
 
 jobs:
-  compile:
+  build:
+    name: Java 17 - Build
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v2
+        with:
+          cache: 'maven'
+          distribution: 'temurin'
+          java-package: jdk
+          java-version: '17'
+      - run: mvn -B install
+      - uses: actions/upload-artifact@v2
+        with:
+          name: agroal-repository-artifact
+          path: ~/.m2/repository/io/agroal/**
+          retention-days: 1
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
     strategy:
       matrix:
-        java: [ 17, 11, 8 ] ### TODO: add more versions (9 is failing ATM)
-    name: Java ${{ matrix.java }} - Compile
+        java: [ 17, 11, 8 ]
+    name: Java ${{ matrix.java }} - Test
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v2
         with:
           cache: 'maven'
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-package: jdk
           java-version: ${{ matrix.java }}
-      - run: mvn -B compile
-
-  build:
-    name: Java 11 - Build and Test
-    runs-on: ubuntu-latest
-    needs: compile
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-java@v2
+      - uses: actions/download-artifact@v2
         with:
-          cache: 'maven'
-          distribution: 'adopt'
-          java-package: jdk
-          java-version: '11'
-      - run: mvn -B verify
+          name: agroal-repository-artifact
+          path: ~/.m2/repository/io/agroal
+      # don't run spring tests on JVMs older than 17
+      - run: rm -fr agroal-test/src/test/java/io/agroal/test/springframework && mvn --projects agroal-test verify -Dversion.org.springframework.boot=2.6.1
 
   deploy:
     if: ${{ github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
-    needs: build
-    name: Java 8 - Build, Test and Deploy Snapshot Artifacts
+    needs: [ build, test ]
+    name: Java 17 - Rebuild and Deploy Snapshot Artifacts
     steps:
+      - uses: geekyeggo/delete-artifact@v1
+        with:
+          name: agroal-repository-artifact
+          failOnError: false
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v2
         with:
           cache: 'maven'
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-package: jdk
-          java-version: '8'
+          java-version: '17'
           server-id: jboss-snapshots-repository
           server-username: MAVEN_CI_USERNAME
           server-password: MAVEN_CI_PASSWORD
