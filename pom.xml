@@ -9,7 +9,7 @@
     </parent>
     <groupId>io.agroal</groupId>
     <artifactId>agroal-parent</artifactId>
-    <version>1.17-SNAPSHOT</version>
+    <version>2.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Agroal</name>
     <description>The natural database connection pool</description>
@@ -55,16 +55,17 @@
         <version.org.apache.felix>7.0.3</version.org.apache.felix>
         <version.org.jboss.jboss-transaction-spi>7.6.1.Final</version.org.jboss.jboss-transaction-spi>
         <version.org.jboss.logging>3.4.2.Final</version.org.jboss.logging>
-        <version.org.jboss.narayana>5.12.4.Final</version.org.jboss.narayana>
+        <version.org.jboss.narayana>5.12.5.Final</version.org.jboss.narayana>
         <version.org.junit.jupiter>5.8.2</version.org.junit.jupiter>
         <version.org.junit.platform>1.8.2</version.org.junit.platform>
         <version.org.ops4j.pax.exam>4.13.5</version.org.ops4j.pax.exam>
         <version.org.ops4j.pax.url>2.6.10</version.org.ops4j.pax.url>
         <version.org.slf4j>1.7.32</version.org.slf4j>
-        <version.org.springframework.boot>2.6.1</version.org.springframework.boot>
+        <version.org.springframework.boot>3.0.0-M1</version.org.springframework.boot>
         <!-- Maven plugins -->
+        <version.bundle.plugin>5.1.4</version.bundle.plugin>
         <version.org.apache.servicemix.tooling>1.4.0</version.org.apache.servicemix.tooling>
-        <version.de.thetaphi.forbiddenapis>3.1</version.de.thetaphi.forbiddenapis>
+        <version.de.thetaphi.forbiddenapis>3.3</version.de.thetaphi.forbiddenapis>
         <version.eu.somatik.serviceloader-maven-plugin>1.4.0</version.eu.somatik.serviceloader-maven-plugin>
         <version.org.apache.maven.plugins.maven-surefire-plugin>2.22.2</version.org.apache.maven.plugins.maven-surefire-plugin>
         <version.org.netbeans.tools.sigtest-maven-plugin>1.2</version.org.netbeans.tools.sigtest-maven-plugin>
