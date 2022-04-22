@@ -21,4 +21,25 @@
             <version>${version.org.jboss.jboss-transaction-spi}</version>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.eclipse.transformer</groupId>
+                <artifactId>transformer-maven-plugin</artifactId>
+                <version>${version.org.eclipse.transformer}</version>
+                <configuration>
+                    <overwrite>false</overwrite>
+                    <classifier>jakarta</classifier>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

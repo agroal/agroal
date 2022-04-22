@@ -68,6 +68,7 @@
         <version.eu.somatik.serviceloader-maven-plugin>1.4.0</version.eu.somatik.serviceloader-maven-plugin>
         <version.org.apache.maven.plugins.maven-surefire-plugin>2.22.2</version.org.apache.maven.plugins.maven-surefire-plugin>
         <version.org.netbeans.tools.sigtest-maven-plugin>1.2</version.org.netbeans.tools.sigtest-maven-plugin>
+        <version.org.eclipse.transformer>0.4.0</version.org.eclipse.transformer>
     </properties>
     <build>
         <plugins>
