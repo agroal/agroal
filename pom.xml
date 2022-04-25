@@ -47,6 +47,10 @@
         </developer>
     </developers>
     <properties>
+        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.release>11</maven.compiler.release>
+        <maven.compiler.parameters>true</maven.compiler.parameters>
         <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
         <version.com.h2database>2.0.202</version.com.h2database>
