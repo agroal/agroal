@@ -221,7 +221,12 @@ public final class Poolless implements Pool {
             for ( ; ; ) {
                 // Try to get a "token" to create a new connection
                 if ( activeCount.incrementAndGet() <= configuration.maxSize() ) {
-                    return createConnection();
+                    try {
+                    	return createConnection();
+                    } catch (SQLException e){
+                        activeCount.decrementAndGet();
+                        throw e;
+                    }
                 } else {
                     activeCount.decrementAndGet();
                 }
