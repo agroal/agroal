@@ -333,17 +333,19 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     @Override
     public void transactionBeforeCompletion(boolean successful) {
-        for ( ConnectionWrapper wrapper : enlistedOpenWrappers ) {
-            if ( successful ) {
-                fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to commit" );
-            } else {
-                // AG-168 - Close without warning as Synchronization.beforeCompletion is only invoked on success. See issue for more details.
-                // fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
-            }
-            try {
-                wrapper.close();
-            } catch ( SQLException e ) {
-                // never occurs
+        if ( !enlistedOpenWrappers.isEmpty() ) {
+            for ( ConnectionWrapper wrapper : enlistedOpenWrappers ) {
+                if ( successful ) {
+                    fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to commit" );
+                } else {
+                    // AG-168 - Close without warning as Synchronization.beforeCompletion is only invoked on success. See issue for more details.
+                    // fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
+                }
+                try {
+                    wrapper.close();
+                } catch ( SQLException e ) {
+                    // never occurs
+                }
             }
         }
     }
@@ -372,10 +374,12 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     @Override
     public void transactionEnd() throws SQLException {
-        for ( ConnectionWrapper wrapper : enlistedOpenWrappers ) {
-            // should never happen, but it's here as a safeguard to prevent double returns in all cases.
-            fireOnWarning( connectionPool.getListeners(), "Closing open connection after completion" );
-            wrapper.close();
+        if ( !enlistedOpenWrappers.isEmpty() ) {
+            for ( ConnectionWrapper wrapper : enlistedOpenWrappers ) {
+                // should never happen, but it's here as a safeguard to prevent double returns in all cases.
+                fireOnWarning( connectionPool.getListeners(), "Closing open connection after completion" );
+                wrapper.close();
+            }
         }
         enlisted = false;
         connectionPool.returnConnectionHandler( this );
