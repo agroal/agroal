@@ -222,8 +222,8 @@ public final class Poolless implements Pool {
                 // Try to get a "token" to create a new connection
                 if ( activeCount.incrementAndGet() <= configuration.maxSize() ) {
                     try {
-                    	return createConnection();
-                    } catch (SQLException e){
+                        return createConnection();
+                    } catch ( SQLException e ) {
                         activeCount.decrementAndGet();
                         throw e;
                     }
@@ -274,7 +274,7 @@ public final class Poolless implements Pool {
             checkedOutHandler.touch();
             if ( configuration.enhancedLeakReport() ) {
                 StackTraceElement[] stackTrace = currentThread().getStackTrace();
-                checkedOutHandler.setAcquisitionStackTrace( copyOfRange( stackTrace, 4, stackTrace.length) );
+                checkedOutHandler.setAcquisitionStackTrace( copyOfRange( stackTrace, 4, stackTrace.length ) );
             }
         }
         return checkedOutHandler.connectionWrapper();
@@ -347,7 +347,7 @@ public final class Poolless implements Pool {
                 return false;
             }
         } finally {
-           returnConnectionHandler( healthHandler );
+            returnConnectionHandler( healthHandler );
         }
     }
 
