@@ -6,6 +6,7 @@ package io.agroal.test.basic;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.test.MockDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -174,5 +175,37 @@ class PoollessTests {
                 logger.info( currentThread().getName() + " got none" );
             }
         } );
+    }
+
+    // --- //
+
+    @Test
+    @DisplayName( "Exception on create connection" )
+    void createExceptionTest() throws SQLException {
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .dataSourceImplementation( AGROAL_POOLLESS )
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( ExceptionalDataSource.class )
+                        ) );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "Got connection " + c );
+            } catch ( SQLException e ) {
+                // test for AG-194 --- active count was incremented incorrectly
+                assertEquals( 0, dataSource.getMetrics().activeCount(), "Active count incremented after exception" );
+            }
+        }
+    }
+
+    public static class ExceptionalDataSource extends MockDataSource.Empty {
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            throw new SQLException( "Exceptional condition" );
+        }
     }
 }
