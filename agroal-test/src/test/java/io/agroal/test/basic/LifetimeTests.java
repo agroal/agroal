@@ -134,6 +134,50 @@ public class LifetimeTests {
         }
     }
 
+    @Test
+    @DisplayName( "Min-size after maxLifetime" )
+    void minSizeLifetimeTest() throws SQLException {
+        int MIN_SIZE = 5, MAX_LIFETIME_MS = 200;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( 2 * MIN_SIZE )
+                        .minSize( MIN_SIZE )
+                        .maxSize( 10 * MIN_SIZE )
+                        .maxLifetime( ofMillis( MAX_LIFETIME_MS ) )
+                );
+
+        CountDownLatch initialLatch = new CountDownLatch( 2 * MIN_SIZE );
+        CountDownLatch allLatch = new CountDownLatch( 3 * MIN_SIZE );
+        CountDownLatch destroyLatch = new CountDownLatch( 2 * MIN_SIZE );
+
+        MaxLifetimeListener initialListener = new MaxLifetimeListener( initialLatch, new LongAdder(), destroyLatch);
+        MaxLifetimeListener finalListener = new MaxLifetimeListener( allLatch, new LongAdder(), new CountDownLatch( 0 ) );
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, initialListener, finalListener ) ) {
+            logger.info( format( "Waiting at most {0}ms for the creating of {1} connections", MAX_LIFETIME_MS, MIN_SIZE ) );
+            if ( !initialLatch.await( MAX_LIFETIME_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created in time", destroyLatch.getCount() ) );
+            }
+            assertEquals( 2 * MIN_SIZE, dataSource.getMetrics().creationCount(), "Unexpected number of initial connections" );
+
+            logger.info( format( "Waiting for {0}ms (twice the maxLifetime)", 2 * MAX_LIFETIME_MS ) );
+            if ( !destroyLatch.await( 2 * MAX_LIFETIME_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not destroyed in time", destroyLatch.getCount() ) );
+            }
+            assertEquals( 2 * MIN_SIZE, dataSource.getMetrics().destroyCount(), "Unexpected number of flush connections" );
+
+            logger.info( format( "Waiting for {0}ms", MAX_LIFETIME_MS ) );
+            if ( !allLatch.await( MAX_LIFETIME_MS, MILLISECONDS ) ) {
+                fail( format( "{0} connections not created in time", allLatch.getCount() ) );
+            }
+            assertEquals( 3 * MIN_SIZE, dataSource.getMetrics().creationCount(), "Unexpected number of created connections" );
+            assertEquals( MIN_SIZE, dataSource.getMetrics().availableCount(), "Min-size not maintained" );
+        } catch ( InterruptedException e ) {
+            fail( "Test fail due to interrupt" );
+        }
+    }
+
     // --- //
 
     private static class MaxLifetimeListener implements AgroalDataSourceListener {
@@ -160,7 +204,7 @@ public class LifetimeTests {
         }
 
         @Override
-        public void beforeConnectionDestroy(Connection connection) {
+        public void onConnectionDestroy(Connection connection) {
             destroyLatch.countDown();
         }
     }
