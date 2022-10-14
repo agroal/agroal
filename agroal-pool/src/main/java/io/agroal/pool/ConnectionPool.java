@@ -17,6 +17,7 @@ import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -581,16 +582,11 @@ public final class ConnectionPool implements Pool {
 
         @Override
         public void run() {
-            if ( handler != null ) {
-                fireBeforeConnectionFlush( listeners, handler );
-                flush( mode, handler );
-            } else {
-                for ( ConnectionHandler handler : allConnections ) {
-                    fireBeforeConnectionFlush( listeners, handler );
-                    flush( mode, handler );
-                }
-                afterFlush( mode );
+            for ( ConnectionHandler ch : handler != null ? Collections.singleton( handler ) : allConnections ) {
+                fireBeforeConnectionFlush( listeners, ch );
+                flush( mode, ch );
             }
+            afterFlush( mode );
         }
 
         private void flush(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
