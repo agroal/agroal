@@ -120,4 +120,9 @@ public interface AgroalDataSourceListener {
      */
     default void onInfo(String message) {}
 
+    /**
+     * Callback to allow reporting information of interest, for which a info might be considered excessive.
+     */
+    default void onDebug(String message) {}
+
 }

@@ -162,4 +162,10 @@ public final class ListenerHelper {
             listener.onInfo( message );
         }
     }
+
+    public static void fireOnDebug(AgroalDataSourceListener[] listeners, String message) {
+        for ( AgroalDataSourceListener listener : listeners ) {
+            listener.onDebug( message );
+        }
+    }
 }
