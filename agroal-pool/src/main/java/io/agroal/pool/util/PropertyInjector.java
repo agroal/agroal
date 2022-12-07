@@ -5,6 +5,7 @@ package io.agroal.pool.util;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -27,11 +28,19 @@ public final class PropertyInjector {
         for ( Method method : cls.getMethods() ) {
             String name = method.getName();
             if ( method.getParameterCount() == 1 && name.startsWith( "set" ) ) {
-                propertySetter.put( name.substring( 3 ), method );
+                propertySetter.merge( name.substring( 3 ), method, PropertyInjector::methodSelector );
             } else if ( method.getParameterCount() == 2 && "setProperty".equals( name ) ) {
                 propertySetter.put( "Property", method );
             }
         }
+    }
+
+    /**
+     * Method to resolve ambiguities when multiple methods apply the same property.
+     */
+    private static Method methodSelector(Method methodOne, Method methodTwo) {
+        // AG-200 - Prefer methods that are not deprecated
+        return methodOne.isAnnotationPresent( Deprecated.class ) ? methodTwo : methodOne;
     }
 
     @SuppressWarnings( "StringConcatenation" )
@@ -51,6 +60,7 @@ public final class PropertyInjector {
         return propertySetter.keySet();
     }
 
+    @SuppressWarnings( "CallToSuspiciousStringMethod" )
     private static Properties typeConvertProperties(String properties) {
         if ( properties == null ) {
             return new Properties();
@@ -73,6 +83,10 @@ public final class PropertyInjector {
     private Object typeConvert(String value, Class<?> target) {
         if ( target == String.class ) {
             return value;
+        } else if ( target == byte[].class ) {
+            return value.getBytes( StandardCharsets.UTF_8 );
+        } else if ( target == char[].class ) {
+            return value.toCharArray();
         } else if ( Boolean.class.isAssignableFrom( target ) || Boolean.TYPE.isAssignableFrom( target ) ) {
             return Boolean.parseBoolean( value );
         } else if ( Character.class.isAssignableFrom( target ) || Character.TYPE.isAssignableFrom( target ) ) {
