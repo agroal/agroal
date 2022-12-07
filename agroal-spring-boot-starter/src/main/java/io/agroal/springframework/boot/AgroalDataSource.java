@@ -180,7 +180,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
 
     public void setMetrics(boolean metrics) {
-        datasourceConfiguration.metricsEnabled();
+        datasourceConfiguration.metricsEnabled( metrics );
     }
 
     @Override
