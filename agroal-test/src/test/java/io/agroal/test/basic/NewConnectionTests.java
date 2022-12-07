@@ -131,6 +131,25 @@ public class NewConnectionTests {
     }
 
     @Test
+    @DisplayName( "Multiple methods injection test" )
+    void multipleMethodsInjectionTest() throws SQLException {
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( MultipleSettersDataSource.class )
+                                .jdbcProperty( "someString", "some_value" )
+                        )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new NoWarningsAgroalListener() ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                logger.info( "Got connection " + c + " with some someString set" );
+            }
+        }
+    }
+
+    @Test
     @DisplayName( "Exception on new connection" )
     void newConnectionExceptionTest() throws SQLException {
         int INITIAL_SIZE = 3, INITIAL_TIMEOUT_MS = 100 * INITIAL_SIZE;
@@ -220,6 +239,26 @@ public class NewConnectionTests {
             assertEquals( "some_url", connectionProperties.getProperty( "url" ), "Expected URL property to be set before getConnection()" );
             assertEquals( "some_custom_prop", connectionProperties.getProperty( "custom" ), "Expected Custom property to be set before getConnection()" );
             assertNull( connectionProperties.getProperty( "connectionProperties" ), "Not expecting property to be set before getConnection()" );
+            return new MockConnection.Empty();
+        }
+    }
+
+    public static class MultipleSettersDataSource implements MockDataSource {
+
+        private String some = "default";
+
+        @Deprecated
+        public void setSomeString(String ignore) {
+            some = "string_method";
+        }
+        
+        public void setSomeString(char[] chars) {
+            some = new String( chars );
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            assertEquals( "some_value", some, "Expected property to be set before getConnection()" );
             return new MockConnection.Empty();
         }
     }
