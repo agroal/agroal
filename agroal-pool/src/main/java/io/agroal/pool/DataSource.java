@@ -95,12 +95,12 @@ public final class DataSource implements AgroalDataSource {
 
     @Override
     public <T> T unwrap(Class<T> target) throws SQLException {
-        return null;
+        return target.cast( this );
     }
 
     @Override
     public boolean isWrapperFor(Class<?> target) throws SQLException {
-        return false;
+        return target.isInstance( this );
     }
 
     // --- CommonDataSource methods //
