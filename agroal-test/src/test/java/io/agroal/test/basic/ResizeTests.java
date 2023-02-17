@@ -118,7 +118,8 @@ public class ResizeTests {
                 );
 
         CountDownLatch creationLatch = new CountDownLatch( INITIAL_SIZE );
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new ReadyDataSourceListener( creationLatch ) ) ) {
+        ReadyDataSourceListener listener = new ReadyDataSourceListener( creationLatch );
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             logger.info( format( "Awaiting fill of all the {0} initial connections on the pool", INITIAL_SIZE ) );
             if ( !creationLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
                 fail( format( "{0} connections not created", creationLatch.getCount() ) );
@@ -127,9 +128,15 @@ public class ResizeTests {
             assertEquals( INITIAL_SIZE, dataSource.getMetrics().availableCount(), "Pool not initialized correctly" );
             dataSource.getConfiguration().connectionPoolConfiguration().setMinSize( NEW_MIN_SIZE );
 
-            // This should be a new connection and not one from the initial
+            CountDownLatch newMinLatch = new CountDownLatch( 1 );
+            listener.setCreationLatch( newMinLatch );
+
+            // This should cause a new connection to be created (not necessarily the one that's being returned)
             try ( Connection c = dataSource.getConnection() ) {
                 assertNotNull( c );
+            }
+            if ( !newMinLatch.await( TIMEOUT_MS, MILLISECONDS ) ) {
+                fail( format( "{0} new connections not created", newMinLatch.getCount() ) );
             }
             assertEquals( INITIAL_SIZE + 1, dataSource.getMetrics().availableCount(), "Pool not resized" );
 
@@ -144,11 +151,15 @@ public class ResizeTests {
     }
 
     private static class ReadyDataSourceListener implements AgroalDataSourceListener {
-        private final CountDownLatch creationLatch;
+        private CountDownLatch creationLatch;
 
         @SuppressWarnings( "WeakerAccess" )
         ReadyDataSourceListener(CountDownLatch creationLatch) {
             this.creationLatch = creationLatch;
+        }
+
+        public void setCreationLatch(CountDownLatch latch) {
+            creationLatch = latch;
         }
 
         @Override
