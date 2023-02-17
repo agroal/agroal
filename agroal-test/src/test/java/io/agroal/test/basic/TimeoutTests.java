@@ -5,6 +5,7 @@ package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.api.cache.ConnectionCache;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
@@ -95,8 +96,9 @@ public class TimeoutTests {
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
-                        .maxSize( 1 )
+                        .maxSize( 10 )
                         .acquisitionTimeout( ofMillis( ACQUISITION_TIMEOUT_MS ) )
+                        .connectionCache( ConnectionCache.none() )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( SleepyDatasource.class )
                         )
@@ -117,6 +119,15 @@ public class TimeoutTests {
 
             // Try again, to ensure that the Agroal thread has not become stuck after that first getConnection call
             logger.info( "Attempting another getConnection() call" );
+            try ( Connection c = dataSource.getConnection() ) {
+                assertFalse( c.isClosed(), "Expected a good, healthy connection" );
+            }
+
+            dataSource.getConfiguration().connectionPoolConfiguration().setMinSize( 2 );
+            SleepyDatasource.setSleep();
+
+            // Try again, to ensure that even if new connections can't be established, getConnection calls still succeed
+            logger.info( "Attempting getConnection() on a sleepy datasource" );
             try ( Connection c = dataSource.getConnection() ) {
                 assertFalse( c.isClosed(), "Expected a good, healthy connection" );
             }

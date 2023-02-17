@@ -275,37 +275,31 @@ public final class ConnectionPool implements Pool {
             for ( ; ; ) {
                 // If min-size increases, create a connection right away
                 if ( allConnections.size() < configuration.minSize() ) {
-                    long start = nanoTime();
                     task = housekeepingExecutor.executeNow( new CreateConnectionTask() );
-                    ConnectionHandler handler = task.get( remaining, NANOSECONDS );
-                    if ( handler != null && handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
-                        return handler;
-                    }
-                    remaining -= nanoTime() - start;
-                    continue;
                 }
                 // Try to find an available connection in the pool
                 for ( ConnectionHandler handler : allConnections ) {
-                    if ( handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
+                    if ( handler.acquire() ) {
                         return handler;
                     }
                 }
                 // If no connections are available and there is room, create one
-                if ( allConnections.size() < configuration.maxSize() ) {
-                    long start = nanoTime();
+                if ( task == null && allConnections.size() < configuration.maxSize() ) {
                     task = housekeepingExecutor.executeNow( new CreateConnectionTask() );
+                }
+                long start = nanoTime();
+                if ( task == null )  {
+                    // Pool full, will have to wait for a connection to be returned
+                    if ( !synchronizer.tryAcquireNanos( synchronizer.getStamp(), remaining ) ) {
+                        throw new SQLException( "Sorry, acquisition timeout!" );
+                    }
+                } else {
+                    // Wait for the new connection instead of the synchronizer to propagate any exception on connection establishment
                     ConnectionHandler handler = task.get( remaining, NANOSECONDS );
-                    if ( handler != null && handler.setState( CHECKED_IN, CHECKED_OUT ) ) {
+                    if ( handler != null && handler.acquire() ) {
                         return handler;
                     }
-                    remaining -= nanoTime() - start;
-                    continue;
-                }
-                // Pool full, will have to wait for a connection to be returned
-                long synchronizationStamp = synchronizer.getStamp();
-                long start = nanoTime();
-                if ( remaining < 0 || !synchronizer.tryAcquireNanos( synchronizationStamp, remaining ) ) {
-                    throw new SQLException( "Sorry, acquisition timeout!" );
+                    task = null;
                 }
                 remaining -= nanoTime() - start;
             }
@@ -318,6 +312,12 @@ public final class ConnectionPool implements Pool {
             throw new SQLException( "Can't create new connection as the pool is shutting down", e );
         } catch ( TimeoutException e ) {
             task.cancel( true );
+            // AG-201: Last effort. Connections may have returned to the pool while waiting.
+            for ( ConnectionHandler handler : allConnections ) {
+                if ( handler.acquire() ) {
+                    return handler;
+                }
+            }
             throw new SQLException( "Acquisition timeout while waiting for new connection", e );
         }
     }
