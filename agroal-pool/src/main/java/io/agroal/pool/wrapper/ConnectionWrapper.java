@@ -559,7 +559,6 @@ public final class ConnectionWrapper implements Connection {
     public boolean isClosed() throws SQLException {
         try {
             handler.traceConnectionOperation( "isClosed()" );
-            handler.verifyEnlistment();
             return wrappedConnection.isClosed();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );

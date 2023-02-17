@@ -22,6 +22,7 @@ import javax.transaction.HeuristicRollbackException;
 import javax.transaction.InvalidTransactionException;
 import javax.transaction.NotSupportedException;
 import javax.transaction.RollbackException;
+import javax.transaction.Synchronization;
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
@@ -187,6 +188,42 @@ class EnlistmentTests {
     }
 
     @Test
+    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
+    @DisplayName( "Synchronization rollback test" )
+    void rollbackSynchronizationRollbackTest() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            try {
+                txManager.begin();
+                Connection connection = dataSource.getConnection();
+                logger.info( format( "Got connection {0}", connection ) );
+                connection.createStatement().close();
+
+                // The (interposed) synchronization runs after Agroal closes the connection but before it is returned to the pool
+                CloseSynchronization closeSynchronization = new CloseSynchronization( connection );
+                txSyncRegistry.registerInterposedSynchronization( closeSynchronization );
+
+                assertFalse( connection.isClosed(), "Not expecting the connection to be closed since the transaction didn't complete" );
+                txManager.rollback();
+                assertTrue( connection.isClosed(), "Expecting the connection to be closed after rollback" );
+
+                closeSynchronization.verify();
+            } catch ( NotSupportedException | SystemException e ) {
+                fail( "Exception: " + e.getMessage() );
+            }
+        }
+    }
+    
+    
+    @Test
     @DisplayName( "Test the type of enlisted resource" )
     void enlistedResourceTypeTest() throws SQLException, SystemException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
@@ -233,6 +270,43 @@ class EnlistmentTests {
         } catch ( HeuristicMixedException | NotSupportedException | HeuristicRollbackException | RollbackException e ) {
             txManager.rollback();
             fail( "Exception: " + e.getMessage() );
+        }
+    }
+
+    // --- //
+
+    private static class CloseSynchronization implements Synchronization {
+
+        private final Connection connection;
+        private SQLException exception;
+
+        public CloseSynchronization(Connection connection ) {
+            this.connection = connection;
+        }
+
+        public void verify() {
+            if ( exception != null ) {
+                fail( "Exception on close synchronization", exception );
+            }
+        }
+
+        @Override
+        public void beforeCompletion() {
+            // Empty, as not invoked for rollback
+        }
+
+        @Override
+        public void afterCompletion(int status) {
+            try {
+                if ( !connection.isClosed() ) {
+                    logger.info( "Attempt to close connection on afterComplete()" );
+                    connection.close();
+                } else {
+                    logger.info( "Connection already closed on afterComplete()" );
+                }
+            } catch ( SQLException e ) {
+                exception = e;
+            }
         }
     }
 }
