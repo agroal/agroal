@@ -57,9 +57,9 @@
         <version.com.zaxxer>4.0.3</version.com.zaxxer>
         <version.me.snowdrop>2.6.1</version.me.snowdrop>
         <version.org.apache.felix>7.0.3</version.org.apache.felix>
-        <version.org.jboss.jboss-transaction-spi>7.6.1.Final</version.org.jboss.jboss-transaction-spi>
+        <version.org.jboss.jboss-transaction-spi>8.0.0.Final</version.org.jboss.jboss-transaction-spi>
         <version.org.jboss.logging>3.4.2.Final</version.org.jboss.logging>
-        <version.org.jboss.narayana>5.12.5.Final</version.org.jboss.narayana>
+        <version.org.jboss.narayana>6.0.0.Final</version.org.jboss.narayana>
         <version.org.junit.jupiter>5.8.2</version.org.junit.jupiter>
         <version.org.junit.platform>1.8.2</version.org.junit.platform>
         <version.org.ops4j.pax.exam>4.13.5</version.org.ops4j.pax.exam>
