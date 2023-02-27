@@ -27,10 +27,10 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.SPRING;
+import static jakarta.transaction.Status.STATUS_ACTIVE;
 import static java.lang.System.identityHashCode;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
-import static javax.transaction.Status.STATUS_ACTIVE;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
