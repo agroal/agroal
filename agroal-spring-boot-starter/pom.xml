@@ -9,13 +9,6 @@
     </parent>
     <artifactId>agroal-spring-boot-starter</artifactId>
     <name>Agroal Spring Boot Starter</name>
-    <repositories>
-        <repository>
-            <id>repository.spring.milestone</id>
-            <name>Spring Milestone Repository</name>
-            <url>https://repo.spring.io/milestone</url>
-        </repository>
-    </repositories>
     <dependencies>
         <dependency>
             <groupId>io.agroal</groupId>
