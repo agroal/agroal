@@ -19,6 +19,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.transaction.jta.JtaTransactionManager;
 
 import javax.sql.DataSource;
+
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -31,6 +32,8 @@ import java.util.logging.Logger;
 
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
+
+import java.util.Map;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -165,6 +168,14 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setRecoveryPassword(String password) {
         connectionFactoryConfiguration.recoveryCredential( new SimplePassword( password ) );
+    }
+    
+    public void setJdbcTransactionIsolation(int level) {
+        connectionFactoryConfiguration.jdbcTransactionIsolation( level );
+    }
+    
+    public void setJdbcProperties(Map<String, String> properties) {
+      properties.forEach(connectionFactoryConfiguration::jdbcProperty);
     }
 
     // --- //
