@@ -30,6 +30,10 @@ import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 
+import org.crac.Context;
+import org.crac.Core;
+import org.crac.Resource;
+
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
@@ -71,7 +75,7 @@ import static java.util.stream.Collectors.toList;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class ConnectionPool implements Pool {
+public final class ConnectionPool implements Pool, Resource {
 
     private static final AtomicInteger HOUSEKEEP_COUNT = new AtomicInteger();
 
@@ -82,7 +86,7 @@ public final class ConnectionPool implements Pool {
 
     private final AgroalSynchronizer synchronizer;
     private final ConnectionFactory connectionFactory;
-    private final PriorityScheduledExecutor housekeepingExecutor;
+    private PriorityScheduledExecutor housekeepingExecutor;
     private final TransactionIntegration transactionIntegration;
 
     private final boolean idleValidationEnabled;
@@ -113,6 +117,8 @@ public final class ConnectionPool implements Pool {
         leakEnabled = !configuration.leakTimeout().isZero();
         validationEnabled = !configuration.validationTimeout().isZero();
         reapEnabled = !configuration.reapTimeout().isZero();
+
+        Core.getGlobalContext().register(this);
     }
 
     public void init() {
@@ -510,6 +516,17 @@ public final class ConnectionPool implements Pool {
             healthHandler.setState( CHECKED_OUT, VALIDATION );
         }
         return performValidation( healthHandler, CHECKED_IN );
+    }
+
+    @Override
+    public void beforeCheckpoint(Context<? extends Resource> context) throws Exception {
+        close();
+    }
+
+    @Override
+    public void afterRestore(Context<? extends Resource> context) throws Exception {
+        housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet(), listeners );
+        init();
     }
 
     // --- create //

@@ -15,6 +15,11 @@
             <artifactId>agroal-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.crac</groupId>
+            <artifactId>crac</artifactId>
+            <version>${version.org.crac}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
