@@ -3,15 +3,21 @@
 
 package io.agroal.springframework.boot;
 
+import io.agroal.narayana.NarayanaTransactionIntegration;
+
+import org.jboss.tm.XAResourceRecoveryRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.jdbc.DatabaseDriver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.jta.JtaTransactionManager;
+import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 
@@ -28,13 +34,32 @@ public class AgroalDataSourceConfiguration {
     @SuppressWarnings( "WeakerAccess" )
     public JtaTransactionManager jtaPlatform;
 
+    @Autowired( required = false )
+    @SuppressWarnings( "WeakerAccess" )
+    public XAResourceRecoveryRegistry recoveryRegistry;
+
     @Bean
     @ConfigurationProperties( prefix = "spring.datasource.agroal" )
-    public AgroalDataSource dataSource(DataSourceProperties properties) {
+    public AgroalDataSource dataSource(DataSourceProperties properties, @Value("${spring.datasource.agroal.connectable:false}") boolean connectable) {
         AgroalDataSource dataSource = properties.initializeDataSourceBuilder().type( AgroalDataSource.class ).build();
-        dataSource.setName( properties.determineDatabaseName() );
+        if ( !StringUtils.hasLength( properties.getDriverClassName() ) ) {
+            DatabaseDriver driver = DatabaseDriver.fromJdbcUrl( properties.determineUrl() );
+            if ( connectable ) {
+                dataSource.setDriverClassName( driver.getDriverClassName() );
+            } else {
+                dataSource.setDriverClassName( driver.getXaDataSourceClassName() );
+            }
+        }
+        String name = properties.determineDatabaseName();
+        dataSource.setName( name );
         if ( jtaPlatform != null && jtaPlatform.getTransactionManager() != null && jtaPlatform.getTransactionSynchronizationRegistry() != null) {
-            dataSource.setJtaTransactionIntegration( jtaPlatform );
+            NarayanaTransactionIntegration transactionIntegration = new NarayanaTransactionIntegration( 
+                    jtaPlatform.getTransactionManager(), 
+                    jtaPlatform.getTransactionSynchronizationRegistry(),
+                    name,
+                    connectable,
+                    recoveryRegistry );
+            dataSource.setJtaTransactionIntegration( transactionIntegration );
         }
         return dataSource;
     }
