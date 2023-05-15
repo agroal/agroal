@@ -12,6 +12,7 @@ import io.agroal.api.configuration.supplier.AgroalConnectionPoolConfigurationSup
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
+import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -117,8 +118,12 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.validationTimeout( Duration.ofSeconds( timeout ) );
     }
 
+    public void setJtaTransactionIntegration(TransactionIntegration transactionIntegration) {
+        connectionPoolConfiguration.transactionIntegration( transactionIntegration );
+    }
+
     public void setJtaTransactionIntegration(JtaTransactionManager jtaPlatform) {
-        connectionPoolConfiguration.transactionIntegration( new NarayanaTransactionIntegration( jtaPlatform.getTransactionManager(), jtaPlatform.getTransactionSynchronizationRegistry() ) );
+        setJtaTransactionIntegration( new NarayanaTransactionIntegration( jtaPlatform.getTransactionManager(), jtaPlatform.getTransactionSynchronizationRegistry() ) );
     }
 
     public void setEnhancedLeakReport(boolean enhanced) {
