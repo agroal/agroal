@@ -6,6 +6,8 @@ package io.agroal.springframework.boot;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.AgroalPoolInterceptor;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalConnectionFactoryConfigurationSupplier;
 import io.agroal.api.configuration.supplier.AgroalConnectionPoolConfigurationSupplier;
@@ -29,6 +31,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.logging.Logger;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.defaultExceptionSorter;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.emptyExceptionSorter;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.fatalExceptionSorter;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
 
@@ -91,6 +98,32 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setInitialSize(int size) {
         connectionPoolConfiguration.initialSize( size );
+    }
+
+    public void setConnectionValidator( ConnectionValidator validator ) {
+        connectionPoolConfiguration.connectionValidator( validator );
+    }
+
+    public void setConnectionValidatorName( String validator ) {
+        if ( "default".equals( validator ) ) {
+            setConnectionValidator( defaultValidator() );
+        } else if ( "empty".equals( validator ) ) {
+            setConnectionValidator( emptyValidator() );
+        }
+    }
+
+    public void setExceptionSorter( ExceptionSorter sorter ) {
+        connectionPoolConfiguration.exceptionSorter( sorter );
+    }
+
+    public void setExceptionSorterName( String sorter ) {
+        if ( "default".equals( sorter ) ) {
+            setExceptionSorter( defaultExceptionSorter() );
+        } else if ( "empty".equals( sorter ) ) {
+            setExceptionSorter( emptyExceptionSorter() );
+        } else if ( "fatal".equals( sorter ) ) {
+            setExceptionSorter( fatalExceptionSorter() );
+        }
     }
 
     public void setAcquisitionTimeout(int timeout) {
