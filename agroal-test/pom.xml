@@ -28,6 +28,12 @@
             <artifactId>agroal-hikari</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.agroal</groupId>
@@ -71,12 +77,24 @@
             <artifactId>pax-exam-spi</artifactId>
             <version>${version.org.ops4j.pax.exam}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.ops4j.pax.exam</groupId>
             <artifactId>pax-exam-container-native</artifactId>
             <version>${version.org.ops4j.pax.exam}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.ops4j.pax.exam</groupId>
@@ -89,6 +107,16 @@
             <artifactId>pax-url-aether</artifactId>
             <version>${version.org.ops4j.pax.url}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.felix</groupId>
@@ -133,6 +161,10 @@
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-starter-logging</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -140,12 +172,24 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
             <version>${version.org.springframework.boot}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
-            <groupId>me.snowdrop</groupId>
+            <groupId>dev.snowdrop</groupId>
             <artifactId>narayana-spring-boot-starter</artifactId>
-            <version>${version.me.snowdrop}</version>
+            <version>${version.dev.snowdrop}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
@@ -169,6 +213,12 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
             <version>${version.io.micrometer}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.h-thurow</groupId>
+            <artifactId>simple-jndi</artifactId>
+            <version>${version.com.github.h-thurow}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -218,6 +268,16 @@
                             <excludedGroups>none</excludedGroups>
                             <!-- Run each test on this configuration on its own JVM fork -->
                             <reuseForks>false</reuseForks>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>spring-test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <groups>spring</groups>
+                            <excludedGroups>none</excludedGroups>
                         </configuration>
                     </execution>
                 </executions>
