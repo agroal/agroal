@@ -9,9 +9,10 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
@@ -28,26 +29,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 @Tag( SPRING )
+@SpringBootTest( classes = SpringBootIntegrationTests.AgroalApplication.class )
 class SpringBootIntegrationTests {
+
+    @Autowired
+    ConfigurableApplicationContext application;
 
     @Test
     @DisplayName( "test deployment on spring boot container" )
     void basicSpringConnectionAcquireTest() throws Exception {
-        try ( ConfigurableApplicationContext application = SpringApplication.run( AgroalApplication.class ) ) {
-            assertTrue( application.isActive() );
-        }
+        assertTrue( application.isActive() );
     }
 
-    @SpringBootApplication
+    @SpringBootApplication(proxyBeanMethods = false)
     @PropertySource( "SpringBootIntegrationTests/application.properties" )
     @SuppressWarnings( {"HardcodedFileSeparator", "UtilityClass", "NonFinalUtilityClass"} )
-    private static class AgroalApplication {
+    static class AgroalApplication {
 
         private static final Logger log = LoggerFactory.getLogger( AgroalApplication.class );
-
-        @SuppressWarnings( "WeakerAccess" )
-        AgroalApplication() {
-        }
 
         @Bean
         @Transactional

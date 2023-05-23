@@ -6,7 +6,6 @@ package io.agroal.springframework.boot;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.jndi.AgroalDataSourceJndiBinder;
 import io.agroal.springframework.boot.jndi.DefaultAgroalDataSourceJndiBinder;
-
 import io.agroal.springframework.boot.metrics.AgroalPoolDataSourceMetadataProviderConfiguration;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 import org.slf4j.Logger;
