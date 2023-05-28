@@ -40,7 +40,10 @@ public class AgroalDataSourceConfiguration {
 
     @Bean
     @ConfigurationProperties( prefix = "spring.datasource.agroal" )
-    public AgroalDataSource dataSource(DataSourceProperties properties, @Value("${spring.datasource.agroal.connectable:false}") boolean connectable) {
+    public AgroalDataSource dataSource(
+            DataSourceProperties properties,
+            @Value("${spring.datasource.agroal.connectable:false}") boolean connectable,
+            @Value("${spring.datasource.agroal.firstResource:false}") boolean firstResource) {
         AgroalDataSource dataSource = properties.initializeDataSourceBuilder().type( AgroalDataSource.class ).build();
         if ( !StringUtils.hasLength( properties.getDriverClassName() ) ) {
             DatabaseDriver driver = DatabaseDriver.fromJdbcUrl( properties.determineUrl() );
@@ -58,6 +61,7 @@ public class AgroalDataSourceConfiguration {
                     jtaPlatform.getTransactionSynchronizationRegistry(),
                     name,
                     connectable,
+                    firstResource,
                     recoveryRegistry );
             dataSource.setJtaTransactionIntegration( transactionIntegration );
         }

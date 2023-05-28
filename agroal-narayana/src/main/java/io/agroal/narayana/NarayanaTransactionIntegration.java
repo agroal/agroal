@@ -42,6 +42,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     private final boolean connectable;
 
+    private final boolean firstResource;
+
     private final XAResourceRecoveryRegistry recoveryRegistry;
 
     // In order to construct a UID that is globally unique, simply pair a UID with an InetAddress.
@@ -60,10 +62,22 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     }
 
     public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable, XAResourceRecoveryRegistry recoveryRegistry) {
+        this( transactionManager, transactionSynchronizationRegistry, jndiName, connectable, false, recoveryRegistry );
+    }
+
+    public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable, boolean firstResource) {
+        this( transactionManager, transactionSynchronizationRegistry, jndiName, connectable, firstResource, null );
+    }
+
+    public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable, boolean firstResource, XAResourceRecoveryRegistry recoveryRegistry) {
+        if (connectable && firstResource) {
+            throw new IllegalArgumentException("Setting connectable and firstResource to true is disallowed at the same time.");
+        }
         this.transactionManager = transactionManager;
         this.transactionSynchronizationRegistry = transactionSynchronizationRegistry;
         this.jndiName = jndiName;
         this.connectable = connectable;
+        this.firstResource = firstResource;
         this.recoveryRegistry = recoveryRegistry;
     }
 
@@ -82,6 +96,20 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         TRANSACTION_NONE, TRANSACTION_ACTIVE, TRANSACTION_COMPLETING, TRANSACTION_DONE
     }
 
+    private XAResource createXaResource(TransactionAware transactionAware, XAResource xaResource) {
+        if ( xaResource != null ) {
+            if ( firstResource ) {
+                return new FirstResourceBaseXAResource( transactionAware, xaResource, jndiName );
+            } else {
+                return new BaseXAResource( transactionAware, xaResource, jndiName );
+            }
+        } else if ( connectable ) {
+            return new ConnectableLocalXAResource( transactionAware, jndiName );
+        } else {
+            return new LocalXAResource( transactionAware, jndiName );
+        }
+    }
+
     @Override
     public void associate(TransactionAware transactionAware, XAResource xaResource) throws SQLException {
         try {
@@ -90,16 +118,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                 if ( transactionSynchronizationRegistry.getResource( key ) == null ) {
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
                     transactionSynchronizationRegistry.putResource( key, transactionAware );
-
-                    XAResource xaResourceToEnlist;
-                    if ( xaResource != null ) {
-                        xaResourceToEnlist = new BaseXAResource( transactionAware, xaResource, jndiName );
-                    } else if ( connectable ) {
-                        xaResourceToEnlist = new ConnectableLocalXAResource( transactionAware, jndiName );
-                    } else {
-                        xaResourceToEnlist = new LocalXAResource( transactionAware, jndiName );
-                    }
-                    transactionManager.getTransaction().enlistResource( xaResourceToEnlist );
+                    transactionManager.getTransaction().enlistResource( createXaResource( transactionAware, xaResource ) );
                 } else {
                     transactionAware.transactionStart();
                 }
