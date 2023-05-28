@@ -8,10 +8,10 @@ import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.narayana.BaseXAResource;
 import io.agroal.narayana.ConnectableLocalXAResource;
+import io.agroal.narayana.FirstResourceBaseXAResource;
 import io.agroal.narayana.LocalXAResource;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.test.MockXADataSource;
-import jakarta.transaction.Synchronization;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +23,7 @@ import jakarta.transaction.HeuristicRollbackException;
 import jakarta.transaction.InvalidTransactionException;
 import jakarta.transaction.NotSupportedException;
 import jakarta.transaction.RollbackException;
+import jakarta.transaction.Synchronization;
 import jakarta.transaction.SystemException;
 import jakarta.transaction.Transaction;
 import jakarta.transaction.TransactionManager;
@@ -232,29 +233,40 @@ class EnlistmentTests {
         AgroalDataSourceConfiguration regularConfiguration = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
-                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, false ) )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, false, false ) )
                 ).get();
 
         AgroalDataSourceConfiguration connectableConfiguration = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
-                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, true ) )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, true, false ) )
                 ).get();
 
         AgroalDataSourceConfiguration xaConfiguration = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
-                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, true ) )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, false, false ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( MockXADataSource.Empty.class )
                         )
                 ).get();
 
+        AgroalDataSourceConfiguration firstXaConfiguration = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, null, false, true ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( MockXADataSource.Empty.class )
+                        )
+                ).get();
+ 
         verifyEnlistedResourceType( regularConfiguration, txManager, "regular", LocalXAResource.class );
 
         verifyEnlistedResourceType( connectableConfiguration, txManager, "connectable", ConnectableLocalXAResource.class );
 
         verifyEnlistedResourceType( xaConfiguration, txManager, "xa", BaseXAResource.class );
+
+        verifyEnlistedResourceType( firstXaConfiguration, txManager, "firstResource xa", FirstResourceBaseXAResource.class );
     }
 
     private static void verifyEnlistedResourceType(AgroalDataSourceConfiguration configuration, TransactionManager txManager, String type, Class<?> resourceClass) throws SQLException, SystemException {

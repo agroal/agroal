@@ -4,6 +4,7 @@
 package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
+import org.jboss.tm.LastResource;
 import org.jboss.tm.XAResourceWrapper;
 
 import javax.transaction.xa.XAException;
@@ -19,11 +20,11 @@ import static javax.transaction.xa.XAException.XA_RBROLLBACK;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
-public class LocalXAResource implements XAResourceWrapper {
+public class LocalXAResource implements XAResourceWrapper, LastResource {
 
     private static final String PRODUCT_NAME = LocalXAResource.class.getPackage().getImplementationTitle();
     private static final String PRODUCT_VERSION = LocalXAResource.class.getPackage().getImplementationVersion();
-    
+
     private final TransactionAware transactionAware;
     private final String jndiName;
     private Xid currentXid;
