@@ -5,6 +5,7 @@ package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
 import io.agroal.api.transaction.TransactionIntegration;
+import jakarta.transaction.SystemException;
 import org.jboss.tm.TxUtils;
 import org.jboss.tm.XAResourceRecovery;
 import org.jboss.tm.XAResourceRecoveryRegistry;
@@ -20,7 +21,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static jakarta.transaction.Status.STATUS_ACTIVE;
 import static jakarta.transaction.Status.STATUS_COMMITTED;
+import static jakarta.transaction.Status.STATUS_COMMITTING;
+import static jakarta.transaction.Status.STATUS_MARKED_ROLLBACK;
 import static jakarta.transaction.Status.STATUS_NO_TRANSACTION;
 import static jakarta.transaction.Status.STATUS_ROLLEDBACK;
 import static jakarta.transaction.Status.STATUS_UNKNOWN;
@@ -68,7 +72,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     @Override
     public TransactionAware getTransactionAware() throws SQLException {
-        if ( transactionRunning() ) {
+        if ( transactionActive() ) {
             return (TransactionAware) transactionSynchronizationRegistry.getResource( key );
         }
         return null;
@@ -77,7 +81,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     @Override
     public void associate(TransactionAware transactionAware, XAResource xaResource) throws SQLException {
         try {
-            if ( transactionRunning() ) {
+            if ( transactionActive() ) {
                 if ( transactionSynchronizationRegistry.getResource( key ) == null ) {
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
                     transactionSynchronizationRegistry.putResource( key, transactionAware );
@@ -103,10 +107,24 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     @Override
     public boolean disassociate(TransactionAware connection) throws SQLException {
-        if ( transactionRunning() ) {
+        if ( transactionActive() ) {
             transactionSynchronizationRegistry.putResource( key, null );
         }
         return true;
+    }
+
+    private boolean transactionActive() throws SQLException {
+        try {
+            Transaction transaction = transactionManager.getTransaction();
+            if (transaction != null) {
+                int status = transaction.getStatus();
+                return status == STATUS_ACTIVE || status == STATUS_MARKED_ROLLBACK;
+            } else {
+                return false;
+            }
+        } catch ( Exception e ) {
+            throw new SQLException( "Exception in retrieving existing transaction", e );
+        }
     }
 
     private boolean transactionRunning() throws SQLException {
