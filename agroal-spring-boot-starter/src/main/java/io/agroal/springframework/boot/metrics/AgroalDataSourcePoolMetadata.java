@@ -3,9 +3,9 @@
 
 package io.agroal.springframework.boot.metrics;
 
+import io.agroal.api.AgroalDataSource;
 import org.springframework.boot.jdbc.metadata.AbstractDataSourcePoolMetadata;
 
-import io.agroal.springframework.boot.AgroalDataSource;
 
 public class AgroalDataSourcePoolMetadata extends AbstractDataSourcePoolMetadata<AgroalDataSource> {
 
