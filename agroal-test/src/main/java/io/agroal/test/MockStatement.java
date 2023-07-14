@@ -28,7 +28,7 @@ public interface MockStatement extends Statement {
 
     @Override
     default long getLargeMaxRows() throws SQLException {
-        return 0;
+        return Statement.super.getLargeMaxRows();
     }
 
     @Override
@@ -62,7 +62,7 @@ public interface MockStatement extends Statement {
 
     @Override
     default ResultSet executeQuery(String sql) throws SQLException {
-        return null;
+        return new MockResultSet.Empty();
     }
 
     @Override
@@ -198,7 +198,7 @@ public interface MockStatement extends Statement {
 
     @Override
     default ResultSet getGeneratedKeys() throws SQLException {
-        return null;
+        return new MockResultSet.Empty();
     }
 
     @Override
