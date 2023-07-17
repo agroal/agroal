@@ -4,7 +4,6 @@
 package io.agroal.test.narayana;
 
 import com.arjuna.ats.arjuna.common.arjPropertyManager;
-import com.arjuna.ats.arjuna.coordinator.TxControl;
 import com.arjuna.ats.arjuna.objectstore.StoreManager;
 import com.arjuna.ats.arjuna.objectstore.jdbc.JDBCAccess;
 import com.arjuna.ats.internal.arjuna.objectstore.ShadowNoFileLockStore;
@@ -18,6 +17,7 @@ import io.agroal.test.MockPreparedStatement;
 import io.agroal.test.MockResultSet;
 import io.agroal.test.MockXAConnection;
 import io.agroal.test.MockXADataSource;
+import io.agroal.test.MockXAResource;
 import jakarta.transaction.HeuristicMixedException;
 import jakarta.transaction.HeuristicRollbackException;
 import jakarta.transaction.NotSupportedException;
@@ -27,14 +27,11 @@ import jakarta.transaction.TransactionManager;
 import jakarta.transaction.TransactionSynchronizationRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import sun.misc.Unsafe;
 
 import javax.sql.XAConnection;
-import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -49,6 +46,7 @@ import static io.agroal.test.AgroalTestGroup.TRANSACTION;
 import static java.text.MessageFormat.format;
 import static java.time.Duration.ofSeconds;
 import static java.util.logging.Logger.getLogger;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -65,10 +63,6 @@ public class JDBCStoreTests {
     @BeforeAll
     static void setup() throws NoSuchFieldException, IllegalAccessException {
         logger.info( "JDBCStore config setup" );
-
-        arjPropertyManager.getCoordinatorEnvironmentBean().setCommitOnePhase( false );
-        setOnePhase( false ); // for cases where TxControl is already instantiated
-
         arjPropertyManager.getObjectStoreEnvironmentBean().setObjectStoreType( JDBCStore.class.getTypeName() );
         arjPropertyManager.getObjectStoreEnvironmentBean().setJdbcAccess( AgroalJDBCAccess.class.getTypeName() );
         StoreManager.shutdown();
@@ -77,32 +71,12 @@ public class JDBCStoreTests {
     @AfterAll
     static void teardown() {
         logger.info( "JDBCStore config teardown" );
-
-        arjPropertyManager.getCoordinatorEnvironmentBean().setCommitOnePhase( true );
-        setOnePhase( true );
-
         arjPropertyManager.getObjectStoreEnvironmentBean().setObjectStoreType( ShadowNoFileLockStore.class.getName() );
         StoreManager.shutdown();
     }
 
-    @SuppressWarnings( "UseOfSunClasses" )
-    private static void setOnePhase(boolean value) {
-        // use sun.misc.Unsafe to re-write the static final field TxControl.onePhase
-        try {
-            Field unsafeField = Unsafe.class.getDeclaredField( "theUnsafe" );
-            unsafeField.setAccessible( true );
-            Unsafe unsafe = (Unsafe) unsafeField.get( null );
-
-            Field onePhaseField = TxControl.class.getDeclaredField( "onePhase" );
-            unsafe.putBoolean( unsafe.staticFieldBase( onePhaseField ), unsafe.staticFieldOffset( onePhaseField ), value );
-        } catch ( NoSuchFieldException | IllegalAccessException e ) {
-            throw new RuntimeException( e );
-        }
-    }
-
     // --- //
 
-    @Disabled( "To be enabled once AG-209 is fix" )
     @Test
     @DisplayName( "Test JDBCStore with transactional datasource" )
     void testJDBCStore() throws SystemException {
@@ -127,11 +101,15 @@ public class JDBCStoreTests {
             assertTrue( AgroalJDBCAccess.initialized, "JDBCStore not properly initialized" );
 
             txManager.begin();
+            txManager.getTransaction().enlistResource( new MockXAResource.Empty() ); // force two phase commit
+            LoggingPreparedStatement.updateCount = 0;
 
             Connection connection = dataSource.getConnection();
             logger.info( format( "Got connection {0}", connection ) );
 
             txManager.commit();
+
+            assertEquals( 2, LoggingPreparedStatement.updateCount, "Unexpected number of statements executed on commit" );
         } catch ( NotSupportedException | SystemException | HeuristicMixedException | HeuristicRollbackException | SQLException e ) {
             fail( "Exception: " + e.getMessage() );
         } catch ( RollbackException e ) {
@@ -158,7 +136,7 @@ public class JDBCStoreTests {
             if ( dataSource != null ) {
                 return dataSource.getConnection();
             } else {
-                logger.info( "Creating new connection before datasource is set" );
+                fail( "Creating new connection before datasource is set" );
                 return new MockJDBCStoreConnection();
             }
         }
@@ -217,8 +195,10 @@ public class JDBCStoreTests {
         }
     }
 
+    @SuppressWarnings( "PublicField" )
     public static class LoggingPreparedStatement implements MockPreparedStatement {
 
+        public static int updateCount;
         private String statementSQL;
 
         public LoggingPreparedStatement() {
@@ -237,12 +217,14 @@ public class JDBCStoreTests {
         @Override
         public int executeUpdate(String sql) throws SQLException {
             logger.info( "Executing update: " + sql );
+            updateCount++;
             return 1;
         }
 
         @Override
         public int executeUpdate() throws SQLException {
             logger.info( "Executing update: " + statementSQL );
+            updateCount++;
             return 1;
         }
     }
