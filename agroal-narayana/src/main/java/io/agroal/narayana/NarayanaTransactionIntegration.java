@@ -5,25 +5,26 @@ package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
 import io.agroal.api.transaction.TransactionIntegration;
+import jakarta.transaction.Synchronization;
+import jakarta.transaction.Transaction;
+import jakarta.transaction.TransactionManager;
+import jakarta.transaction.TransactionSynchronizationRegistry;
 import org.jboss.tm.TxUtils;
 import org.jboss.tm.XAResourceRecovery;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 
 import javax.sql.XAConnection;
-import jakarta.transaction.Synchronization;
-import jakarta.transaction.Transaction;
-import jakarta.transaction.TransactionManager;
-import jakarta.transaction.TransactionSynchronizationRegistry;
 import javax.transaction.xa.XAResource;
 import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static jakarta.transaction.Status.STATUS_COMMITTED;
-import static jakarta.transaction.Status.STATUS_NO_TRANSACTION;
-import static jakarta.transaction.Status.STATUS_ROLLEDBACK;
-import static jakarta.transaction.Status.STATUS_UNKNOWN;
+import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_ACTIVE;
+import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_COMPLETING;
+import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_DONE;
+import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_NONE;
+import static jakarta.transaction.Status.*;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -68,16 +69,24 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     @Override
     public TransactionAware getTransactionAware() throws SQLException {
-        if ( transactionRunning() ) {
+        if ( getTransactionPhase() == TRANSACTION_ACTIVE ) {
             return (TransactionAware) transactionSynchronizationRegistry.getResource( key );
         }
         return null;
     }
 
+    // --- //
+
+    public enum TransactionPhase {
+        // these states are a coarser version of the transaction states
+        TRANSACTION_NONE, TRANSACTION_ACTIVE, TRANSACTION_COMPLETING, TRANSACTION_DONE
+    }
+
     @Override
     public void associate(TransactionAware transactionAware, XAResource xaResource) throws SQLException {
         try {
-            if ( transactionRunning() ) {
+            TransactionPhase phase = getTransactionPhase();
+            if ( phase == TRANSACTION_ACTIVE ) {
                 if ( transactionSynchronizationRegistry.getResource( key ) == null ) {
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
                     transactionSynchronizationRegistry.putResource( key, transactionAware );
@@ -95,7 +104,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                     transactionAware.transactionStart();
                 }
             }
-            transactionAware.transactionCheckCallback( this::transactionRunning );
+            // AG-209 - if a transaction is completing, ensure that the transaction state does not change
+            transactionAware.transactionCheckCallback( phase == TRANSACTION_COMPLETING ? getChangeStateCallback() : this::transactionRunning );
         } catch ( Exception e ) {
             throw new SQLException( "Exception in association of connection to existing transaction", e );
         }
@@ -103,22 +113,60 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     @Override
     public boolean disassociate(TransactionAware connection) throws SQLException {
-        if ( transactionRunning() ) {
+        if ( getTransactionPhase() == TRANSACTION_ACTIVE ) {
             transactionSynchronizationRegistry.putResource( key, null );
         }
         return true;
     }
 
     private boolean transactionRunning() throws SQLException {
+        TransactionPhase phase = getTransactionPhase();
+        return phase == TRANSACTION_ACTIVE || phase == TRANSACTION_COMPLETING;
+    }
+
+    private TransactionPhase getTransactionPhase() throws SQLException {
         try {
             Transaction transaction = transactionManager.getTransaction();
             if ( transaction == null ) {
                 // AG-183 - Report running transaction when reaper thread attempts rollback
-                return TxUtils.isTransactionManagerTimeoutThread();
+                return TxUtils.isTransactionManagerTimeoutThread() ? TRANSACTION_COMPLETING : TRANSACTION_NONE;
+            }
+            switch ( transaction.getStatus() ) {
+                default:
+                case STATUS_UNKNOWN:
+                case STATUS_NO_TRANSACTION:
+                    return TRANSACTION_NONE;
+                case STATUS_ACTIVE:
+                case STATUS_MARKED_ROLLBACK:
+                    return TRANSACTION_ACTIVE;
+                case STATUS_PREPARING:
+                case STATUS_PREPARED:
+                case STATUS_COMMITTING:
+                case STATUS_ROLLING_BACK:
+                    return TRANSACTION_COMPLETING;
+                case STATUS_COMMITTED:
+                case STATUS_ROLLEDBACK:
+                    return TRANSACTION_DONE;
+            }
+        } catch ( Exception e ) {
+            throw new SQLException( "Exception in retrieving existing transaction", e );
+        }
+    }
+
+    private TransactionAware.SQLCallable<Boolean> getChangeStateCallback() throws SQLException {
+        try {
+            Transaction transaction = transactionManager.getTransaction();
+            if ( transaction == null ) {
+                throw new SQLException( "Expecting existing transaction" );
             }
             int status = transaction.getStatus();
-            return status != STATUS_UNKNOWN && status != STATUS_NO_TRANSACTION && status != STATUS_COMMITTED && status != STATUS_ROLLEDBACK;
-            // other states are active transaction: ACTIVE, MARKED_ROLLBACK, PREPARING, PREPARED, COMMITTING, ROLLING_BACK
+            return () -> {
+                try {
+                    return transactionManager.getTransaction().getStatus() != status;
+                } catch ( Exception e ) {
+                    throw new SQLException( e );
+                }
+            };
         } catch ( Exception e ) {
             throw new SQLException( "Exception in retrieving existing transaction", e );
         }
