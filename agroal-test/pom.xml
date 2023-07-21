@@ -49,6 +49,11 @@
         </dependency>
         <!-- JUnit -->
         <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <version>${version.org.junit.platform}</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${version.org.junit.jupiter}</version>
@@ -152,21 +157,52 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>eu.somatik.serviceloader-maven-plugin</groupId>
+                <artifactId>serviceloader-maven-plugin</artifactId>
+                <version>${version.eu.somatik.serviceloader-maven-plugin}</version>
+                <configuration>
+                    <services>
+                        <param>org.junit.platform.launcher.LauncherInterceptor</param>>
+                    </services>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${version.org.apache.maven.plugins.maven-surefire-plugin}</version>
                 <configuration>
-                    <properties>
-                        <groups>functional</groups>
-                    </properties>
-                    <includes>
-                        <include>**/*Test*.java</include>
-                    </includes>
+                    <groups>functional</groups>
+                    <excludedGroups>transaction</excludedGroups>
                     <systemPropertyVariables>
                         <!-- Set JUL Formatting -->
                         <java.util.logging.config.file>src/test/resources/logging.properties</java.util.logging.config.file>
                         <java.util.logging.SimpleFormatter.format>[%4$s] %1$tT.%1$tL %5$s %6$s%n</java.util.logging.SimpleFormatter.format>
+                        <!-- Enable LaunchInterceptor mechanism (implementations are loaded via ServiceLoader interface) -->
+                        <!-- IDEs boostrap JUnit with class names and the interceptor is used to load each test class on an isolated classloader -->
+                        <!-- Maven surefire loads the classes before starting JUnit and therefore need to fork execution -->
+                        <junit.platform.launcher.interceptors.enabled>true</junit.platform.launcher.interceptors.enabled>
                     </systemPropertyVariables>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>transaction-test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <groups>transaction</groups>
+                            <excludedGroups>none</excludedGroups>
+                            <!-- Run each test on this configuration on its own JVM fork -->
+                            <reuseForks>false</reuseForks>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.servicemix.tooling</groupId>
