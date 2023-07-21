@@ -97,10 +97,9 @@ public class JDBCStoreTests {
             AgroalJDBCAccess.dataSource = dataSource;
             assertFalse( AgroalJDBCAccess.initialized, "JDBCStore initialized too soon" );
 
-            StoreManager.getTxLog(); // Enforce start of JDBCStore to make sure it's using our datasource
+            txManager.begin(); // this should cause the initialization of our ObjectStore
             assertTrue( AgroalJDBCAccess.initialized, "JDBCStore not properly initialized" );
 
-            txManager.begin();
             txManager.getTransaction().enlistResource( new MockXAResource.Empty() ); // force two phase commit
             LoggingPreparedStatement.updateCount = 0;
 
