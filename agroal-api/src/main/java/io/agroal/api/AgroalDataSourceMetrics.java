@@ -78,7 +78,7 @@ public interface AgroalDataSourceMetrics {
     // --- //
 
     /**
-     * Number active of connections. This connections are in use and not available to be acquired.
+     * Number of active connections. This connections are in use and not available to be acquired.
      */
     default long activeCount() {
         return 0;

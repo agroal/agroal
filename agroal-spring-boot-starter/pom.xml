@@ -36,6 +36,12 @@
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>${version.io.micrometer}</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- JUnit (somehow surefire plugin gets pulled in) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

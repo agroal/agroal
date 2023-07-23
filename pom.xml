@@ -55,6 +55,7 @@
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
         <version.com.h2database>2.1.214</version.com.h2database>
         <version.com.zaxxer>5.0.1</version.com.zaxxer>
+        <version.io.micrometer>1.10.4</version.io.micrometer>
         <version.me.snowdrop>2.6.7</version.me.snowdrop>
         <version.org.apache.felix>7.0.3</version.org.apache.felix>
         <version.org.jboss.jboss-transaction-spi>8.0.0.Final</version.org.jboss.jboss-transaction-spi>
