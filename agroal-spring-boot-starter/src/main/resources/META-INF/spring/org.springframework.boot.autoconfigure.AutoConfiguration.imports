@@ -1,2 +1,3 @@
 io.agroal.springframework.boot.AgroalDataSourceConfiguration
 io.agroal.springframework.boot.metrics.AgroalPoolDataSourceMetadataProviderConfiguration
+io.agroal.springframework.boot.metrics.AgroalDataSourcePoolMetricsAutoConfiguration
