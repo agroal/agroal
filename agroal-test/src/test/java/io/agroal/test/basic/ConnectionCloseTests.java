@@ -134,7 +134,7 @@ public class ConnectionCloseTests {
 
     @Test
     @DisplayName( "Flush on close" )
-    void flushOnCloseTest() throws SQLException, InterruptedException {
+    void flushOnCloseTest() throws Exception {
         OnWarningListener warningListener = new OnWarningListener();
         OnDestroyListener destroyListener = new OnDestroyListener( 1 );
 
@@ -169,7 +169,6 @@ public class ConnectionCloseTests {
 
     @Test
     @DisplayName( "ResultSet leak" )
-    @SuppressWarnings( "JDBCResourceOpenedButNotSafelyClosed" )
     void resultSetLeak() throws SQLException {
         ResultSet resultSet;
         OnWarningListener listener = new OnWarningListener();
@@ -177,6 +176,7 @@ public class ConnectionCloseTests {
             try ( Connection connection = dataSource.getConnection() ) {
                 Statement statement = connection.createStatement();
                 resultSet = statement.getResultSet();
+                statement.close();
             }
         }
         assertTrue( resultSet.isClosed(), "Leaked ResultSet not closed" );

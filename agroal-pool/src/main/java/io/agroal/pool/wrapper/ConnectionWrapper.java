@@ -4,6 +4,7 @@
 package io.agroal.pool.wrapper;
 
 import io.agroal.pool.ConnectionHandler;
+import io.agroal.pool.util.AutoCloseableElement;
 
 import java.lang.reflect.InvocationHandler;
 import java.sql.Array;
@@ -21,10 +22,8 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 
 import static java.lang.reflect.Proxy.newProxyInstance;
@@ -33,7 +32,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
-public final class ConnectionWrapper implements Connection {
+public final class ConnectionWrapper extends AutoCloseableElement implements Connection {
 
     private static final String CLOSED_HANDLER_STRING = ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
 
@@ -63,7 +62,8 @@ public final class ConnectionWrapper implements Connection {
     private final boolean detached;
 
     // Collection of Statements to close them on close(). If null Statements are not tracked.
-    private final Collection<Statement> trackedStatements;
+    private final AutoCloseableElement trackedStatements;
+    private int leakedResultSets;
 
     private final ConnectionHandler handler;
 
@@ -74,10 +74,19 @@ public final class ConnectionWrapper implements Connection {
     }
 
     public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, boolean detached) {
+        super( null );
         handler = connectionHandler;
         wrappedConnection = connectionHandler.rawConnection();
-        trackedStatements = trackResources ? new ConcurrentLinkedQueue<>() : null;
+        trackedStatements = trackResources ? AutoCloseableElement.newHead() : null;
         this.detached = detached;
+    }
+
+    public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, AutoCloseableElement head ) {
+        super( head );
+        handler = connectionHandler;
+        wrappedConnection = connectionHandler.rawConnection();
+        trackedStatements = trackResources ? AutoCloseableElement.newHead() : null;
+        detached = false;
     }
 
     public ConnectionHandler getHandler() {
@@ -92,50 +101,30 @@ public final class ConnectionWrapper implements Connection {
 
     private Statement trackStatement(Statement statement) {
         if ( trackedStatements != null && statement != null ) {
-            Statement wrappedStatement = new StatementWrapper( this, statement, true );
-            trackedStatements.add( wrappedStatement );
-            return wrappedStatement;
+            return new StatementWrapper( this, statement, true, trackedStatements );
         }
         return statement;
     }
 
     private CallableStatement trackCallableStatement(CallableStatement statement) {
         if ( trackedStatements != null && statement != null ) {
-            CallableStatement wrappedStatement = new CallableStatementWrapper( this, statement, true );
-            trackedStatements.add( wrappedStatement );
-            return wrappedStatement;
+            return new CallableStatementWrapper( this, statement, true, trackedStatements );
         }
         return statement;
     }
 
     private PreparedStatement trackPreparedStatement(PreparedStatement statement) {
         if ( trackedStatements != null && statement != null ) {
-            PreparedStatement wrappedStatement = new PreparedStatementWrapper( this, statement, true );
-            trackedStatements.add( wrappedStatement );
-            return wrappedStatement;
+            return new PreparedStatementWrapper( this, statement, true, trackedStatements );
         }
         return statement;
     }
 
     private JdbcResourcesLeakReport closeTrackedStatements() throws SQLException {
-        if ( trackedStatements != null && !trackedStatements.isEmpty() ) {
-            int statementCount = trackedStatements.size();
-            int resultSetCount = 0;
-            for ( Statement statement : trackedStatements ) {
-                resultSetCount += ( (StatementWrapper) statement ).trackedResultSetSize();
-                statement.close();
-            }
-            // Statements remove themselves, but clear the collection anyway
-            trackedStatements.clear();
-            return new JdbcResourcesLeakReport( statementCount, resultSetCount );
+        if ( trackedStatements != null ) {
+            return new JdbcResourcesLeakReport( trackedStatements.closeAllAutocloseableElements(), leakedResultSets );
         }
         return JDBC_RESOURCES_NOT_LEAKED;
-    }
-
-    public void releaseTrackedStatement(Statement statement) {
-        if ( trackedStatements != null ) {
-            trackedStatements.remove( statement );
-        }
     }
 
     // --- //
@@ -809,6 +798,10 @@ public final class ConnectionWrapper implements Connection {
     @Override
     public String toString() {
         return "wrapped[" + wrappedConnection + ( handler.isEnlisted() ? "]<<enrolled" : "]" );
+    }
+
+    public void addLeakedResultSets(int leaks) {
+       leakedResultSets += leaks;
     }
 
     // --- //
