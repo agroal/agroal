@@ -3,6 +3,8 @@
 
 package io.agroal.pool.wrapper;
 
+import io.agroal.pool.util.AutoCloseableElement;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.InvocationHandler;
@@ -34,7 +36,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
-public final class ResultSetWrapper implements ResultSet {
+public final class ResultSetWrapper extends AutoCloseableElement implements ResultSet {
 
     static final String CLOSED_RESULT_SET_STRING = ResultSetWrapper.class.getSimpleName() + ".CLOSED_RESULT_SET";
 
@@ -62,7 +64,8 @@ public final class ResultSetWrapper implements ResultSet {
 
     private ResultSet wrappedResultSet;
 
-    public ResultSetWrapper(StatementWrapper statementWrapper, ResultSet resultSet) {
+    public ResultSetWrapper(StatementWrapper statementWrapper, ResultSet resultSet, AutoCloseableElement head) {
+        super( head );
         statement = statementWrapper;
         wrappedResultSet = resultSet;
     }
@@ -75,7 +78,6 @@ public final class ResultSetWrapper implements ResultSet {
             statement.getConnectionWrapper().getHandler().setFlushOnly( se );
             throw se;
         } finally {
-            statement.releaseTrackedResultSet( this );
             wrappedResultSet = CLOSED_RESULT_SET;
         }
     }

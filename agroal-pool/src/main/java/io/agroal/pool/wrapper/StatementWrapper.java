@@ -3,6 +3,8 @@
 
 package io.agroal.pool.wrapper;
 
+import io.agroal.pool.util.AutoCloseableElement;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -10,8 +12,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
-import java.util.Collection;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static java.lang.reflect.Proxy.newProxyInstance;
 
@@ -19,7 +19,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
-public class StatementWrapper implements Statement {
+public class StatementWrapper extends AutoCloseableElement implements Statement {
 
     static final String CLOSED_STATEMENT_STRING = StatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
 
@@ -47,44 +47,30 @@ public class StatementWrapper implements Statement {
     protected final ConnectionWrapper connection;
 
     // Collection of ResultSet to close them on close(). If null ResultSet are not tracked.
-    private final Collection<ResultSet> trackedResultSets;
+    private final AutoCloseableElement trackedResultSets;
 
     private Statement wrappedStatement;
 
-    public StatementWrapper(ConnectionWrapper connectionWrapper, Statement statement, boolean trackResources) {
+    public StatementWrapper(ConnectionWrapper connectionWrapper, Statement statement, boolean trackResources, AutoCloseableElement head) {
+        super( head );
         connection = connectionWrapper;
         wrappedStatement = statement;
-        trackedResultSets = trackResources ? new ConcurrentLinkedQueue<>() : null;
+        trackedResultSets = trackResources ? AutoCloseableElement.newHead() : null;
     }
 
     // --- //
 
     protected ResultSet trackResultSet(ResultSet resultSet) {
         if ( trackedResultSets != null && resultSet != null ) {
-            ResultSet wrappedResultSet = new ResultSetWrapper( this, resultSet );
-            trackedResultSets.add( wrappedResultSet );
-            return wrappedResultSet;
+            return new ResultSetWrapper( this, resultSet, trackedResultSets );
         }
         return resultSet;
     }
 
     private void closeTrackedResultSets() throws SQLException {
-        if ( trackedResultSets != null && !trackedResultSets.isEmpty() ) {
-            for ( ResultSet resultSet : trackedResultSets ) {
-                resultSet.close();
-            }
-            trackedResultSets.clear();
-        }
-    }
-
-    public void releaseTrackedResultSet(ResultSet resultSet) {
         if ( trackedResultSets != null ) {
-            trackedResultSets.remove( resultSet );
+            connection.addLeakedResultSets( trackedResultSets.closeAllAutocloseableElements() );
         }
-    }
-
-    public int trackedResultSetSize() {
-        return trackedResultSets != null ? trackedResultSets.size() : 0;
     }
 
     ConnectionWrapper getConnectionWrapper() throws SQLException {
@@ -102,7 +88,6 @@ public class StatementWrapper implements Statement {
             connection.getHandler().setFlushOnly( se );
             throw se;
         } finally {
-            connection.releaseTrackedStatement( this );
             wrappedStatement = CLOSED_STATEMENT;
         }
     }

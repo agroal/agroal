@@ -3,6 +3,8 @@
 
 package io.agroal.pool.wrapper;
 
+import io.agroal.pool.util.AutoCloseableElement;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.InvocationHandler;
@@ -59,8 +61,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
 
     private PreparedStatement wrappedStatement;
 
-    public PreparedStatementWrapper(ConnectionWrapper connectionWrapper, PreparedStatement statement, boolean trackJdbcResources) {
-        super( connectionWrapper, statement, trackJdbcResources );
+    public PreparedStatementWrapper(ConnectionWrapper connectionWrapper, PreparedStatement statement, boolean trackJdbcResources, AutoCloseableElement head) {
+        super( connectionWrapper, statement, trackJdbcResources, head );
         wrappedStatement = statement;
     }
 
