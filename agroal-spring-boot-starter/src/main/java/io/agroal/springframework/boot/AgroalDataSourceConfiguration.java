@@ -4,10 +4,15 @@
 package io.agroal.springframework.boot;
 
 import io.agroal.narayana.NarayanaTransactionIntegration;
+import io.agroal.springframework.boot.jndi.AgroalDataSourceJndiBinder;
+import io.agroal.springframework.boot.jndi.DefaultAgroalDataSourceJndiBinder;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,6 +35,8 @@ import javax.sql.DataSource;
 @ConditionalOnProperty( name = "spring.datasource.type", havingValue = "io.agroal.springframework.boot.AgroalDataSource", matchIfMissing = true )
 public class AgroalDataSourceConfiguration {
 
+    private final Log logger = LogFactory.getLog( AgroalDataSourceConfiguration.class );
+
     @Autowired( required = false )
     @SuppressWarnings( "WeakerAccess" )
     public JtaTransactionManager jtaPlatform;
@@ -43,7 +50,8 @@ public class AgroalDataSourceConfiguration {
     public AgroalDataSource dataSource(
             DataSourceProperties properties,
             @Value("${spring.datasource.agroal.connectable:false}") boolean connectable,
-            @Value("${spring.datasource.agroal.firstResource:false}") boolean firstResource) {
+            @Value("${spring.datasource.agroal.firstResource:false}") boolean firstResource,
+            ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder) {
         AgroalDataSource dataSource = properties.initializeDataSourceBuilder().type( AgroalDataSource.class ).build();
         if ( !StringUtils.hasLength( properties.getDriverClassName() ) ) {
             DatabaseDriver driver = DatabaseDriver.fromJdbcUrl( properties.determineUrl() );
@@ -55,15 +63,19 @@ public class AgroalDataSourceConfiguration {
         }
         String name = properties.determineDatabaseName();
         dataSource.setName( name );
+        String jndiName = properties.getJndiName() != null ? properties.getJndiName() : "java:comp/env/jdbc/" + name;
         if ( jtaPlatform != null && jtaPlatform.getTransactionManager() != null && jtaPlatform.getTransactionSynchronizationRegistry() != null) {
-            NarayanaTransactionIntegration transactionIntegration = new NarayanaTransactionIntegration( 
-                    jtaPlatform.getTransactionManager(), 
+            NarayanaTransactionIntegration transactionIntegration = new NarayanaTransactionIntegration(
+                    jtaPlatform.getTransactionManager(),
                     jtaPlatform.getTransactionSynchronizationRegistry(),
-                    name,
+                    jndiName,
                     connectable,
                     firstResource,
                     recoveryRegistry );
             dataSource.setJtaTransactionIntegration( transactionIntegration );
+            if ( connectable && jndiBinder.getIfUnique(DefaultAgroalDataSourceJndiBinder::new).bindToJndi(jndiName, dataSource)) {
+                logger.info( "Bind DataSource " + name + " as " + jndiName + " to JNDI registry" );
+            }
         }
         return dataSource;
     }
