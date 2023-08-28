@@ -16,8 +16,8 @@ import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
 import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.narayana.NarayanaTransactionIntegration;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.transaction.jta.JtaTransactionManager;
 
@@ -31,7 +31,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.Map;
 
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
@@ -41,8 +41,6 @@ import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.Exce
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
 
-import java.util.Map;
-
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
@@ -50,7 +48,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     private static final long serialVersionUID = 3633107290245258196L;
 
-    private final Log logger = LogFactory.getLog( AgroalDataSource.class );
+    private final Logger logger = LoggerFactory.getLogger( AgroalDataSource.class );
 
     @SuppressWarnings( "NonSerializableFieldInSerializableClass" )
     private final AgroalDataSourceConfigurationSupplier datasourceConfiguration;
@@ -77,7 +75,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         datasourceConfiguration.connectionPoolConfiguration( connectionPoolConfiguration );
 
         delegate = io.agroal.api.AgroalDataSource.from( datasourceConfiguration, new LoggingListener( datasourceName ) );
-        logger.info( "Started DataSource " + datasourceName + " connected to " + getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().jdbcUrl() );
+        logger.info( "Started DataSource {} connected to {}", datasourceName, getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().jdbcUrl() );
     }
 
     // --- //
@@ -255,7 +253,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     @Override
     @SuppressWarnings( "StringConcatenation" )
     public void close() {
-        logger.debug( "Closing DataSource " + datasourceName );
+        logger.debug( "Closing DataSource {}", datasourceName );
         delegate.close();
         delegate = null;
     }
@@ -303,7 +301,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
 
     @Override
-    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+    public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
         return delegate.getParentLogger();
     }
 
@@ -312,11 +310,11 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     @SuppressWarnings( "StringConcatenation" )
     private static class LoggingListener implements AgroalDataSourceListener {
 
-        private final Log logger;
+        private final Logger logger;
 
         @SuppressWarnings( {"WeakerAccess", "SingleCharacterStringConcatenation"} )
         LoggingListener(String name) {
-            logger = LogFactory.getLog( io.agroal.api.AgroalDataSource.class.getName() + ".'" + name + "'" );
+            logger = LoggerFactory.getLogger( io.agroal.api.AgroalDataSource.class.getName() + ".'" + name + "'" );
         }
 
         @Override
@@ -326,7 +324,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
         @Override
         public void onWarning(Throwable throwable) {
-            logger.warn( throwable );
+            logger.warn( String.valueOf( throwable ) );
         }
 
         @Override
@@ -337,55 +335,55 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         @Override
         public void onConnectionCreation(Connection connection) {
             if ( logger.isDebugEnabled() ) {
-                logger.debug( "Created connection " + connection );
+                logger.debug( "Created connection {}", connection );
             }
         }
 
         @Override
         public void onConnectionAcquire(Connection connection) {
             if ( logger.isDebugEnabled() ) {
-                logger.debug( "Connection acquired " + connection );
+                logger.debug( "Connection acquired {}", connection );
             }
         }
 
         @Override
         public void onConnectionReturn(Connection connection) {
             if ( logger.isDebugEnabled() ) {
-                logger.debug( "Connection return " + connection );
+                logger.debug( "Connection return {}", connection );
             }
         }
 
         @Override
         public void onConnectionLeak(Connection connection, Thread thread) {
-            logger.info( "Connection " + connection + " leak! Acquired by " + thread.getName() );
+            logger.info( "Connection {} leak! Acquired by {}", connection, thread.getName() );
             logger.info( Arrays.stream( thread.getStackTrace() ).map( StackTraceElement::toString ).collect( joining( lineSeparator() ) ) );
         }
 
         @Override
         public void beforeConnectionValidation(Connection connection) {
             if ( logger.isDebugEnabled() ) {
-                logger.debug( "Performing validation of " + connection );
+                logger.debug( "Performing validation of {}", connection );
             }
         }
 
         @Override
         public void onConnectionInvalid(Connection connection) {
             if ( logger.isDebugEnabled() ) {
-                logger.debug( "Connection invalid " + connection );
+                logger.debug( "Connection invalid {}", connection );
             }
         }
 
         @Override
         public void onConnectionReap(Connection connection) {
             if ( logger.isDebugEnabled() ) {
-                logger.debug( "Connection reap " + connection );
+                logger.debug( "Connection reap {}", connection );
             }
         }
 
         @Override
         public void onConnectionDestroy(Connection connection) {
             if ( logger.isDebugEnabled() ) {
-                logger.debug( "Connection destroy " + connection );
+                logger.debug( "Connection destroy {}", connection );
             }
         }
     }
