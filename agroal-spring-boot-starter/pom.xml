@@ -36,10 +36,18 @@
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- Micrometer -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
             <version>${version.io.micrometer}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- SLF4J -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${version.org.slf4j}</version>
             <scope>provided</scope>
         </dependency>
         <!-- JUnit (somehow surefire plugin gets pulled in) -->

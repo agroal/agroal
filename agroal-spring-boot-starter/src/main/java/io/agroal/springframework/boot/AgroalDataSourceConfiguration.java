@@ -7,9 +7,9 @@ import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.jndi.AgroalDataSourceJndiBinder;
 import io.agroal.springframework.boot.jndi.DefaultAgroalDataSourceJndiBinder;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jboss.tm.XAResourceRecoveryRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,7 +35,7 @@ import javax.sql.DataSource;
 @ConditionalOnProperty( name = "spring.datasource.type", havingValue = "io.agroal.springframework.boot.AgroalDataSource", matchIfMissing = true )
 public class AgroalDataSourceConfiguration {
 
-    private final Log logger = LogFactory.getLog( AgroalDataSourceConfiguration.class );
+    private final Logger logger = LoggerFactory.getLogger( AgroalDataSourceConfiguration.class );
 
     @Autowired( required = false )
     @SuppressWarnings( "WeakerAccess" )
@@ -74,7 +74,7 @@ public class AgroalDataSourceConfiguration {
                     recoveryRegistry );
             dataSource.setJtaTransactionIntegration( transactionIntegration );
             if ( connectable && jndiBinder.getIfUnique(DefaultAgroalDataSourceJndiBinder::new).bindToJndi(jndiName, dataSource)) {
-                logger.info( "Bind DataSource " + name + " as " + jndiName + " to JNDI registry" );
+                logger.info( "Bind DataSource {} as {} to JNDI registry", name, jndiName );
             }
         }
         return dataSource;
