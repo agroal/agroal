@@ -4,6 +4,7 @@
 package io.agroal.test.basic;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalPropertiesReader;
 import org.junit.jupiter.api.Assertions;
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.time.LocalTime;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -42,5 +45,19 @@ class PropertiesReaderTests {
         Assertions.assertEquals( 1, configuration.connectionPoolConfiguration().acquisitionTimeout().getSeconds() );
         Assertions.assertEquals( 60, configuration.connectionPoolConfiguration().validationTimeout().getSeconds() );
         Assertions.assertEquals( AgroalConnectionFactoryConfiguration.TransactionIsolation.SERIALIZABLE, configuration.connectionPoolConfiguration().connectionFactoryConfiguration().jdbcTransactionIsolation() );
+        Assertions.assertInstanceOf( OddHoursConnectionValidator.class, configuration.connectionPoolConfiguration().connectionValidator() );
+    }
+
+    // --- //
+
+    /**
+     * Silly validator that drop connections on odd hours
+     */
+    public static class OddHoursConnectionValidator implements AgroalConnectionPoolConfiguration.ConnectionValidator {
+
+        @Override
+        public boolean isValid(Connection connection) {
+            return LocalTime.now().getHour() % 2 == 0;
+        }
     }
 }
