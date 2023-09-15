@@ -4,6 +4,7 @@
 package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
@@ -15,6 +16,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
@@ -24,6 +26,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidatorWithTimeout;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
 import static java.lang.Long.parseLong;
 import static java.util.function.Function.identity;
 
@@ -45,6 +50,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String MAX_SIZE = "maxSize";
     public static final String INITIAL_SIZE = "initialSize";
     public static final String FLUSH_ON_CLOSE = "flushOnClose";
+    public static final String CONNECTION_VALIDATOR = "connectionValidator";
     public static final String ENHANCED_LEAK_REPORT = "enhancedLeakReport";
     public static final String MULTIPLE_ACQUISITION = "multipleAcquisition";
     public static final String TRANSACTION_REQUIREMENT = "transactionRequirement";
@@ -143,6 +149,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::maxSize, Integer::parseInt, properties, MAX_SIZE );
         apply( connectionPoolSupplier::flushOnClose, Boolean::parseBoolean, properties, FLUSH_ON_CLOSE );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
+        apply( connectionPoolSupplier::connectionValidator, AgroalPropertiesReader::parseConnectionValidator, properties, CONNECTION_VALIDATOR );
         apply( connectionPoolSupplier::enhancedLeakReport, Boolean::parseBoolean, properties, ENHANCED_LEAK_REPORT );
         apply( connectionPoolSupplier::multipleAcquisition, MultipleAcquisitionAction::valueOf, properties, MULTIPLE_ACQUISITION );
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
@@ -209,6 +216,38 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     }
 
     // --- //
+
+    /**
+     * Accepts the following options:
+     * <ul>
+     * <li>`empty` for the default {@link ConnectionValidator#emptyValidator()}</li>
+     * <li>`default` for {@link ConnectionValidator#defaultValidator()}</li>
+     * <li>`defaultX` for {@link ConnectionValidator#defaultValidatorWithTimeout(int)} where `X` is the timeout in seconds</li>
+     * <li>the name of a class that implements {@link ConnectionValidator}</li>
+     * </ul>
+     */
+    private static ConnectionValidator parseConnectionValidator(String connectionValidatorName) {
+        if ( "empty".equalsIgnoreCase( connectionValidatorName ) ) {
+            return emptyValidator();
+        }
+        if ( "default".equalsIgnoreCase( connectionValidatorName ) ) {
+            return defaultValidator();
+        }
+        if ( connectionValidatorName.regionMatches( true, 0, "default", 0, "default".length() ) ) {
+            return defaultValidatorWithTimeout( (int) parseDurationS( connectionValidatorName.substring( "default".length() ) ).toSeconds() );
+        }
+
+        try {
+            Class<? extends ConnectionValidator> validatorClass = Thread.currentThread().getContextClassLoader().loadClass( connectionValidatorName ).asSubclass( ConnectionValidator.class );
+            return validatorClass.getDeclaredConstructor().newInstance();
+        } catch ( ClassNotFoundException e ) {
+            throw new IllegalArgumentException( "Unknown connection validator " + connectionValidatorName );
+        } catch ( ClassCastException e ) {
+            throw new IllegalArgumentException( connectionValidatorName + " class is not a ConnectionValidator", e );
+        } catch ( InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e ) {
+            throw new IllegalArgumentException( "Unable to instantiate ConnectionValidator " + connectionValidatorName, e );
+        }
+    }
 
     private static Duration parseDurationMs(String value) {
         return Duration.ofMillis( parseLong( value ) );
