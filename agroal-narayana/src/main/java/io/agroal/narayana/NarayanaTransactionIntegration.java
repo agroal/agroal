@@ -118,7 +118,9 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                 if ( transactionSynchronizationRegistry.getResource( key ) == null ) {
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
                     transactionSynchronizationRegistry.putResource( key, transactionAware );
-                    transactionManager.getTransaction().enlistResource( createXaResource( transactionAware, xaResource ) );
+                    if ( !transactionManager.getTransaction().enlistResource( createXaResource( transactionAware, xaResource ) ) ) {
+                        throw new SQLException("Unable to enlist connection to existing transaction");
+                    }
                 } else {
                     transactionAware.transactionStart();
                 }
