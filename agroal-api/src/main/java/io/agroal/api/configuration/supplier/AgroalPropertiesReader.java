@@ -5,10 +5,17 @@ package io.agroal.api.configuration.supplier;
 
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation;
+import io.agroal.api.exceptionsorter.DB2ExceptionSorter;
+import io.agroal.api.exceptionsorter.MSSQLExceptionSorter;
+import io.agroal.api.exceptionsorter.MySQLExceptionSorter;
+import io.agroal.api.exceptionsorter.OracleExceptionSorter;
+import io.agroal.api.exceptionsorter.PostgreSQLExceptionSorter;
+import io.agroal.api.exceptionsorter.SybaseExceptionSorter;
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
 
@@ -29,6 +36,9 @@ import java.util.function.Supplier;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidatorWithTimeout;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.defaultExceptionSorter;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.emptyExceptionSorter;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.fatalExceptionSorter;
 import static java.lang.Long.parseLong;
 import static java.util.function.Function.identity;
 
@@ -52,6 +62,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String FLUSH_ON_CLOSE = "flushOnClose";
     public static final String CONNECTION_VALIDATOR = "connectionValidator";
     public static final String ENHANCED_LEAK_REPORT = "enhancedLeakReport";
+    public static final String EXCEPTION_SORTER = "exceptionSorter";
     public static final String MULTIPLE_ACQUISITION = "multipleAcquisition";
     public static final String TRANSACTION_REQUIREMENT = "transactionRequirement";
 
@@ -150,6 +161,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::flushOnClose, Boolean::parseBoolean, properties, FLUSH_ON_CLOSE );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
         apply( connectionPoolSupplier::connectionValidator, AgroalPropertiesReader::parseConnectionValidator, properties, CONNECTION_VALIDATOR );
+        apply( connectionPoolSupplier::exceptionSorter, AgroalPropertiesReader::parseExceptionSorter, properties, EXCEPTION_SORTER );
         apply( connectionPoolSupplier::enhancedLeakReport, Boolean::parseBoolean, properties, ENHANCED_LEAK_REPORT );
         apply( connectionPoolSupplier::multipleAcquisition, MultipleAcquisitionAction::valueOf, properties, MULTIPLE_ACQUISITION );
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
@@ -229,11 +241,9 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     private static ConnectionValidator parseConnectionValidator(String connectionValidatorName) {
         if ( "empty".equalsIgnoreCase( connectionValidatorName ) ) {
             return emptyValidator();
-        }
-        if ( "default".equalsIgnoreCase( connectionValidatorName ) ) {
+        } else if ( "default".equalsIgnoreCase( connectionValidatorName ) ) {
             return defaultValidator();
-        }
-        if ( connectionValidatorName.regionMatches( true, 0, "default", 0, "default".length() ) ) {
+        } else if ( connectionValidatorName.regionMatches( true, 0, "default", 0, "default".length() ) ) {
             return defaultValidatorWithTimeout( (int) parseDurationS( connectionValidatorName.substring( "default".length() ) ).toSeconds() );
         }
 
@@ -246,6 +256,55 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
             throw new IllegalArgumentException( connectionValidatorName + " class is not a ConnectionValidator", e );
         } catch ( InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e ) {
             throw new IllegalArgumentException( "Unable to instantiate ConnectionValidator " + connectionValidatorName, e );
+        }
+    }
+
+    // --- //
+
+    /**
+     * Accepts the following options:
+     * <ul>
+     * <li>`empty` for the default {@link ExceptionSorter#emptyExceptionSorter()}</li>
+     * <li>`default` for {@link ExceptionSorter#defaultExceptionSorter()}</li>
+     * <li>`fatal` for {@link ExceptionSorter#fatalExceptionSorter()}</li>
+     * <li>`DB2` for the {@link DB2ExceptionSorter}</li>
+     * <li>`MSSQL` for the {@link MSSQLExceptionSorter}</li>
+     * <li>`MySQL` for the {@link MySQLExceptionSorter}</li>
+     * <li>`Oracle` for the {@link OracleExceptionSorter}</li>
+     * <li>`Postgres` or `PostgreSQL` for the {@link PostgreSQLExceptionSorter}</li>
+     * <li>`Sybase` for the {@link SybaseExceptionSorter}</li>
+     * <li>the name of a class that implements {@link ExceptionSorter}</li>
+     * </ul>
+     */
+    private static ExceptionSorter parseExceptionSorter(String exceptionSorterName) {
+        if ( "empty".equalsIgnoreCase( exceptionSorterName ) ) {
+            return emptyExceptionSorter();
+        } else if ( "default".equalsIgnoreCase( exceptionSorterName ) ) {
+            return defaultExceptionSorter();
+        } else if ( "fatal".equalsIgnoreCase( exceptionSorterName ) ) {
+            return fatalExceptionSorter();
+        } else if ( "DB2".equalsIgnoreCase( exceptionSorterName ) ) {
+            return new DB2ExceptionSorter();
+        } else if ( "MSSQL".equalsIgnoreCase( exceptionSorterName ) ) {
+            return new MSSQLExceptionSorter();
+        } else if ( "MySQL".equalsIgnoreCase( exceptionSorterName ) ) {
+            return new MySQLExceptionSorter();
+        } else if ( "Oracle".equalsIgnoreCase( exceptionSorterName ) ) {
+            return new OracleExceptionSorter();
+        } else if ( "Postgres".equalsIgnoreCase( exceptionSorterName ) || "PostgreSQL".equalsIgnoreCase( exceptionSorterName ) ) {
+            return new PostgreSQLExceptionSorter();
+        } else if ( "Sybase".equalsIgnoreCase( exceptionSorterName ) ) {
+            return new SybaseExceptionSorter();
+        }
+        try {
+            Class<? extends ExceptionSorter> sorterClass = Thread.currentThread().getContextClassLoader().loadClass( exceptionSorterName ).asSubclass( ExceptionSorter.class );
+            return sorterClass.getDeclaredConstructor().newInstance();
+        } catch ( ClassNotFoundException e ) {
+            throw new IllegalArgumentException( "Unknown exception sorter " + exceptionSorterName );
+        } catch ( ClassCastException e ) {
+            throw new IllegalArgumentException( exceptionSorterName + " class is not a ExceptionSorter", e );
+        } catch ( InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e ) {
+            throw new IllegalArgumentException( "Unable to instantiate ExceptionSorter " + exceptionSorterName, e );
         }
     }
 
