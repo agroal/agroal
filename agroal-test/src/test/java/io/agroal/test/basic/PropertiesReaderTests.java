@@ -7,6 +7,7 @@ import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalPropertiesReader;
+import io.agroal.api.exceptionsorter.PostgreSQLExceptionSorter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -46,6 +47,7 @@ class PropertiesReaderTests {
         Assertions.assertEquals( 60, configuration.connectionPoolConfiguration().validationTimeout().getSeconds() );
         Assertions.assertEquals( AgroalConnectionFactoryConfiguration.TransactionIsolation.SERIALIZABLE, configuration.connectionPoolConfiguration().connectionFactoryConfiguration().jdbcTransactionIsolation() );
         Assertions.assertInstanceOf( OddHoursConnectionValidator.class, configuration.connectionPoolConfiguration().connectionValidator() );
+        Assertions.assertInstanceOf( PostgreSQLExceptionSorter.class, configuration.connectionPoolConfiguration().exceptionSorter() );
     }
 
     // --- //
