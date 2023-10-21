@@ -36,12 +36,18 @@
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
         <!-- Micrometer -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
             <version>${version.io.micrometer}</version>
-            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
         <!-- SLF4J -->
         <dependency>
