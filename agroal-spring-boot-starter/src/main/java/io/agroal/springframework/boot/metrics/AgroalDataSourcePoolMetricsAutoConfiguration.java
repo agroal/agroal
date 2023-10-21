@@ -5,20 +5,20 @@ package io.agroal.springframework.boot.metrics;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.pool.DefaultMetricsRepository;
+import io.agroal.springframework.boot.AgroalDataSourceConfiguration;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
+import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.jdbc.DataSourceUnwrapper;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-import java.util.Map;
 
 import javax.sql.DataSource;
+import java.util.Map;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(after = {AgroalDataSourceConfiguration.class, CompositeMeterRegistryAutoConfiguration.class})
 @ConditionalOnClass({AgroalDataSource.class, MeterRegistry.class})
 @ConditionalOnBean({AgroalDataSource.class, MeterRegistry.class})
 public class AgroalDataSourcePoolMetricsAutoConfiguration {
