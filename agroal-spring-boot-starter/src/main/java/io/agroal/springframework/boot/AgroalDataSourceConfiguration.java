@@ -7,6 +7,7 @@ import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.jndi.AgroalDataSourceJndiBinder;
 import io.agroal.springframework.boot.jndi.DefaultAgroalDataSourceJndiBinder;
 
+import io.agroal.springframework.boot.metrics.AgroalPoolDataSourceMetadataProviderConfiguration;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.jta.JtaTransactionManager;
 import org.springframework.util.StringUtils;
 
@@ -37,6 +39,7 @@ import static org.springframework.boot.jdbc.DatabaseDriver.fromJdbcUrl;
 @ConditionalOnMissingBean( DataSource.class )
 @ConditionalOnProperty( name = "spring.datasource.type", havingValue = "io.agroal.springframework.boot.AgroalDataSource", matchIfMissing = true )
 @EnableConfigurationProperties(DataSourceProperties.class)
+@Import(AgroalPoolDataSourceMetadataProviderConfiguration.class)
 public class AgroalDataSourceConfiguration {
 
     private final Logger logger = LoggerFactory.getLogger( AgroalDataSourceConfiguration.class );
