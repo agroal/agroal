@@ -13,13 +13,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.jta.JtaTransactionManager;
 import org.springframework.util.StringUtils;
 
@@ -30,10 +32,11 @@ import static org.springframework.boot.jdbc.DatabaseDriver.fromJdbcUrl;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-@Configuration( proxyBeanMethods = false )
+@AutoConfiguration(before = DataSourceAutoConfiguration.class)
 @ConditionalOnClass( AgroalDataSource.class )
 @ConditionalOnMissingBean( DataSource.class )
 @ConditionalOnProperty( name = "spring.datasource.type", havingValue = "io.agroal.springframework.boot.AgroalDataSource", matchIfMissing = true )
+@EnableConfigurationProperties(DataSourceProperties.class)
 public class AgroalDataSourceConfiguration {
 
     private final Logger logger = LoggerFactory.getLogger( AgroalDataSourceConfiguration.class );
