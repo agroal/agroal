@@ -26,7 +26,7 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
     @Override
     public Xid[] recover(int flag) throws XAException {
         if ( xaConnection == null ) {
-            throw new XAException( XAException.XAER_RMFAIL );
+            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL );
         }
         Xid[] value = wrappedResource.recover( flag );
         if ( flag == TMENDRSCAN && ( value == null || value.length == 0 ) ) {
@@ -87,9 +87,7 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
         try {
             xaConnection.close();
         } catch ( SQLException e ) {
-            XAException xaException = new XAException( XAException.XAER_RMFAIL );
-            xaException.initCause( e );
-            throw xaException;
+            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, e );
         } finally {
             xaConnection = null;
         }

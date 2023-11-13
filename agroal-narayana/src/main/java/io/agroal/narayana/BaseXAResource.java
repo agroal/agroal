@@ -66,9 +66,12 @@ public class BaseXAResource implements XAResourceWrapper {
     public void end(Xid xid, int flags) throws XAException {
         try {
             xaResource.end( xid, flags );
-        } catch ( Exception t ) {
+        } catch ( XAException xe ) {
             transactionAware.setFlushOnly();
-            throw new XAException( "Error trying to end xa transaction: " + t.getMessage() );
+            throw xe;
+        } catch ( Exception e ) {
+            transactionAware.setFlushOnly();
+            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, "Error trying to start xa transaction: ", e );
         }
     }
 
@@ -153,10 +156,7 @@ public class BaseXAResource implements XAResourceWrapper {
             throw xe;
         } catch ( Exception e ) {
             transactionAware.setFlushOnly();
-            XAException xe = new XAException( "Error trying to start xa transaction: " + e.getMessage() );
-            xe.initCause( e );
-            xe.errorCode = XAException.XAER_RMFAIL;
-            throw xe;
+            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, "Error trying to start xa transaction: ", e );
         }
     }
 }

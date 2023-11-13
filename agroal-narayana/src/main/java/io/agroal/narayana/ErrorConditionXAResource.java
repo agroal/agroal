@@ -23,63 +23,57 @@ public class ErrorConditionXAResource implements AutoCloseable, XAResourceWrappe
         this.jndiName = jndiName;
     }
 
-    private XAException createXAException() {
-        XAException xaException = new XAException( XAException.XAER_RMFAIL );
-        xaException.initCause( error );
-        return xaException;
-    }
-
     @Override
     public Xid[] recover(int flag) throws XAException {
         if ( flag == TMENDRSCAN ) {
             close();
         }
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public void commit(Xid xid, boolean onePhase) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public void forget(Xid xid) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public int getTransactionTimeout() throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public boolean isSameRM(XAResource xares) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public int prepare(Xid xid) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public void rollback(Xid xid) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public boolean setTransactionTimeout(int seconds) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     @Override
     public void start(Xid xid, int flags) throws XAException {
-        throw createXAException();
+        throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
     // --- //
@@ -89,9 +83,7 @@ public class ErrorConditionXAResource implements AutoCloseable, XAResourceWrappe
         try {
             xaConnection.close();
         } catch ( SQLException e ) {
-            XAException xaException = new XAException( XAException.XAER_RMFAIL );
-            xaException.initCause( e );
-            throw xaException;
+            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, e );
         }
     }
 
