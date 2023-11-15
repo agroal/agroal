@@ -238,7 +238,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
      * <li>the name of a class that implements {@link ConnectionValidator}</li>
      * </ul>
      */
-    private static ConnectionValidator parseConnectionValidator(String connectionValidatorName) {
+    public static ConnectionValidator parseConnectionValidator(String connectionValidatorName) {
         if ( "empty".equalsIgnoreCase( connectionValidatorName ) ) {
             return emptyValidator();
         } else if ( "default".equalsIgnoreCase( connectionValidatorName ) ) {
@@ -276,7 +276,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
      * <li>the name of a class that implements {@link ExceptionSorter}</li>
      * </ul>
      */
-    private static ExceptionSorter parseExceptionSorter(String exceptionSorterName) {
+    public static ExceptionSorter parseExceptionSorter(String exceptionSorterName) {
         if ( "empty".equalsIgnoreCase( exceptionSorterName ) ) {
             return emptyExceptionSorter();
         } else if ( "default".equalsIgnoreCase( exceptionSorterName ) ) {
@@ -307,6 +307,8 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
             throw new IllegalArgumentException( "Unable to instantiate ExceptionSorter " + exceptionSorterName, e );
         }
     }
+
+    // --- //
 
     private static Duration parseDurationMs(String value) {
         return Duration.ofMillis( parseLong( value ) );
