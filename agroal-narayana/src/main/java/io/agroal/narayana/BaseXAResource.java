@@ -71,7 +71,7 @@ public class BaseXAResource implements XAResourceWrapper {
             throw xe;
         } catch ( Exception e ) {
             transactionAware.setFlushOnly();
-            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, "Error trying to start xa transaction: ", e );
+            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, "Error trying to end xa transaction: ", e );
         }
     }
 
