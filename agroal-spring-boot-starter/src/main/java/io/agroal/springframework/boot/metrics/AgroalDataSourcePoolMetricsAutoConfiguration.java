@@ -24,15 +24,15 @@ import java.util.Map;
 public class AgroalDataSourcePoolMetricsAutoConfiguration {
 
     @Bean
-    AgroalDataSourceMeterBinder agroalDataSourceMeterBinder(Map<String, DataSource> dataSources) {
+    AgroalDataSourceMeterBinder agroalDataSourceMeterBinder(Map<String, ? extends DataSource> dataSources) {
         return new AgroalDataSourceMeterBinder(dataSources);
     }
 
-    static class AgroalDataSourceMeterBinder implements MeterBinder {
+    public static class AgroalDataSourceMeterBinder implements MeterBinder {
 
-        private final Map<String, DataSource> dataSources;
+        private final Map<String, ? extends DataSource> dataSources;
 
-        AgroalDataSourceMeterBinder(Map<String, DataSource> dataSources) {
+        AgroalDataSourceMeterBinder(Map<String, ? extends DataSource> dataSources) {
             this.dataSources = dataSources;
         }
 
