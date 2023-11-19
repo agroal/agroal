@@ -53,6 +53,7 @@ public class BasicConcurrencyTests {
     @BeforeAll
     static void setup() {
         registerMockDriver();
+        Utils.windowsTimerHack();
     }
 
     @AfterAll
