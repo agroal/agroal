@@ -22,4 +22,8 @@ public abstract class Utils {
         t.setDaemon(true);
         t.start();
     }
+
+    public static boolean isWindowsOS() {
+        return System.getProperty("os.name").startsWith("Windows");
+    }
 }

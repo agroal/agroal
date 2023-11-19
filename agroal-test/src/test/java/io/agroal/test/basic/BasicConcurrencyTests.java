@@ -53,7 +53,9 @@ public class BasicConcurrencyTests {
     @BeforeAll
     static void setup() {
         registerMockDriver();
-        Utils.windowsTimerHack();
+        if (Utils.isWindowsOS()) {
+            Utils.windowsTimerHack();
+        }
     }
 
     @AfterAll
