@@ -69,7 +69,7 @@ public class BasicConcurrencyTests {
     @DisplayName( "Multiple threads" )
     @SuppressWarnings( "ObjectAllocationInLoop" )
     void basicConnectionAcquireTest() throws SQLException {
-        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 32, CALLS = 50000, SLEEP_TIME = 1;
+        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 32, CALLS = 50000, SLEEP_TIME = 1, OVERHEAD = 1;
 
         ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
         CountDownLatch latch = new CountDownLatch( CALLS );
@@ -99,7 +99,7 @@ public class BasicConcurrencyTests {
             }
 
             try {
-                long waitTime = (long) ( SLEEP_TIME * CALLS * 1.5 / MAX_POOL_SIZE );
+                long waitTime = ( SLEEP_TIME + OVERHEAD ) * CALLS / MAX_POOL_SIZE;
                 logger.info( format( "Main thread waiting for {0}ms", waitTime ) );
                 if ( !latch.await( waitTime, MILLISECONDS ) ) {
                     fail( "Did not execute within the required amount of time" );
