@@ -201,7 +201,11 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
     
     public void setJdbcProperties(Map<String, String> properties) {
-      properties.forEach(connectionFactoryConfiguration::jdbcProperty);
+        properties.forEach(connectionFactoryConfiguration::jdbcProperty);
+    }
+
+    public void setXaProperties(Map<String, String> properties) {
+        properties.forEach(connectionFactoryConfiguration::xaProperty);
     }
 
     // --- //

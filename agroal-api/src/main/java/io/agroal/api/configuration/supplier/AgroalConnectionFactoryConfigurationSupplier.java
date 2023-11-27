@@ -43,6 +43,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     Principal recoveryPrincipal;
     Collection<Object> recoveryCredentials = new ArrayList<>();
     Properties jdbcProperties = new Properties();
+    Properties xaProperties = new Properties();
 
     private volatile boolean lock;
 
@@ -223,6 +224,17 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         return this;
     }
 
+    /**
+     * Allows setting other, unspecified, properties to be passed to the XA Datasource that override JDBC properties.
+     * NOTE: username and password properties are not allowed, these have to be set using the principal / credentials mechanism.
+     */
+    public AgroalConnectionFactoryConfigurationSupplier xaProperty(String key, String value) {
+        checkLock();
+        xaProperties.setProperty( key, value );
+        return this;
+    }
+
+
     // --- //
 
     @SuppressWarnings( "stringConcatenation" )
@@ -312,6 +324,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public Properties jdbcProperties() {
                 return jdbcProperties;
+            }
+
+            @Override
+            public Properties xaProperties() {
+                return xaProperties;
             }
         };
     }

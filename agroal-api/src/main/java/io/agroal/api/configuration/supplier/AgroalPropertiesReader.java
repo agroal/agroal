@@ -101,6 +101,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String RECOVERY_PRINCIPAL = "recoveryPrincipal";
     public static final String RECOVERY_CREDENTIAL = "recoveryCredential";
     public static final String JDBC_PROPERTIES = "jdbcProperties";
+    public static final String XA_PROPERTIES = "xaProperties";
 
     // --- //
 
@@ -203,6 +204,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionFactorySupplier::recoveryPrincipal, NamePrincipal::new, properties, RECOVERY_PRINCIPAL );
         apply( connectionFactorySupplier::recoveryCredential, SimplePassword::new, properties, RECOVERY_CREDENTIAL );
         applyJdbcProperties( connectionFactorySupplier::jdbcProperty, properties, JDBC_PROPERTIES );
+        applyJdbcProperties( connectionFactorySupplier::xaProperty, properties, XA_PROPERTIES );
 
         dataSourceSupplier.connectionPoolConfiguration( connectionPoolSupplier.connectionFactoryConfiguration( connectionFactorySupplier ) );
         return this;

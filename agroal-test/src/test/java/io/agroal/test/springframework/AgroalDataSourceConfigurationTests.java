@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.annotation.UserConfigurations;
 import org.springframework.boot.jdbc.metadata.DataSourcePoolMetadata;
 import org.springframework.boot.jdbc.metadata.DataSourcePoolMetadataProvider;
@@ -43,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Tag( SPRING )
 class AgroalDataSourceConfigurationTests {
 
-    private final static Logger LOG = LoggerFactory.getLogger(AgroalDataSourceConfigurationTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AgroalDataSourceConfigurationTests.class);
 
     private final Class<?>[] autoconfigurationsInWrongOrder = new Class<?>[]{
             DataSourceAutoConfiguration.class,

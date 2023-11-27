@@ -85,6 +85,11 @@ public interface AgroalConnectionFactoryConfiguration {
      */
     Properties jdbcProperties();
 
+    /**
+     * Override of JDBC properties used for XA drivers. If left empty, the regular JDBC properties are used for both XA and non-XA.
+     */
+    Properties xaProperties();
+
     // --- //
 
     /**
