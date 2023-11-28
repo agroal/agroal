@@ -10,6 +10,7 @@ import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.AgroalDataSource;
 import io.agroal.springframework.boot.AgroalDataSourceConfiguration;
 import io.agroal.springframework.boot.metrics.AgroalDataSourcePoolMetadata;
+import io.agroal.test.MockXADataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -147,6 +148,41 @@ class AgroalDataSourceConfigurationTests {
 
                     try (Connection c = ((AgroalDataSource) dataSource).getConnection()) { 
                         LOG.info("Got connection {}", c);
+                    }
+                });
+    }
+
+    @DisplayName("Autoconfiguration will create XADataSource with provided dataSourceClassName")
+    @Test
+    void testAutoconfigureAgroalDataSourceWithXaDataSourceClassName() {
+        runner.withConfiguration(UserConfigurations.of(NarayanaConfiguration.class))
+                .withPropertyValues(
+                        "narayana.logDir=ObjectStore",
+                        "spring.datasource.url=jdbc:irrelevant",
+                        "spring.datasource.xa.dataSourceClassName=io.agroal.test.MockXADataSource$Empty")
+                .run(context -> {
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+
+                    try (Connection c = dataSource.getConnection()) {
+                        LOG.info("Got connection {}", c);
+                    }
+                });
+    }
+
+    @DisplayName("Autoconfiguration will create XADataSource with provided xaproperties")
+    @Test
+    void testAutoconfigureAgroalDataSourceWithXaProperties() {
+        runner.withConfiguration(UserConfigurations.of(NarayanaConfiguration.class))
+                .withPropertyValues(
+                        "narayana.logDir=ObjectStore",
+                        "spring.datasource.xa.dataSourceClassName=org.h2.jdbcx.JdbcDataSource",
+                        "spring.datasource.xa.properties.URL=jdbc:h2:mem:test")
+                .run(context -> {
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+
+                    try (Connection c = dataSource.getConnection()) {
+                        LOG.info("Got connection {}", c);
+                        assertThat(c.getMetaData().getURL()).isEqualTo("jdbc:h2:mem:test");
                     }
                 });
     }

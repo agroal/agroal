@@ -69,6 +69,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         recoveryPrincipal = existingConfiguration.recoveryPrincipal();
         recoveryCredentials = existingConfiguration.recoveryCredentials();
         jdbcProperties = existingConfiguration.jdbcProperties();
+        xaProperties = existingConfiguration.xaProperties();
         securityProviders = existingConfiguration.securityProviders();
         trackJdbcResources = existingConfiguration.trackJdbcResources();
     }
