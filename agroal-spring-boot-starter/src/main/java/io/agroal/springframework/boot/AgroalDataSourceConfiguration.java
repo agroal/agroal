@@ -24,11 +24,11 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.jta.JtaTransactionManager;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 
 import static org.springframework.boot.jdbc.DatabaseDriver.fromJdbcUrl;
+import static org.springframework.util.StringUtils.hasLength;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -61,8 +61,14 @@ public class AgroalDataSourceConfiguration {
             ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder) {
 
         AgroalDataSource dataSource = properties.initializeDataSourceBuilder().type( AgroalDataSource.class ).build();
-        if ( !StringUtils.hasLength( properties.getDriverClassName() ) ) {
-            dataSource.setDriverClassName( connectable ? fromJdbcUrl( properties.determineUrl() ).getDriverClassName() : fromJdbcUrl( properties.determineUrl() ).getXaDataSourceClassName() );
+        if ( !hasLength( properties.getDriverClassName() ) ) {
+            if ( connectable ) {
+                dataSource.setDriverClassName( fromJdbcUrl( properties.determineUrl() ).getDriverClassName() );
+            } else if ( hasLength( properties.getXa().getDataSourceClassName() ) ) {
+                dataSource.setDriverClassName( properties.getXa().getDataSourceClassName() );
+            } else {
+                dataSource.setDriverClassName( fromJdbcUrl( properties.determineUrl() ).getXaDataSourceClassName() );
+            }
         }
         String name = properties.determineDatabaseName();
         dataSource.setName( name );
@@ -79,6 +85,9 @@ public class AgroalDataSourceConfiguration {
             if ( connectable && jndiBinder.getIfUnique( DefaultAgroalDataSourceJndiBinder::new ).bindToJndi( jndiName, dataSource ) ) {
                 logger.info( "Bind DataSource {} as {} to JNDI registry", name, jndiName );
             }
+        }
+        if ( !connectable && !properties.getXa().getProperties().isEmpty() ) {
+            dataSource.setXaProperties( properties.getXa().getProperties() );
         }
         return dataSource;
     }

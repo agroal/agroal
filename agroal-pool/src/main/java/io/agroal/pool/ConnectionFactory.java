@@ -35,7 +35,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     private final AgroalConnectionFactoryConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
-    private final Properties jdbcProperties;
+    private final Properties jdbcProperties = new Properties(); // backup of jdbcProperties for DRIVER mode
     private final Mode factoryMode;
 
     // these are the sources for connections, that will be used depending on the mode
@@ -51,22 +51,21 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         this.configuration = configuration;
         this.listeners = listeners;
 
-        jdbcProperties = new Properties();
-        jdbcProperties.putAll( configuration.jdbcProperties() );
-
         factoryMode = Mode.fromClass( configuration.connectionProviderClass() );
         switch ( factoryMode ) {
             case XA_DATASOURCE:
                 injector = new PropertyInjector( configuration.connectionProviderClass() );
-                xaDataSource = newXADataSource( jdbcProperties );
-                xaRecoveryDataSource = newXADataSource( jdbcProperties );
+                Properties xaProperties = configuration.xaProperties().isEmpty() ? configuration.jdbcProperties() : configuration.xaProperties();
+                xaDataSource = newXADataSource( xaProperties );
+                xaRecoveryDataSource = newXADataSource( xaProperties );
                 break;
             case DATASOURCE:
                 injector = new PropertyInjector( configuration.connectionProviderClass() );
-                dataSource = newDataSource( jdbcProperties );
+                dataSource = newDataSource( configuration.jdbcProperties() );
                 break;
             case DRIVER:
                 driver = newDriver();
+                jdbcProperties.putAll( configuration.jdbcProperties() );
                 break;
         }
     }
