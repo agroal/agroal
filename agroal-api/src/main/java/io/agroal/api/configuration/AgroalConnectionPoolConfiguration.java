@@ -48,32 +48,38 @@ public interface AgroalConnectionPoolConfiguration {
     TransactionRequirement transactionRequirement();
 
     /**
+     * Validates connections before being acquired (foreground validation) overriding any idle timeout.
+     * Because of the overhead of performing validation on every call, it's recommended to rely on idle valdation instead.
+     */
+    boolean validateOnBorrow();
+
+    /**
      * Connections idle for longer than this time period are validated before being acquired (foreground validation).
-     * A duration of {@link Duration#ZERO} means that a this feature is disabled.
+     * A duration of {@link Duration#ZERO} means that this feature is disabled.
      */
     Duration idleValidationTimeout();
 
     /**
      * Connections acquired for longer than this time period may be reported as leaking.
-     * A duration of {@link Duration#ZERO} means that a this feature is disabled.
+     * A duration of {@link Duration#ZERO} means that this feature is disabled.
      */
     Duration leakTimeout();
 
     /**
      * Connections idle for longer than this time period are validated (background validation).
-     * A duration of {@link Duration#ZERO} means that a this feature is disabled.
+     * A duration of {@link Duration#ZERO} means that this feature is disabled.
      */
     Duration validationTimeout();
 
     /**
      * Connections idle for longer than this time period are flushed from the pool.
-     * A duration of {@link Duration#ZERO} means that a this feature is disabled.
+     * A duration of {@link Duration#ZERO} means that this feature is disabled.
      */
     Duration reapTimeout();
 
     /**
      * Connections that are older than this time period are flushed from the pool.
-     * A duration of {@link Duration#ZERO} means that a this feature is disabled.
+     * A duration of {@link Duration#ZERO} means that this feature is disabled.
      */
     Duration maxLifetime();
 

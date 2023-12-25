@@ -91,6 +91,9 @@ public final class Poolless implements Pool {
         if ( !configuration.maxLifetime().isZero() ) {
             fireOnInfo( listeners, "Max lifetime not supported in pool-less mode" );
         }
+        if ( configuration.validateOnBorrow() ) {
+            fireOnInfo( listeners, "Validation on borrow is not supported in pool-less mode" );
+        }
         if ( !configuration.idleValidationTimeout().isZero() ) {
             fireOnInfo( listeners, "Idle validation not supported in pool-less mode" );
         }

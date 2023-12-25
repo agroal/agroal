@@ -85,6 +85,7 @@ public final class ConnectionPool implements Pool {
     private final PriorityScheduledExecutor housekeepingExecutor;
     private final TransactionIntegration transactionIntegration;
 
+    private final boolean borrowValidationEnabled;
     private final boolean idleValidationEnabled;
     private final boolean leakEnabled;
     private final boolean validationEnabled;
@@ -109,7 +110,8 @@ public final class ConnectionPool implements Pool {
         housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet(), listeners );
         transactionIntegration = configuration.transactionIntegration();
 
-        idleValidationEnabled = !configuration.idleValidationTimeout().isZero();
+        borrowValidationEnabled = configuration.validateOnBorrow();
+        idleValidationEnabled = !configuration.validateOnBorrow() && !configuration.idleValidationTimeout().isZero();
         leakEnabled = !configuration.leakTimeout().isZero();
         validationEnabled = !configuration.validationTimeout().isZero();
         reapEnabled = !configuration.reapTimeout().isZero();
@@ -248,7 +250,8 @@ public final class ConnectionPool implements Pool {
                 if ( checkedOutHandler == null ) {
                     checkedOutHandler = handlerFromSharedCache();
                 }
-            } while ( idleValidationEnabled && !idleValidation( checkedOutHandler ) );
+            } while ( ( borrowValidationEnabled && !borrowValidation( checkedOutHandler ) )
+                    || ( idleValidationEnabled && !idleValidation( checkedOutHandler ) ) );
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
 
             activeCount.increment();
@@ -338,6 +341,10 @@ public final class ConnectionPool implements Pool {
         if ( !handler.isIdle( configuration.idleValidationTimeout() ) ) {
             return true;
         }
+        return borrowValidation( handler );
+    }
+
+    private boolean borrowValidation(ConnectionHandler handler) {
         if ( handler.setState( CHECKED_OUT, VALIDATION ) ) {
             return performValidation( handler, CHECKED_OUT );
         }

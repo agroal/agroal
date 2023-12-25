@@ -145,6 +145,30 @@ public class BasicTests {
     }
 
     @Test
+    @DisplayName( "Borrow Connection Validation" )
+    void basicBorrowValidationTest() throws SQLException {
+        int CALLS = 10;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 2 )
+                        .validateOnBorrow(true)
+                );
+
+        ValidationCountListener listener = new ValidationCountListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            for ( int i = 0; i < CALLS; i++ ) {
+                Connection connection = dataSource.getConnection();
+                assertNotNull( connection.getSchema(), "Expected non null value" );
+                connection.close();
+            }
+        }
+
+        assertEquals( CALLS, listener.getValidationCount() );
+    }
+
+    @Test
     @DisplayName( "Connection Validation" )
     void basicValidationTest() throws SQLException {
         int MAX_POOL_SIZE = 100, CALLS = 1000, VALIDATION_MS = 1000;
@@ -401,6 +425,19 @@ public class BasicTests {
 
         int getWarningCount() {
             return warningCount;
+        }
+    }
+
+    private static class ValidationCountListener implements AgroalDataSourceListener {
+        private int validationCount;
+
+        @Override
+        public void beforeConnectionValidation(Connection connection) {
+            validationCount++;
+        }
+
+        public int getValidationCount() {
+            return validationCount;
         }
     }
 
