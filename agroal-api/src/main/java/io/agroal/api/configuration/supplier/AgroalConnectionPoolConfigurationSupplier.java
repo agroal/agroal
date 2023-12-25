@@ -40,6 +40,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     int initialSize;
     volatile int minSize;
     volatile int maxSize = MAX_VALUE;
+    boolean validateOnBorrow;
     AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
     AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = emptyExceptionSorter();
     Duration idleValidationTimeout = ZERO;
@@ -72,6 +73,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         initialSize = existingConfiguration.initialSize();
         minSize = existingConfiguration.minSize();
         maxSize = existingConfiguration.maxSize();
+        validateOnBorrow = existingConfiguration.validateOnBorrow();
         connectionValidator = existingConfiguration.connectionValidator();
         exceptionSorter = existingConfiguration.exceptionSorter();
         idleValidationTimeout = existingConfiguration.idleValidationTimeout();
@@ -212,6 +214,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier maxSize(int size) {
         checkLock();
         maxSize = size;
+        return this;
+    }
+
+    /**
+     * Enables validation on borrow. Default is false.
+     */
+    public AgroalConnectionPoolConfigurationSupplier validateOnBorrow(boolean validate) {
+        checkLock();
+        validateOnBorrow = validate;
         return this;
     }
 
@@ -423,6 +434,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
                     throw new IllegalArgumentException( "Acquisition timeout must not be negative" );
                 }
                 acquisitionTimeout = timeout;
+            }
+
+            @Override
+            public boolean validateOnBorrow() {
+                return validateOnBorrow;
             }
 
             @Override

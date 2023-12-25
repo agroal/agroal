@@ -97,6 +97,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.initialSize( size );
     }
 
+    public void setValidateOnBorrow( boolean validateOnBorrow ) {
+        connectionPoolConfiguration.validateOnBorrow( validateOnBorrow );
+    }
+
     public void setConnectionValidator( ConnectionValidator validator ) {
         connectionPoolConfiguration.connectionValidator( validator );
     }
