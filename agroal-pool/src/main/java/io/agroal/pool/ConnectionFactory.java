@@ -149,10 +149,9 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
             injector.inject( target, propertyName, propertyValue );
         } catch ( IllegalArgumentException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
             // AG-134 - Some drivers have setURL() instead of setUrl(), so we retry with upper case.
+            // AG-228 - Not all (XA)DataSource's require an url to be set
             if ( propertyName.chars().anyMatch( Character::isLowerCase ) ) {
                 injectUrlProperty( target, propertyName.toUpperCase( Locale.ROOT ), propertyValue );
-            } else {
-                fireOnWarning( listeners, "Ignoring property '" + propertyName + "': " + e.getMessage() );
             }
         }
     }
