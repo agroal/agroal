@@ -64,8 +64,8 @@ jobs:
           server-username: MAVEN_CI_USERNAME
           server-password: MAVEN_CI_PASSWORD
       - id: project
-        run: echo ::set-output name=version::$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-      - if: ${{ endsWith(steps.project.outputs.version, '-SNAPSHOT') }}
+        run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+      - if: endsWith(${{ env.PROJECT_VERSION }}, '-SNAPSHOT')
         run: mvn -B deploy
         env:
           MAVEN_CI_USERNAME: ${{ secrets.MAVEN_USERNAME }}
