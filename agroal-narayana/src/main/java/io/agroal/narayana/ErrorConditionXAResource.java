@@ -2,7 +2,6 @@ package io.agroal.narayana;
 
 import org.jboss.tm.XAResourceWrapper;
 
-import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -13,21 +12,16 @@ public class ErrorConditionXAResource implements AutoCloseable, XAResourceWrappe
     private static final String PRODUCT_NAME = ErrorConditionXAResource.class.getPackage().getImplementationTitle();
     private static final String PRODUCT_VERSION = ErrorConditionXAResource.class.getPackage().getImplementationVersion();
 
-    private final XAConnection xaConnection;
     private final SQLException error;
     private final String jndiName;
 
-    public ErrorConditionXAResource(XAConnection xaConnection, SQLException error, String jndiName) {
-        this.xaConnection = xaConnection;
+    public ErrorConditionXAResource(SQLException error, String jndiName) {
         this.error = error;
         this.jndiName = jndiName;
     }
 
     @Override
     public Xid[] recover(int flag) throws XAException {
-        if ( flag == TMENDRSCAN ) {
-            close();
-        }
         throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, error );
     }
 
@@ -80,11 +74,7 @@ public class ErrorConditionXAResource implements AutoCloseable, XAResourceWrappe
 
     @Override
     public void close() throws XAException {
-        try {
-            xaConnection.close();
-        } catch ( SQLException e ) {
-            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, e );
-        }
+        // no-op
     }
 
     // --- //

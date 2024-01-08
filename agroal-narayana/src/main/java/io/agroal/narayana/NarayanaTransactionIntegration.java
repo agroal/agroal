@@ -13,7 +13,6 @@ import org.jboss.tm.TxUtils;
 import org.jboss.tm.XAResourceRecovery;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 
-import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 import java.sql.SQLException;
 import java.util.UUID;
@@ -229,11 +228,10 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         @Override
         @SuppressWarnings( "resource" )
         public XAResource[] getXAResources() {
-            XAConnection xaConnection = connectionFactory.getRecoveryConnection();
             try {
-                return xaConnection == null ? EMPTY_RESOURCES : new XAResource[]{new RecoveryXAResource( xaConnection, name )};
+                return connectionFactory.isRecoverable() ? new XAResource[]{new RecoveryXAResource( connectionFactory, name )} : EMPTY_RESOURCES;
             } catch ( SQLException e ) {
-                return new XAResource[]{new ErrorConditionXAResource( xaConnection, e, name )};
+                return new XAResource[]{new ErrorConditionXAResource( e, name )};
             }
         }
     }

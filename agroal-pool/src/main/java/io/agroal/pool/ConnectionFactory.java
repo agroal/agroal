@@ -11,6 +11,7 @@ import io.agroal.pool.util.PropertyInjector;
 import io.agroal.pool.util.XAConnectionAdaptor;
 
 import javax.sql.XAConnection;
+import javax.transaction.xa.XAException;
 import java.lang.reflect.InvocationTargetException;
 import java.security.Principal;
 import java.sql.Connection;
@@ -269,18 +270,22 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     // --- //
 
     @Override
-    @SuppressWarnings( "StringConcatenation" )
-    public XAConnection getRecoveryConnection() {
-        try {
-            if ( factoryMode == Mode.XA_DATASOURCE ) {
-                injectJdbcProperties( xaRecoveryDataSource, recoveryProperties() );
-                return xaRecoveryDataSource.getXAConnection();
-            }
-            fireOnWarning( listeners, "Recovery connections are only available for XADataSource" );
-        } catch ( SQLException e ) {
-            fireOnWarning( listeners, "Unable to get recovery connection: " + e.getMessage() );
+    public boolean isRecoverable() {
+        if ( factoryMode == Mode.XA_DATASOURCE ) {
+            return true;
         }
-        return null;
+        fireOnWarning( listeners, "Recovery connections are only available for XADataSource" );
+        return false;
+    }
+
+    @Override
+    public XAConnection getRecoveryConnection() throws SQLException {
+        if ( isRecoverable() ) {
+            injectJdbcProperties(xaRecoveryDataSource, recoveryProperties());
+            return xaRecoveryDataSource.getXAConnection();
+        }
+        // Fallback for wrong implemented TransactionIntegration
+        throw new SQLException( "Recovery connections are only available for XADataSource" );
     }
 
     // --- //

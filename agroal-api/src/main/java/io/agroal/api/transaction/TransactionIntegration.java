@@ -89,8 +89,13 @@ public interface TransactionIntegration {
     interface ResourceRecoveryFactory {
 
         /**
+         * The transaction layer can call this method to check if recovery is possible.
+         */
+        boolean isRecoverable();
+
+        /**
          * The transaction layer can call this method to obtain one connection used for recovery of incomplete transactions.
          */
-        XAConnection getRecoveryConnection();
+        XAConnection getRecoveryConnection() throws SQLException;
     }
 }
