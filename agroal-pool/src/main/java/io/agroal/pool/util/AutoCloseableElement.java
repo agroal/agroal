@@ -3,6 +3,8 @@
 
 package io.agroal.pool.util;
 
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
@@ -48,6 +50,14 @@ public abstract class AutoCloseableElement implements AutoCloseable {
             try {
                 if ( !next.isClosed() ) {
                     count++;
+                    if ( next instanceof Statement ) {
+                        try {
+                            // AG-231 - we have to cancel the Statement on cleanup to avoid overloading the DB
+                            ( (Statement) next ).cancel();
+                        } catch ( SQLException e ) {
+                            // ignore and proceed with close()
+                        }
+                    }
                     next.close();
                 }
             } catch ( Exception e ) {

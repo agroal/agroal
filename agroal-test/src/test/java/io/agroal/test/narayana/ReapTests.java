@@ -8,6 +8,7 @@ import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.test.MockConnection;
+import io.agroal.test.MockStatement;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,7 @@ import jakarta.transaction.TransactionSynchronizationRegistry;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
+import java.sql.Statement;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -95,6 +97,53 @@ public class ReapTests {
         }
     }
 
+    @Test
+    @DisplayName( "Reaper thread cancels the open Statement" )
+    void reaperStatementCancelRollback() {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                );
+        WarningsRequiredAgroalDatasourceListener listener = new WarningsRequiredAgroalDatasourceListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            txManager.setTransactionTimeout( 1 );
+            txManager.begin();
+
+            try ( Connection connection = dataSource.getConnection() ) {
+                try ( Statement statement = connection.createStatement() ) {
+                    TrackedStatement trackedStatement = statement.unwrap( TrackedStatement.class );
+
+                    assertFalse( connection.isClosed(), "Expected working connection" );
+                    assertFalse( trackedStatement.isClosed(), "Expected open statement" );
+
+                    logger.info( "waiting 2 seconds to so that the transaction times out" );
+                    Thread.sleep( 2 * 1000 );
+
+                    assertTrue( connection.isClosed(), "Expected connection closed by the reaper thread" );
+                    assertTrue( trackedStatement.isClosed(), "Expected statement closed by the reaper thread" );
+                    assertTrue( trackedStatement.isCanceled(), "Expected statement canceled on transaction timeout" );
+
+                    assertTrue( listener.seenWarning(), "Not seen the expected warning" );
+                }
+            } catch ( InterruptedException e ) {
+                fail( e );
+            }
+        } catch ( SystemException | NotSupportedException | SQLException e) {
+            fail ( e );
+        } finally {
+            try {
+                txManager.rollback();
+            } catch ( SystemException e ) {
+                fail( e );
+            }
+        }
+    }
+
     // --- //
     
     public static class TrackedConnection implements MockConnection {
@@ -125,6 +174,41 @@ public class ReapTests {
         }
 
         @Override
+        public Statement createStatement() throws SQLException {
+            return new TrackedStatement();
+        }
+
+        @Override
+        @SuppressWarnings( "unchecked" )
+        public <T> T unwrap(Class<T> target) throws SQLException {
+            return (T) this;
+        }
+    }
+
+    private static class TrackedStatement implements MockStatement {
+
+        private boolean closed, canceled;
+
+        @Override
+        public void close() throws SQLException {
+            closed = true;
+        }
+
+        @Override
+        public boolean isClosed() throws SQLException {
+            return closed;
+        }
+
+        @Override
+        public void cancel() throws SQLException {
+            canceled = true;
+        }
+
+        public boolean isCanceled() throws SQLException {
+            return canceled;
+        }
+
+        @Override
         @SuppressWarnings( "unchecked" )
         public <T> T unwrap(Class<T> target) throws SQLException {
             return (T) this;
@@ -146,5 +230,29 @@ public class ReapTests {
         public void onWarning(Throwable throwable) {
             fail( "Unexpected warning", throwable );
         }
+    }
+
+    private static class WarningsRequiredAgroalDatasourceListener implements AgroalDataSourceListener {
+
+        private boolean seenWarning;
+
+        @SuppressWarnings( "WeakerAccess" )
+        WarningsRequiredAgroalDatasourceListener() {
+        }
+
+        @Override
+        public void onWarning(String message) {
+            seenWarning = true;
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            seenWarning = true;
+        }
+
+        public boolean seenWarning() {
+            return seenWarning;
+        }
+
     }
 }
