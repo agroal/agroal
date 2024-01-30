@@ -65,23 +65,33 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String EXCEPTION_SORTER = "exceptionSorter";
     public static final String MULTIPLE_ACQUISITION = "multipleAcquisition";
     public static final String TRANSACTION_REQUIREMENT = "transactionRequirement";
+    public static final String VALIDATE_ON_BORROW = "validateOnBorrow";
 
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
     public static final String ACQUISITION_TIMEOUT_MS = "acquisitionTimeout_ms";
     public static final String ACQUISITION_TIMEOUT_S = "acquisitionTimeout_s";
     public static final String ACQUISITION_TIMEOUT_M = "acquisitionTimeout_m";
+
+    public static final String IDLE_VALIDATION = "idleValidation";
+    public static final String IDLE_VALIDATION_MS = "idleValidation_ms";
+    public static final String IDLE_VALIDATION_S = "idleValidation_s";
+    public static final String IDLE_VALIDATION_M = "idleValidation_m";
+
     public static final String VALIDATION_TIMEOUT = "validationTimeout";
     public static final String VALIDATION_TIMEOUT_MS = "validationTimeout_ms";
     public static final String VALIDATION_TIMEOUT_S = "validationTimeout_s";
     public static final String VALIDATION_TIMEOUT_M = "validationTimeout_m";
+
     public static final String LEAK_TIMEOUT = "leakTimeout";
     public static final String LEAK_TIMEOUT_MS = "leakTimeout_ms";
     public static final String LEAK_TIMEOUT_S = "leakTimeout_s";
     public static final String LEAK_TIMEOUT_M = "leakTimeout_m";
+
     public static final String REAP_TIMEOUT = "reapTimeout";
     public static final String REAP_TIMEOUT_MS = "reapTimeout_ms";
     public static final String REAP_TIMEOUT_S = "reapTimeout_s";
     public static final String REAP_TIMEOUT_M = "reapTimeout_m";
+
     public static final String MAX_LIFETIME = "maxLifetime";
     public static final String MAX_LIFETIME_MS = "maxLifetime_ms";
     public static final String MAX_LIFETIME_S = "maxLifetime_s";
@@ -166,11 +176,17 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::enhancedLeakReport, Boolean::parseBoolean, properties, ENHANCED_LEAK_REPORT );
         apply( connectionPoolSupplier::multipleAcquisition, MultipleAcquisitionAction::valueOf, properties, MULTIPLE_ACQUISITION );
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
+        apply( connectionPoolSupplier::validateOnBorrow, Boolean::parseBoolean, properties, VALIDATE_ON_BORROW );
 
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );
         apply( connectionPoolSupplier::acquisitionTimeout, AgroalPropertiesReader::parseDurationMs, properties, ACQUISITION_TIMEOUT_MS );
         apply( connectionPoolSupplier::acquisitionTimeout, AgroalPropertiesReader::parseDurationS, properties, ACQUISITION_TIMEOUT_S );
         apply( connectionPoolSupplier::acquisitionTimeout, AgroalPropertiesReader::parseDurationM, properties, ACQUISITION_TIMEOUT_M );
+
+        apply( connectionPoolSupplier::idleValidationTimeout, Duration::parse, properties, IDLE_VALIDATION );
+        apply( connectionPoolSupplier::idleValidationTimeout, AgroalPropertiesReader::parseDurationMs, properties, IDLE_VALIDATION_MS );
+        apply( connectionPoolSupplier::idleValidationTimeout, AgroalPropertiesReader::parseDurationS, properties, IDLE_VALIDATION_S );
+        apply( connectionPoolSupplier::idleValidationTimeout, AgroalPropertiesReader::parseDurationM, properties, IDLE_VALIDATION_M );
 
         apply( connectionPoolSupplier::validationTimeout, Duration::parse, properties, VALIDATION_TIMEOUT );
         apply( connectionPoolSupplier::validationTimeout, AgroalPropertiesReader::parseDurationMs, properties, VALIDATION_TIMEOUT_MS );
