@@ -107,6 +107,11 @@ public class HikariUnderTheCovers implements AgroalDataSource {
     }
 
     @Override
+    public String getUrl() {
+        return factoryConfiguration.jdbcUrl();
+    }
+
+    @Override
     public AgroalDataSourceConfiguration getConfiguration() {
         return configuration;
     }

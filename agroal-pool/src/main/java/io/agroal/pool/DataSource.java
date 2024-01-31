@@ -55,6 +55,11 @@ public final class DataSource implements AgroalDataSource {
     }
 
     @Override
+    public String getUrl() {
+        return connectionPool.getConfiguration().connectionFactoryConfiguration().jdbcUrl();
+    }
+
+    @Override
     public AgroalDataSourceConfiguration getConfiguration() {
         return configuration;
     }

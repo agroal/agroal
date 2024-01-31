@@ -56,6 +56,8 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     private io.agroal.api.AgroalDataSource delegate;
     private String datasourceName = "<default>";
 
+    private String url;
+
     public AgroalDataSource() {
         datasourceConfiguration = new AgroalDataSourceConfigurationSupplier();
         connectionPoolConfiguration = new AgroalConnectionPoolConfigurationSupplier();
@@ -162,6 +164,12 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setUrl(String url) {
         connectionFactoryConfiguration.jdbcUrl( url );
+        this.url = url;
+    }
+
+    // AG-234 - LiquibaseAutoConfiguration in Spring Boot may need to derive from this DataSource using getUrl()
+    public String getUrl() {
+        return this.url;
     }
 
     public void setDriverClass(Class<? extends DataSource> driver) {
@@ -199,11 +207,11 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     public void setRecoveryPassword(String password) {
         connectionFactoryConfiguration.recoveryCredential( new SimplePassword( password ) );
     }
-    
+
     public void setJdbcTransactionIsolation(int level) {
         connectionFactoryConfiguration.jdbcTransactionIsolation( level );
     }
-    
+
     public void setJdbcProperties(Map<String, String> properties) {
         properties.forEach(connectionFactoryConfiguration::jdbcProperty);
     }

@@ -57,6 +57,11 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
     // --- //
 
     /**
+     * Allows access to the used jdbcUrl. DataSource derivation in spring boot's LiquibaseAutoConfiguration may need this.
+     */
+    String getUrl();
+
+    /**
      * Allows inspection of the configuration. Some properties allow read / write.
      */
     AgroalDataSourceConfiguration getConfiguration();
