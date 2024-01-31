@@ -19,6 +19,16 @@ public final class InterceptorHelper {
     private InterceptorHelper() {
     }
 
+    public static void fireOnConnectionCreateInterceptor(List<? extends AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
+        if ( interceptors != null && !interceptors.isEmpty() ) {
+            for ( AgroalPoolInterceptor interceptor : interceptors ) {
+                try ( Connection connection = handler.detachedWrapper() ) {
+                    interceptor.onConnectionCreate( connection );
+                }
+            }
+        }
+    }
+
     public static void fireOnConnectionAcquiredInterceptor(List<? extends AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
         if ( interceptors != null && !interceptors.isEmpty() ) {
             for ( AgroalPoolInterceptor interceptor : interceptors ) {
@@ -34,6 +44,16 @@ public final class InterceptorHelper {
             for ( int i = interceptors.size(); i > 0; ) {
                 try ( Connection connection = handler.detachedWrapper() ) {
                     interceptors.get( --i ).onConnectionReturn( connection );
+                }
+            }
+        }
+    }
+
+    public static void fireOnConnectionDestroyInterceptor(List<? extends AgroalPoolInterceptor> interceptors, ConnectionHandler handler) throws SQLException {
+        if ( interceptors != null && !interceptors.isEmpty() ) {
+            for ( int i = interceptors.size(); i > 0; ) {
+                try ( Connection connection = handler.detachedWrapper() ) {
+                    interceptors.get( --i ).onConnectionDestroy( connection );
                 }
             }
         }
