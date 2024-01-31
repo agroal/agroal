@@ -27,6 +27,8 @@ import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
 import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
+import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionCreateInterceptor;
+import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionDestroyInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionReturnInterceptor;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionAcquire;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionCreation;
@@ -362,9 +364,10 @@ public final class Poolless implements Pool {
 
         try {
             ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), this );
+            metricsRepository.afterConnectionCreation( metricsStamp );
 
             fireOnConnectionCreation( listeners, handler );
-            metricsRepository.afterConnectionCreation( metricsStamp );
+            fireOnConnectionCreateInterceptor( interceptors, handler );
 
             handler.setState( CHECKED_OUT );
             allConnections.add( handler );
@@ -412,6 +415,7 @@ public final class Poolless implements Pool {
     private void destroyConnection(ConnectionHandler handler) {
         fireBeforeConnectionDestroy( listeners, handler );
         try {
+            fireOnConnectionDestroyInterceptor( interceptors, handler );
             handler.closeConnection();
         } catch ( SQLException e ) {
             fireOnWarning( listeners, e );

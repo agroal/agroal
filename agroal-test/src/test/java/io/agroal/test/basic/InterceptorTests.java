@@ -18,10 +18,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 
+import static io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.util.Arrays.asList;
+import static java.util.List.of;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -93,6 +95,59 @@ public class InterceptorTests {
                     IllegalArgumentException.class,
                     () -> dataSource.setPoolInterceptors( asList( new LowPriorityInterceptor(), new MainInterceptor(), new NegativePriorityInterceptor() ) ),
                     "Interceptors with negative priority throw an IllegalArgumentException as negative priority values are reserved." );
+        }
+    }
+
+    @Test
+    @DisplayName( "Pool interceptor test" )
+    void poolInterceptorTest() throws SQLException {
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 ) );
+
+        InvocationCountInterceptor countInterceptor = new InvocationCountInterceptor();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            dataSource.setPoolInterceptors( of( countInterceptor ) );
+
+            assertEquals( 0, countInterceptor.created, "Expected connection not created" );
+            assertEquals( 0, countInterceptor.acquired, "Expected connection not acquired" );
+
+            try ( Connection ignored = dataSource.getConnection() ) {
+                assertEquals( 1, countInterceptor.created, "Expected one connection created" );
+                assertEquals( 1, countInterceptor.acquired, "Expected one connection acquired" );
+            }
+            assertEquals( 1, countInterceptor.returned, "Expected one connection returned" );
+
+            try ( Connection ignored = dataSource.getConnection() ) {
+                assertEquals( 1, countInterceptor.created, "Expected one connection created" );
+                assertEquals( 2, countInterceptor.acquired, "Expected two connection acquired" );
+            }
+            assertEquals( 2, countInterceptor.returned, "Expected two connection returned" );
+        }
+        assertEquals( 1, countInterceptor.destroy, "Expected one connection destroyed" );
+    }
+
+    @Test
+    @DisplayName( "Pooless interceptor test" )
+    void poolessInterceptorTest() throws SQLException {
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .dataSourceImplementation( AGROAL_POOLLESS )
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 ) );
+
+        InvocationCountInterceptor countInterceptor = new InvocationCountInterceptor();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            dataSource.setPoolInterceptors( of( countInterceptor ) );
+
+            assertEquals( 0, countInterceptor.created, "Expected connection not created" );
+            assertEquals( 0, countInterceptor.acquired, "Expected connection not acquired" );
+
+            try ( Connection ignored = dataSource.getConnection() ) {
+                assertEquals( 1, countInterceptor.created, "Expected one connection created" );
+                assertEquals( 1, countInterceptor.acquired, "Expected one connection acquired" );
+            }
+            assertEquals( 1, countInterceptor.returned, "Expected one connection returned" );
+            assertEquals( 1, countInterceptor.destroy, "Expected one connection destroyed" );
         }
     }
 
@@ -174,6 +229,34 @@ public class InterceptorTests {
     }
 
     // --- //
+
+    private static class InvocationCountInterceptor implements AgroalPoolInterceptor {
+
+        private int created, acquired, returned, destroy;
+
+        @Override
+        public void onConnectionCreate(Connection connection) {
+            created++;
+        }
+
+        @Override
+        public void onConnectionAcquire(Connection connection) {
+            acquired++;
+        }
+
+        @Override
+        public void onConnectionReturn(Connection connection) {
+            returned++;
+        }
+
+        @Override
+        public void onConnectionDestroy(Connection connection) {
+            destroy++;
+        }
+    }
+
+    // --- //
+
 
     public static class FakeSchemaConnection implements MockConnection {
 

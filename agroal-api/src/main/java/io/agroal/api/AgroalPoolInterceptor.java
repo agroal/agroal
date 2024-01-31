@@ -29,6 +29,13 @@ public interface AgroalPoolInterceptor {
         }
     };
 
+
+    /**
+     * This callback is invoked when a new connection is created.
+     */
+    default void onConnectionCreate(Connection connection) {
+    }
+
     /**
      * This callback is invoked when a connection is successfully acquired.
      * When in a transactional environment this is invoked only once for multiple acquire calls within the same transaction, before the connection is associated.
@@ -43,6 +50,14 @@ public interface AgroalPoolInterceptor {
      */
     default void onConnectionReturn(Connection connection) {
     }
+
+
+    /**
+     * This callback is invoked just before a connection is destroyed.
+     */
+    default void onConnectionDestroy(Connection connection) {
+    }
+
 
     /**
      * Allows a ordering between multiple interceptors.

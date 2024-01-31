@@ -38,6 +38,8 @@ import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
 import static io.agroal.pool.ConnectionHandler.State.FLUSH;
 import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
+import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionCreateInterceptor;
+import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionDestroyInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionReturnInterceptor;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionAcquire;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionCreation;
@@ -541,12 +543,14 @@ public final class ConnectionPool implements Pool {
 
             try {
                 ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
+                metricsRepository.afterConnectionCreation( metricsStamp );
+
                 if ( !configuration.maxLifetime().isZero() ) {
                     handler.setMaxLifetimeTask( housekeepingExecutor.schedule( new FlushTask( GRACEFUL, handler ), configuration.maxLifetime().toNanos(), NANOSECONDS ) );
                 }
 
-                metricsRepository.afterConnectionCreation( metricsStamp );
                 fireOnConnectionCreation( listeners, handler );
+                fireOnConnectionCreateInterceptor( interceptors, handler );
 
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
@@ -791,6 +795,7 @@ public final class ConnectionPool implements Pool {
         public void run() {
             fireBeforeConnectionDestroy( listeners, handler );
             try {
+                fireOnConnectionDestroyInterceptor( interceptors, handler );
                 handler.closeConnection();
             } catch ( SQLException e ) {
                 fireOnWarning( listeners, e );
