@@ -22,77 +22,91 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
     public RecoveryXAResource(ResourceRecoveryFactory factory, String name) throws SQLException {
         connectionFactory = factory;
         jndiName = name;
-        connect();
+        connect( false );
     }
 
-    private void connect() throws SQLException {
+    private boolean connect(boolean flag) throws SQLException {
         if ( wrappedResource == null ) {
             xaConnection = connectionFactory.getRecoveryConnection();
             wrappedResource = xaConnection.getXAResource();
+            return flag;
         }
+        return false;
     }
 
-    private XAResource getConnectedResource() throws XAException {
+    private <R> R getConnectedResource(Function<XAResource, R> f) throws XAException {
+        boolean reconnect = false;
         try {
-            connect();
+            reconnect = connect( true );
+            return f.apply( wrappedResource );
         } catch ( SQLException e ) {
             throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, e );
+        } finally {
+            if ( reconnect ) {
+                close();
+            }
         }
-        return wrappedResource;
     }
 
     @Override
     public Xid[] recover(int flag) throws XAException {
-        Xid[] value = getConnectedResource().recover( flag );
-        if ( flag == TMENDRSCAN && ( value == null || value.length == 0 ) ) {
-            close();
+        try {
+            if ( flag == TMSTARTRSCAN ) {
+                connect(false);
+            }
+            Xid[] value = getConnectedResource( xaResource -> xaResource.recover( flag ) );
+            if ( flag == TMENDRSCAN && ( value == null || value.length == 0 ) ) {
+                close();
+            }
+            return value;
+        } catch ( SQLException e ) {
+            throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, e );
         }
-        return value;
     }
 
     @Override
     public void commit(Xid xid, boolean onePhase) throws XAException {
-        getConnectedResource().commit( xid, onePhase );
+        getConnectedResource( xaResource -> { xaResource.commit( xid, onePhase ); return null; } );
     }
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
-        getConnectedResource().end( xid, flags );
+        getConnectedResource( xaResource -> { xaResource.end( xid, flags ); return null; } );
     }
 
     @Override
     public void forget(Xid xid) throws XAException {
-        getConnectedResource().forget( xid );
+        getConnectedResource( xaResource -> { xaResource.forget( xid ); return null; } );
     }
 
     @Override
     public int getTransactionTimeout() throws XAException {
-        return getConnectedResource().getTransactionTimeout();
+        return getConnectedResource( XAResource::getTransactionTimeout );
     }
 
     @Override
     public boolean isSameRM(XAResource xares) throws XAException {
-        return getConnectedResource().isSameRM( xares );
+        return getConnectedResource( xaResource -> xaResource.isSameRM( xares ) );
     }
 
     @Override
     public int prepare(Xid xid) throws XAException {
-        return getConnectedResource().prepare( xid );
+        return getConnectedResource( xaResource -> xaResource.prepare( xid ) );
     }
 
     @Override
     public void rollback(Xid xid) throws XAException {
-        getConnectedResource().rollback( xid );
+        getConnectedResource( xaResource -> { xaResource.rollback( xid ); return null; } );
     }
 
     @Override
     public boolean setTransactionTimeout(int seconds) throws XAException {
-        return getConnectedResource().setTransactionTimeout( seconds );
+        return getConnectedResource( xaResource -> xaResource.setTransactionTimeout( seconds ) );
     }
 
     @Override
     public void start(Xid xid, int flags) throws XAException {
-        getConnectedResource().start( xid, flags );
+        getConnectedResource( xaResource -> { xaResource.start( xid, flags ); return null; } );
     }
 
     // --- //
@@ -113,11 +127,7 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
 
     @Override
     public XAResource getResource() {
-        try {
-            return getConnectedResource();
-        } catch (XAException e) {
-            throw new IllegalStateException(e);
-        }
+        return wrappedResource;
     }
 
     @Override
@@ -135,4 +145,7 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
         return jndiName;
     }
 
+    private interface Function<T, R> {
+        R apply(T t) throws XAException;
+    }
 }
