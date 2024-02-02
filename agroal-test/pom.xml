@@ -180,6 +180,12 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
+            <version>${version.org.liquibase}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>dev.snowdrop</groupId>
             <artifactId>narayana-spring-boot-starter</artifactId>
             <version>${version.dev.snowdrop}</version>

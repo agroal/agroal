@@ -160,6 +160,11 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     // --- //
 
+    // AG-234 - Allows access to the used jdbcUrl. DataSource derivation in spring boot's LiquibaseAutoConfiguration may need this.
+    public String getUrl() {
+        return getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().jdbcUrl();
+    }
+
     public void setUrl(String url) {
         connectionFactoryConfiguration.jdbcUrl( url );
     }
@@ -267,14 +272,18 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         return delegate.getConnection( username, password );
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        return delegate.unwrap( iface );
+        if (isWrapperFor(iface)) {
+            return (T) this;
+        }
+        throw new SQLException("Unable to unwrap: '" + this.getClass().getName() + "' is not a wrapper for '" + iface.getName() + "'");
     }
 
     @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return delegate.isWrapperFor( iface );
+    public boolean isWrapperFor(Class<?> iface) {
+        return iface != null && iface.isAssignableFrom(this.getClass());
     }
 
     @Override
