@@ -32,8 +32,7 @@ class LiquibaseTests {
     void testAutoconfigureLiquibaseUsingCustomCredentials() {
         runner.withPropertyValues(
                         "spring.liquibase.user=liquibaseuser",
-                        "spring.liquibase.password=liquibasepassword",
-                        "spring.liquibase.driver-class-name=org.h2.Driver")
+                        "spring.liquibase.password=liquibasepassword")
                 .run(context -> {
                     assertThat(context).hasSingleBean(SpringLiquibase.class);
                     DataSource primaryDataSource = context.getBean(DataSource.class);
