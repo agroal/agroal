@@ -26,6 +26,7 @@ import javax.sql.DataSource;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.time.Duration;
@@ -36,6 +37,7 @@ import java.util.Map;
 
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
+import static org.springframework.boot.jdbc.DatabaseDriver.fromJdbcUrl;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -171,6 +173,15 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setDriverClass(Class<? extends DataSource> driver) {
         connectionFactoryConfiguration.connectionProviderClass( driver );
+    }
+
+    public String getDriverClassName() {
+        Class<?> providerClass = getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().connectionProviderClass();
+        if ( Driver.class.isAssignableFrom( providerClass ) ) {
+            return providerClass.getName();
+        } else {
+            return fromJdbcUrl( getUrl() ).getDriverClassName();
+        }
     }
 
     public void setDriverClassName(String driver) {
