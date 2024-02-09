@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.agroal</groupId>
         <artifactId>agroal-parent</artifactId>
-        <version>2.3-SNAPSHOT</version>
+        <version>2.3</version>
     </parent>
     <artifactId>agroal-test</artifactId>
     <name>Agroal Test Suite</name>
@@ -236,7 +236,7 @@
                 <version>${version.eu.somatik.serviceloader-maven-plugin}</version>
                 <configuration>
                     <services>
-                        <param>org.junit.platform.launcher.LauncherInterceptor</param>>
+                        <param>org.junit.platform.launcher.LauncherInterceptor</param>&gt;
                     </services>
                 </configuration>
                 <executions>
