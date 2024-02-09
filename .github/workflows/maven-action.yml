@@ -67,8 +67,7 @@ jobs:
       - id: project
         run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
       - if: endsWith(${{ env.PROJECT_VERSION }}, '-SNAPSHOT')
-        run: mvn -B deploy
+        run: mvn -B deploy -P jboss-release
         env:
           MAVEN_CI_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_CI_PASSWORD: ${{ secrets.MAVEN_TOKEN }}
-          
