@@ -26,6 +26,7 @@ import javax.sql.DataSource;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.time.Duration;
@@ -36,6 +37,7 @@ import java.util.Map;
 
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
+import static org.springframework.boot.jdbc.DatabaseDriver.fromJdbcUrl;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -160,12 +162,26 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     // --- //
 
+    // AG-234 - Allows access to the used jdbcUrl. DataSource derivation in spring boot's LiquibaseAutoConfiguration may need this.
+    public String getUrl() {
+        return getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().jdbcUrl();
+    }
+
     public void setUrl(String url) {
         connectionFactoryConfiguration.jdbcUrl( url );
     }
 
     public void setDriverClass(Class<? extends DataSource> driver) {
         connectionFactoryConfiguration.connectionProviderClass( driver );
+    }
+
+    public String getDriverClassName() {
+        Class<?> providerClass = getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().connectionProviderClass();
+        if ( Driver.class.isAssignableFrom( providerClass ) ) {
+            return providerClass.getName();
+        } else {
+            return fromJdbcUrl( getUrl() ).getDriverClassName();
+        }
     }
 
     public void setDriverClassName(String driver) {
@@ -267,14 +283,18 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         return delegate.getConnection( username, password );
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        return delegate.unwrap( iface );
+        if (isWrapperFor(iface)) {
+            return (T) this;
+        }
+        throw new SQLException("Unable to unwrap: '" + this.getClass().getName() + "' is not a wrapper for '" + iface.getName() + "'");
     }
 
     @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return delegate.isWrapperFor( iface );
+    public boolean isWrapperFor(Class<?> iface) {
+        return iface != null && iface.isAssignableFrom(this.getClass());
     }
 
     @Override
