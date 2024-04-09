@@ -7,14 +7,25 @@ import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.AgroalPoolInterceptor;
+import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
+import io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation;
+import io.agroal.api.configuration.supplier.AgroalConnectionFactoryConfigurationSupplier;
+import io.agroal.api.configuration.supplier.AgroalConnectionPoolConfigurationSupplier;
+import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.api.security.NamePrincipal;
+import io.agroal.api.security.SimplePassword;
+import io.agroal.pool.util.ReloadDataSourceUtil;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 import static java.util.Collections.emptyList;
@@ -26,64 +37,67 @@ public final class DataSource implements AgroalDataSource {
 
     private static final long serialVersionUID = 6485903416474487024L;
 
-    private final AgroalDataSourceConfiguration configuration;
-    private final Pool connectionPool;
+    private final AtomicReference<AgroalDataSourceConfiguration> configuration  = new AtomicReference<>();
+    private final AtomicReference<Pool> connectionPool  = new AtomicReference<>();
+    private final AtomicReference<AgroalDataSourceListener[]> listeners = new AtomicReference<>();
 
     public DataSource(AgroalDataSourceConfiguration dataSourceConfiguration, AgroalDataSourceListener... listeners) {
-        configuration = dataSourceConfiguration;
-        if ( configuration.dataSourceImplementation() == AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS ) {
-            connectionPool = new Poolless( dataSourceConfiguration.connectionPoolConfiguration(), listeners );
+        configuration.set(dataSourceConfiguration);
+        if ( configuration.get().dataSourceImplementation() == AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS ) {
+            connectionPool.set(new Poolless( dataSourceConfiguration.connectionPoolConfiguration(), listeners ));
         } else {
-            connectionPool = new ConnectionPool( dataSourceConfiguration.connectionPoolConfiguration(), listeners );
+            connectionPool.set(new ConnectionPool( dataSourceConfiguration.connectionPoolConfiguration(), listeners ));
         }
 
-        dataSourceConfiguration.registerMetricsEnabledListener( connectionPool );
-        connectionPool.onMetricsEnabled( dataSourceConfiguration.metricsEnabled() );
-        connectionPool.init();
+        this.listeners.set(listeners);
+
+        dataSourceConfiguration.registerMetricsEnabledListener( connectionPool.get());
+        connectionPool.get().onMetricsEnabled( dataSourceConfiguration.metricsEnabled() );
+        connectionPool.get().init();
     }
 
     // --- AgroalDataSource methods //
 
     @Override
     public void setPoolInterceptors(Collection<? extends AgroalPoolInterceptor> interceptors) {
-        connectionPool.setPoolInterceptors( interceptors == null ? emptyList() : interceptors );
+        connectionPool.get().setPoolInterceptors( interceptors == null ? emptyList() : interceptors );
     }
 
     @Override
     public List<AgroalPoolInterceptor> getPoolInterceptors() {
-        return connectionPool.getPoolInterceptors();
+        return connectionPool.get().getPoolInterceptors();
     }
 
     @Override
     public AgroalDataSourceConfiguration getConfiguration() {
-        return configuration;
+        return configuration.get();
     }
 
     @Override
     public AgroalDataSourceMetrics getMetrics() {
-        return connectionPool.getMetrics();
+        return connectionPool.get().getMetrics();
     }
 
     @Override
     public void flush(FlushMode mode) {
-        connectionPool.flushPool( mode );
+        connectionPool.get().flushPool( mode );
     }
 
     @Override
     public boolean isHealthy(boolean newConnection) throws SQLException {
-        return connectionPool.isHealthy( newConnection );
+        return connectionPool.get().isHealthy( newConnection );
     }
 
     @Override
     public void close() {
-        connectionPool.close();
+        connectionPool.get().close();
     }
 
     // --- DataSource methods //
 
     @Override
     public Connection getConnection() throws SQLException {
-        return connectionPool.getConnection();
+        return connectionPool.get().getConnection();
     }
 
     @Override
@@ -128,5 +142,71 @@ public final class DataSource implements AgroalDataSource {
     @Override
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
         throw new SQLFeatureNotSupportedException( "Not Supported" );
+    }
+
+    // --- DataSource method //
+    /**
+     * Reload current DataSource
+     * @param properties - key-value structure. Available keys: ReloadDataSourceUtil.AGROAL_JDBC_URL, ReloadDataSourceUtil.AGROAL_USERNAME, ReloadDataSourceUtil.AGROAL_PASSWORD
+     * @param flushMode - flush mode
+     */
+    public synchronized void reloadDataSourceWithNewCredentials(Properties properties, FlushMode flushMode) {
+        flush(flushMode);
+        this.connectionPool.get().close();
+
+        AgroalConnectionPoolConfigurationSupplier agroalConnectionPoolConfigurationSupplier = new AgroalConnectionPoolConfigurationSupplier(getConfiguration().connectionPoolConfiguration());
+        AgroalConnectionFactoryConfigurationSupplier agroalConnFactConfSupplier = new AgroalConnectionFactoryConfigurationSupplier();
+
+        AgroalConnectionFactoryConfiguration configuration = getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration();
+        agroalConnFactConfSupplier.autoCommit(configuration.autoCommit());
+        agroalConnFactConfSupplier.trackJdbcResources(configuration.trackJdbcResources());
+        agroalConnFactConfSupplier.loginTimeout(configuration.loginTimeout());
+        if (properties.containsKey(ReloadDataSourceUtil.AGROAL_JDBC_URL)) {
+            agroalConnFactConfSupplier.jdbcUrl(properties.getProperty(ReloadDataSourceUtil.AGROAL_JDBC_URL));
+        } else {
+            agroalConnFactConfSupplier.jdbcUrl(configuration.jdbcUrl());
+        }
+        agroalConnFactConfSupplier.initialSql(configuration.initialSql());
+        agroalConnFactConfSupplier.connectionProviderClass(configuration.connectionProviderClass());
+        agroalConnFactConfSupplier.jdbcTransactionIsolation(AgroalConnectionFactoryConfiguration.TransactionIsolation.fromLevel(configuration.jdbcTransactionIsolation().level()));
+
+        if (properties.containsKey(ReloadDataSourceUtil.AGROAL_USERNAME)) {
+            NamePrincipal namePrincipal = new NamePrincipal(properties.getProperty(ReloadDataSourceUtil.AGROAL_USERNAME));
+
+            agroalConnFactConfSupplier.principal(namePrincipal);
+            agroalConnFactConfSupplier.recoveryPrincipal(namePrincipal);
+        } else {
+            agroalConnFactConfSupplier.principal(configuration.principal());
+            agroalConnFactConfSupplier.recoveryPrincipal(configuration.recoveryPrincipal());
+        }
+
+        if (properties.containsKey(ReloadDataSourceUtil.AGROAL_PASSWORD)) {
+            SimplePassword simplePassword = new SimplePassword(properties.getProperty(ReloadDataSourceUtil.AGROAL_PASSWORD));
+
+            agroalConnFactConfSupplier.credential(simplePassword);
+            agroalConnFactConfSupplier.recoveryCredential(simplePassword);
+        } else {
+            agroalConnFactConfSupplier.credential(configuration.credentials());
+            agroalConnFactConfSupplier.recoveryCredential(configuration.recoveryCredentials());
+        }
+
+        configuration.jdbcProperties().forEach((k, v) -> agroalConnFactConfSupplier.jdbcProperty((String)k, (String)v));
+
+        agroalConnectionPoolConfigurationSupplier.connectionFactoryConfiguration(agroalConnFactConfSupplier);
+
+        AgroalDataSourceConfigurationSupplier agroalDataSourceConfigurationSupplier = new AgroalDataSourceConfigurationSupplier();
+        agroalDataSourceConfigurationSupplier.connectionPoolConfiguration(agroalConnectionPoolConfigurationSupplier);
+        AgroalDataSourceConfiguration dataSourceConfiguration = agroalDataSourceConfigurationSupplier.get();
+
+        this.configuration.set(dataSourceConfiguration);
+        if (this.configuration.get().dataSourceImplementation() == DataSourceImplementation.AGROAL_POOLLESS) {
+            this.connectionPool.set(new Poolless(dataSourceConfiguration.connectionPoolConfiguration(), listeners.get()));
+        } else {
+            this.connectionPool.set(new ConnectionPool(dataSourceConfiguration.connectionPoolConfiguration(), listeners.get()));
+        }
+
+        dataSourceConfiguration.registerMetricsEnabledListener(this.connectionPool.get());
+        this.connectionPool.get().onMetricsEnabled(dataSourceConfiguration.metricsEnabled());
+        this.connectionPool.get().init();
     }
 }
