@@ -215,6 +215,45 @@ public class RecoveryTests {
         }
     }
 
+    @Test
+    @DisplayName( "Check all connections are closed test" )
+    void xaConnectionsAreClosedTest() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        com.arjuna.ats.arjuna.common.recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
+        RecoveryManager recoveryManager = RecoveryManager.manager( DIRECT_MANAGEMENT );
+        recoveryManager.removeAllModules( true );
+        recoveryManager.addModule( new XARecoveryModule() );
+
+        RecoveryManagerService recoveryService = new RecoveryManagerService();
+        recoveryService.create();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier1 = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( RequiresCloseXADataSource.class ) )
+                );
+        AgroalDataSourceConfigurationSupplier configurationSupplier2 = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( RequiresCloseXADataSource.class ) )
+                );
+        try ( AgroalDataSource dataSource1 = AgroalDataSource.from( configurationSupplier1, new WarningsAgroalDatasourceListener() );
+        		AgroalDataSource dataSource2 = AgroalDataSource.from( configurationSupplier2, new WarningsAgroalDatasourceListener()) ) {
+            logger.info( "Starting recovery on DataSources " +  dataSource1 + "and " + dataSource2 );
+            
+            recoveryManager.scan();
+
+            assertEquals( 2, RequiresCloseXADataSource.getClosed(), "Expected 2 connections to have been closed" );
+        } finally {
+            recoveryManager.terminate( true );
+        }
+    }
     // --- //
 
     private static class DriverAgroalDataSourceListener implements AgroalDataSourceListener {
