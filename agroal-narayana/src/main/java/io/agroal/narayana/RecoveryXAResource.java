@@ -22,22 +22,21 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
     public RecoveryXAResource(ResourceRecoveryFactory factory, String name) throws SQLException {
         connectionFactory = factory;
         jndiName = name;
-        connect( false );
     }
 
-    private boolean connect(boolean flag) throws SQLException {
+    private boolean connect() throws SQLException {
         if ( wrappedResource == null ) {
             xaConnection = connectionFactory.getRecoveryConnection();
             wrappedResource = xaConnection.getXAResource();
-            return flag;
+            return true;
         }
         return false;
     }
 
-    private <R> R getConnectedResource(Function<XAResource, R> f) throws XAException {
+    private <R> R getConnectedResource(XAFunction<? super XAResource, R> f) throws XAException {
         boolean reconnect = false;
         try {
-            reconnect = connect( true );
+            reconnect = connect();
             return f.apply( wrappedResource );
         } catch ( SQLException e ) {
             throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, e );
@@ -51,11 +50,11 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
     @Override
     public Xid[] recover(int flag) throws XAException {
         try {
-            if ( flag == TMSTARTRSCAN ) {
-                connect(false);
+            if ( ( flag & TMSTARTRSCAN ) != 0 ) {
+                connect();
             }
             Xid[] value = getConnectedResource( xaResource -> xaResource.recover( flag ) );
-            if ( flag == TMENDRSCAN && ( value == null || value.length == 0 ) ) {
+            if ( ( ( flag & TMENDRSCAN ) != 0 ) && ( value == null || value.length == 0 ) ) {
                 close();
             }
             return value;
@@ -145,7 +144,7 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
         return jndiName;
     }
 
-    private interface Function<T, R> {
+    private interface XAFunction<T, R> {
         R apply(T t) throws XAException;
     }
 }
