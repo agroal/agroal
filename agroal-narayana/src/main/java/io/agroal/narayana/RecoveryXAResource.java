@@ -54,7 +54,7 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
                 connect();
             }
             Xid[] value = getConnectedResource( xaResource -> xaResource.recover( flag ) );
-            if ( ( ( flag & TMENDRSCAN ) != 0 ) && ( value == null || value.length == 0 ) ) {
+            if ( ( flag & TMENDRSCAN ) != 0 ) {
                 close();
             }
             return value;
