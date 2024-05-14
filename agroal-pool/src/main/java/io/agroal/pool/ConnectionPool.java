@@ -14,6 +14,7 @@ import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 
+import javax.sql.XAConnection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
@@ -133,8 +134,7 @@ public final class ConnectionPool implements Pool {
         if ( reapEnabled ) {
             housekeepingExecutor.schedule( new ReapTask(), configuration.reapTimeout().toNanos(), NANOSECONDS );
         }
-
-        transactionIntegration.addResourceRecoveryFactory( connectionFactory );
+        transactionIntegration.addResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this );
 
         // fill to the initial size
         if ( configuration.initialSize() < configuration.minSize() ) {
@@ -187,7 +187,7 @@ public final class ConnectionPool implements Pool {
 
     @Override
     public void close() {
-        transactionIntegration.removeResourceRecoveryFactory( connectionFactory );
+        transactionIntegration.removeResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this  );
 
         for ( Runnable task : housekeepingExecutor.shutdownNow() ) {
             if ( task instanceof DestroyConnectionTask ) {
@@ -203,6 +203,40 @@ public final class ConnectionPool implements Pool {
         activeCount.reset();
 
         synchronizer.release( synchronizer.getQueueLength() );
+    }
+
+    // --- //
+
+    @Override
+    public boolean isRecoverable() {
+        return connectionFactory.isRecoverable();
+    }
+
+    @Override
+    public XAConnection getRecoveryConnection() throws SQLException {
+        long stamp = beforeAcquire();
+        checkMultipleAcquisition();
+        ConnectionHandler checkedOutHandler = null;
+
+        try {
+            do {
+                checkedOutHandler = (ConnectionHandler) localCache.get();
+                if ( checkedOutHandler == null ) {
+                    checkedOutHandler = handlerFromSharedCache();
+                }
+            } while ( ( borrowValidationEnabled && !borrowValidation( checkedOutHandler ) )
+                    || ( idleValidationEnabled && !idleValidation( checkedOutHandler ) ) );
+            
+            activeCount.increment();
+            fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
+            afterAcquire( stamp, checkedOutHandler, false );
+            return checkedOutHandler.xaConnectionWrapper();
+        } catch ( Throwable t ) {
+            if ( checkedOutHandler != null ) {
+                checkedOutHandler.setState( CHECKED_OUT, CHECKED_IN );
+            }
+            throw t;
+        }
     }
 
     // --- //
@@ -242,7 +276,8 @@ public final class ConnectionPool implements Pool {
         if ( checkedOutHandler != null ) {
             // AG-140 - If associate throws here is fine, it's assumed the synchronization that returns the connection has been registered
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
-            return afterAcquire( stamp, checkedOutHandler );
+            afterAcquire( stamp, checkedOutHandler, true);
+            return checkedOutHandler.connectionWrapper();
         }
         checkMultipleAcquisition();
 
@@ -258,7 +293,8 @@ public final class ConnectionPool implements Pool {
 
             activeCount.increment();
             fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
-            return afterAcquire( stamp, checkedOutHandler );
+            afterAcquire( stamp, checkedOutHandler, true );
+            return checkedOutHandler.connectionWrapper();
         } catch ( Throwable t ) {
             if ( checkedOutHandler != null ) {
                 // AG-140 - Return the connection to the pool to prevent leak
@@ -368,11 +404,11 @@ public final class ConnectionPool implements Pool {
         }
     }
 
-    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) throws SQLException {
+    private void afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler, boolean verifyEnlistment) throws SQLException {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
 
-        if ( !checkedOutHandler.isEnlisted() ) {
+        if ( verifyEnlistment && !checkedOutHandler.isEnlisted() ) {
             switch ( configuration.transactionRequirement() ) {
                 case STRICT:
                     returnConnectionHandler( checkedOutHandler );
@@ -397,7 +433,6 @@ public final class ConnectionPool implements Pool {
                 checkedOutHandler.setAcquisitionStackTrace( currentThread().getStackTrace() );
             }
         }
-        return checkedOutHandler.connectionWrapper();
     }
 
     // --- //

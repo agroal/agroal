@@ -9,6 +9,7 @@ import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.MetricsEnabledListener;
+import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -18,7 +19,7 @@ import java.util.List;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public interface Pool extends MetricsEnabledListener, AutoCloseable {
+public interface Pool extends MetricsEnabledListener, AutoCloseable, ResourceRecoveryFactory {
 
     void init();
 

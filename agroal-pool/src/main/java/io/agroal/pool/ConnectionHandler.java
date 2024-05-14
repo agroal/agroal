@@ -10,6 +10,7 @@ import io.agroal.api.transaction.TransactionAware;
 import io.agroal.pool.util.AutoCloseableElement;
 import io.agroal.pool.util.UncheckedArrayList;
 import io.agroal.pool.wrapper.ConnectionWrapper;
+import io.agroal.pool.wrapper.XAConnectionWrapper;
 
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
@@ -92,6 +93,10 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
         connectionPool = pool;
         touch();
+    }
+
+    public XAConnectionWrapper xaConnectionWrapper() {
+        return new XAConnectionWrapper( this, xaConnection, connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() );
     }
 
     public ConnectionWrapper connectionWrapper() {

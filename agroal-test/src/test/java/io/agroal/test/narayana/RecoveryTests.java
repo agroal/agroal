@@ -17,6 +17,7 @@ import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.test.MockXAConnection;
 import io.agroal.test.MockXADataSource;
 import io.agroal.test.MockXAResource;
+import io.agroal.test.basic.Utils;
 import jakarta.transaction.TransactionManager;
 import jakarta.transaction.TransactionSynchronizationRegistry;
 import org.jboss.tm.XAResourceRecovery;
@@ -26,26 +27,38 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.ArgumentsProvider;
+import org.junit.jupiter.params.provider.ArgumentsSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.arjuna.ats.arjuna.recovery.RecoveryManager.DIRECT_MANAGEMENT;
+import static io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL;
+import static io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.AgroalTestGroup.TRANSACTION;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.logging.Logger.getLogger;
 import static java.util.stream.Collectors.toList;
 import static javax.transaction.xa.XAResource.TMENDRSCAN;
@@ -54,6 +67,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -67,11 +81,22 @@ public class RecoveryTests {
     @BeforeAll
     static void setup() {
         registerMockDriver();
+        if ( Utils.isWindowsOS() ) {
+            Utils.windowsTimerHack();
+        }
     }
 
     @AfterAll
     static void teardown() {
         deregisterMockDriver();
+    }
+
+    private static class RecoveryTestsArgumentsSource implements ArgumentsProvider {
+
+        @Override
+        public Stream<? extends Arguments> provideArguments(ExtensionContext context) throws Exception {
+            return Stream.of( arguments( false, false ), arguments( true, false ), arguments( false, true ), arguments( true, true ) );
+        }
     }
 
     // --- //
@@ -155,9 +180,9 @@ public class RecoveryTests {
     }
 
     @ParameterizedTest
-    @ValueSource( booleans = { true, false } )
+    @ArgumentsSource( RecoveryTestsArgumentsSource.class )
     @DisplayName( "Close recovery connection" )
-    void closeRecoveryConnection(boolean ignoreRecoveryFlags) throws Exception {
+    void closeRecoveryConnection(boolean recoveryCredentials, boolean ignoreRecoveryFlags) throws Exception {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -173,6 +198,7 @@ public class RecoveryTests {
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( RequiresCloseXADataSource.class )
+                                .recoveryPrincipal( recoveryCredentials ? new NamePrincipal( RecoveryCredentialsXADataSource.RECOVERY_USER ) : null )
                                 .jdbcProperty( "ignoreRecoveryFlags", String.valueOf( ignoreRecoveryFlags ) ) )
                 );
 
@@ -182,14 +208,25 @@ public class RecoveryTests {
             logger.info( "Performed first scan. Performing a second scan" );
             recoveryManager.scan();
             logger.info( "Two recovery scans completed" );
+
+            if ( recoveryCredentials ) {
+                assertEquals( 2, RequiresCloseXADataSource.getClosed(), "Expected two connections to have been closed" );
+            } else {
+                assertEquals( 0, RequiresCloseXADataSource.getClosed(), "Expected connections to remain open" );
+            }
         }
-        assertEquals( 2, RequiresCloseXADataSource.getClosed(), "Recovery connection not closed" );
+
+        if ( recoveryCredentials ) {
+            assertEquals( 2, RequiresCloseXADataSource.getClosed(), "Expected two connections to have been closed" );
+        } else {
+            assertEquals( 1, RequiresCloseXADataSource.getClosed(), "Expected connection closed" );
+        }
     }
 
     @ParameterizedTest
-    @ValueSource( booleans = { true, false } )
+    @ArgumentsSource( RecoveryTestsArgumentsSource.class )
     @DisplayName( "XAResource reopen test" )
-    void xaResourceReopenTest(boolean ignoreRecoveryFlags) throws SQLException {
+    void xaResourceReopenTest(boolean recoveryCredentials, boolean ignoreRecoveryFlags) throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -207,6 +244,7 @@ public class RecoveryTests {
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( RequiresCloseXADataSource.class )
+                                .recoveryPrincipal( recoveryCredentials ? new NamePrincipal( RecoveryCredentialsXADataSource.RECOVERY_USER ) : null )
                                 .jdbcProperty( "ignoreRecoveryFlags", String.valueOf( ignoreRecoveryFlags ) ) )
                 );
 
@@ -214,15 +252,20 @@ public class RecoveryTests {
             logger.info( "Starting recovery on DataSource " + dataSource );
             recoveryManager.scan();
 
-            assertEquals( 2, RequiresCloseXADataSource.getClosed(), "Expected two connections to have been closed" );
+            if ( recoveryCredentials ) {
+                assertEquals( 2, RequiresCloseXADataSource.getClosed(), "Expected two connections to have been closed" );
+            } else {
+                assertEquals( 0, RequiresCloseXADataSource.getClosed(), "Expected connections to remain open" );
+            }
         } finally {
             recoveryManager.terminate( true );
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource( booleans = {true, false} )
     @DisplayName( "Eager recovery module test" )
-    void eagerRecoveryModuleTest() throws SQLException {
+    void eagerRecoveryModuleTest(boolean recoveryCredentials) throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -233,20 +276,78 @@ public class RecoveryTests {
 
         RecoveryManagerService recoveryService = new RecoveryManagerService();
         recoveryService.create();
+        NonEmptyXidsResource.resetRollbackCount();
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
                         .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
                         .connectionFactoryConfiguration( cf -> cf
+                                .recoveryPrincipal( recoveryCredentials ? new NamePrincipal( RecoveryCredentialsXADataSource.RECOVERY_USER ) : null )
                                 .connectionProviderClass( RequiresCloseXADataSource.class ) )
                 );
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
             logger.info( "Starting recovery on DataSource " + dataSource );
             recoveryManager.scan();
+            assertEquals( NonEmptyXidsResource.XID_COUNT, NonEmptyXidsResource.rollbackCount(), "Expect action on Xids" );
 
-            assertEquals( 1 + NonEmptyXidsResource.XID_COUNT, RequiresCloseXADataSource.getClosed(), "Expected two connections to have been closed" );
+            if ( recoveryCredentials ) {
+                assertEquals( 1 + NonEmptyXidsResource.XID_COUNT, RequiresCloseXADataSource.getClosed(), "Expected two connections to have been closed" );
+            } else {
+                assertEquals( 0, RequiresCloseXADataSource.getClosed(), "Expected connections to remain open" );
+            }
+        } finally {
+            recoveryManager.terminate( true );
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource( booleans = {true, false} )
+    @DisplayName( "Leak resource test" )
+    void leakingRecoveryTest(boolean poolless) throws SQLException {
+        int LEAK_TIMEOUT_S = 1;
+
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        com.arjuna.ats.arjuna.common.recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
+        RecoveryManager recoveryManager = RecoveryManager.manager( DIRECT_MANAGEMENT );
+        recoveryManager.removeAllModules( true );
+        recoveryManager.addModule( new BogusRecoveryModule() );
+
+        RecoveryManagerService recoveryService = new RecoveryManagerService();
+        recoveryService.create();
+        NonEmptyXidsResource.resetRollbackCount();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .dataSourceImplementation( poolless ? AGROAL_POOLLESS : AGROAL )
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .leakTimeout( Duration.ofSeconds( LEAK_TIMEOUT_S ) )
+                        .enhancedLeakReport()
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .trackJdbcResources( true )
+                                .recoveryPrincipal( null )
+                                .connectionProviderClass( RequiresCloseXADataSource.class ) )
+                );
+
+        LeakDataSourceListener leakListener = new LeakDataSourceListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, leakListener ) ) {
+            logger.info( "Starting recovery on DataSource " + dataSource );
+            recoveryManager.scan();
+            assertEquals( NonEmptyXidsResource.XID_COUNT, NonEmptyXidsResource.rollbackCount(), "Expect action on Xids" );
+
+            if ( !poolless ) {
+                assertTrue( leakListener.awaitLeak( 2 * LEAK_TIMEOUT_S, SECONDS ), "Expected warning" );
+                assertEquals( 0, RequiresCloseXADataSource.getClosed(), "Expected connections to remain open" );
+            }
+
+            dataSource.flush( AgroalDataSource.FlushMode.LEAK );
+            assertTrue( leakListener.awaitClose( 2 * LEAK_TIMEOUT_S, SECONDS ), "Expected connection to be flush after leak" );
+        } catch ( InterruptedException e ) {
+            throw new RuntimeException( e );
         } finally {
             recoveryManager.terminate( true );
         }
@@ -316,6 +417,36 @@ public class RecoveryTests {
     }
 
     // --- //
+
+    private static class LeakDataSourceListener implements AgroalDataSourceListener {
+
+        private final CountDownLatch leakLatch = new CountDownLatch( 1 ), closeLatch = new CountDownLatch( 1 );
+
+        @Override
+        public void onConnectionLeak(Connection connection, Thread thread) {
+            logger.info( "LEAK of connection " + connection + " by thread " + thread );
+            leakLatch.countDown();
+        }
+
+        @Override
+        public void onConnectionDestroy(Connection connection) {
+            logger.info( "DESTROY of connection " + connection );
+            closeLatch.countDown();
+        }
+
+        @Override
+        public void onInfo(String message) {
+            logger.info( "leak message: " + message );
+        }
+
+        public boolean awaitLeak(long timeout, TimeUnit unit) throws InterruptedException {
+            return leakLatch.await( timeout, unit );
+        }
+
+        public boolean awaitClose(long timeout, TimeUnit unit) throws InterruptedException {
+            return closeLatch.await( timeout, unit );
+        }
+    }
 
     private static class WarningsAgroalDatasourceListener implements AgroalDataSourceListener {
 
@@ -418,8 +549,12 @@ public class RecoveryTests {
 
         @Override
         public XAConnection getXAConnection() throws SQLException {
-            logger.info( "Creating new XAConnection");
-            return new MyMockXAConnection(ignoreRecoveryFlags);
+            logger.info( "Creating new XAConnection" );
+            return new MyMockXAConnection( ignoreRecoveryFlags );
+        }
+
+        public static void setUser(String name) {
+            logger.info( "Setting username: " + name );
         }
 
         private static class MyMockXAConnection implements MockXAConnection {
@@ -446,12 +581,21 @@ public class RecoveryTests {
 
     private static class NonEmptyXidsResource implements MockXAResource {
         public static final int XID_COUNT = 5;
+        private static int rollbackCount;
 
-        private final List<Xid> xidArray = IntStream.range( 0, XID_COUNT ).mapToObj( ignored -> new XidImple() ).collect( toList());
+        private final List<Xid> xidArray = IntStream.range( 0, XID_COUNT ).mapToObj( ignored -> new XidImple() ).collect( toList() );
         private final boolean ignoreRecoveryFlags;
 
         public NonEmptyXidsResource(boolean ignoreFlags) {
             ignoreRecoveryFlags = ignoreFlags;
+        }
+
+        public static void resetRollbackCount() {
+            rollbackCount = 0;
+        }
+
+        public static int rollbackCount() {
+            return rollbackCount;
         }
 
         @Override
@@ -463,6 +607,11 @@ public class RecoveryTests {
         public void forget(Xid xid) throws XAException {
             xidArray.remove( xid );
         }
+
+        @Override
+        public void rollback(Xid xid) throws XAException {
+            rollbackCount++;
+        }
     }
 
     // --- //
@@ -471,9 +620,10 @@ public class RecoveryTests {
 
         private final Collection<XAResource> xaResources = new ArrayList<>();
         private final Collection<XAResourceRecoveryHelper> xaResourceRecoveryHelpers = new ArrayList<>();
+        private int passCount;
 
         public void addXAResourceRecoveryHelper(XAResourceRecoveryHelper xaResourceRecoveryHelper) {
-            xaResourceRecoveryHelpers.add(xaResourceRecoveryHelper);
+            xaResourceRecoveryHelpers.add( xaResourceRecoveryHelper );
         }
 
         public synchronized void removeXAResourceRecoveryHelper(XAResourceRecoveryHelper xaResourceRecoveryHelper) {
@@ -482,6 +632,7 @@ public class RecoveryTests {
 
         @Override
         public synchronized void periodicWorkFirstPass() {
+            passCount++;
             for ( XAResourceRecoveryHelper helper : xaResourceRecoveryHelpers ) {
                 try {
                     xaResources.addAll( List.of( helper.getXAResources() ) );
@@ -494,6 +645,7 @@ public class RecoveryTests {
 
         @Override
         public synchronized void periodicWorkSecondPass() {
+            passCount++;
             doPeriodicPass();
             xaResources.clear();
         }
@@ -505,7 +657,7 @@ public class RecoveryTests {
             for ( XAResource xaResource : xaResources ) {
                 try {
                     Xid[] recoveryXids = xaResource.recover( TMSTARTRSCAN );
-                    assertTrue( recoveryXids != null && recoveryXids.length > 0, "Expecting some Xids" );
+                    assertTrue( passCount > 1 || recoveryXids != null && recoveryXids.length > 0, "Expecting some Xids on first pass" );
 
                     for ( Xid xid : recoveryXids ) {
                         xaResource.forget( xid );
@@ -525,7 +677,7 @@ public class RecoveryTests {
         private final Collection<XAResourceRecoveryHelper> xaResourceRecoveryHelpers = new ArrayList<>();
 
         public void addXAResourceRecoveryHelper(XAResourceRecoveryHelper xaResourceRecoveryHelper) {
-            xaResourceRecoveryHelpers.add(xaResourceRecoveryHelper);
+            xaResourceRecoveryHelpers.add( xaResourceRecoveryHelper );
         }
 
         public synchronized void removeXAResourceRecoveryHelper(XAResourceRecoveryHelper xaResourceRecoveryHelper) {
@@ -538,6 +690,34 @@ public class RecoveryTests {
                 try {
                     for ( XAResource xaResource : helper.getXAResources() ) {
                         for ( Xid xid : xaResource.recover( TMSTARTRSCAN | TMENDRSCAN ) ) {
+                            xaResource.rollback( xid );
+                        }
+                    }
+                } catch ( Exception e ) {
+                    fail( "Failure while obtaining XA Resource", e );
+                }
+            }
+        }
+    }
+
+    private static class BogusRecoveryModule extends XARecoveryModule {
+
+        private final Collection<XAResourceRecoveryHelper> xaResourceRecoveryHelpers = new ArrayList<>();
+
+        public void addXAResourceRecoveryHelper(XAResourceRecoveryHelper xaResourceRecoveryHelper) {
+            xaResourceRecoveryHelpers.add( xaResourceRecoveryHelper );
+        }
+
+        public synchronized void removeXAResourceRecoveryHelper(XAResourceRecoveryHelper xaResourceRecoveryHelper) {
+            xaResourceRecoveryHelpers.remove( xaResourceRecoveryHelper );
+        }
+
+        @Override
+        public synchronized void periodicWorkFirstPass() {
+            for ( XAResourceRecoveryHelper helper : xaResourceRecoveryHelpers ) {
+                try {
+                    for ( XAResource xaResource : helper.getXAResources() ) {
+                        for ( Xid xid : xaResource.recover( TMSTARTRSCAN ) ) {
                             xaResource.rollback( xid );
                         }
                     }

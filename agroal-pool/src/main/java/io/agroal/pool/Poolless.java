@@ -12,6 +12,7 @@ import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
 import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
 
+import javax.sql.XAConnection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
@@ -56,7 +57,7 @@ import static java.util.stream.Collectors.toList;
 
 /**
  * Alternative implementation of ConnectionPool for the special case of flush-on-close (and min-size == 0)
- * In particular, this removes the need for the executor. Also there is no thread-local connection cache as connections are not reused
+ * In particular, this removes the need for the executor. Also, there is no thread-local connection cache as connections are not reused
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
@@ -111,8 +112,7 @@ public final class Poolless implements Pool {
         if ( configuration.minSize() != 0 ) {
             fireOnInfo( listeners, "Min size always zero in pool-less mode" );
         }
-
-        transactionIntegration.addResourceRecoveryFactory( connectionFactory );
+        transactionIntegration.addResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this );
     }
 
     public AgroalConnectionPoolConfiguration getConfiguration() {
@@ -148,8 +148,26 @@ public final class Poolless implements Pool {
     // --- //
 
     @Override
+    public boolean isRecoverable() {
+        return connectionFactory.isRecoverable();
+    }
+
+    @Override
+    public XAConnection getRecoveryConnection() throws SQLException {
+        long stamp = beforeAcquire();
+        checkMultipleAcquisition();
+
+        ConnectionHandler checkedOutHandler = handlerFromSharedCache();
+        fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
+        afterAcquire( stamp, checkedOutHandler, false );
+        return checkedOutHandler.xaConnectionWrapper();
+    }
+
+    // --- //
+
+    @Override
     public void close() {
-        transactionIntegration.removeResourceRecoveryFactory( connectionFactory );
+        transactionIntegration.removeResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this  );
         shutdown = true;
 
         for ( ConnectionHandler handler : allConnections ) {
@@ -197,7 +215,8 @@ public final class Poolless implements Pool {
         if ( checkedOutHandler != null ) {
             // AG-140 - If associate throws here is fine, it's assumed the synchronization that returns the connection has been registered
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
-            return afterAcquire( stamp, checkedOutHandler );
+            afterAcquire( stamp, checkedOutHandler, false );
+            return checkedOutHandler.connectionWrapper();
         }
         checkMultipleAcquisition();
 
@@ -205,7 +224,8 @@ public final class Poolless implements Pool {
             checkedOutHandler = handlerFromSharedCache();
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
             fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
-            return afterAcquire( stamp, checkedOutHandler );
+            afterAcquire( stamp, checkedOutHandler, true );
+            return checkedOutHandler.connectionWrapper();
         } catch ( Throwable t ) {
             if ( checkedOutHandler != null ) {
                 // AG-140 - Flush handler to prevent leak
@@ -254,11 +274,11 @@ public final class Poolless implements Pool {
     }
 
     @SuppressWarnings( "SingleCharacterStringConcatenation" )
-    private Connection afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler) throws SQLException {
+    private void afterAcquire(long metricsStamp, ConnectionHandler checkedOutHandler, boolean verifyEnlistment) throws SQLException {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
 
-        if ( !checkedOutHandler.isEnlisted() ) {
+        if ( verifyEnlistment && !checkedOutHandler.isEnlisted() ) {
             switch ( configuration.transactionRequirement() ) {
                 case STRICT:
                     returnConnectionHandler( checkedOutHandler );
@@ -282,7 +302,6 @@ public final class Poolless implements Pool {
                 checkedOutHandler.setAcquisitionStackTrace( copyOfRange( stackTrace, 4, stackTrace.length ) );
             }
         }
-        return checkedOutHandler.connectionWrapper();
     }
 
     // --- //
