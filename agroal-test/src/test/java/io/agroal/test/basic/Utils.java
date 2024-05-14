@@ -24,6 +24,6 @@ public abstract class Utils {
     }
 
     public static boolean isWindowsOS() {
-        return System.getProperty("os.name").startsWith("Windows");
+        return System.getProperty( "os.name" ).startsWith( "Windows" );
     }
 }

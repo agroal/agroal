@@ -184,11 +184,11 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     private Properties recoveryProperties() {
         Properties properties = new Properties();
-        // use the main credentials when recovery credentials are not provided
-        if ( configuration.recoveryPrincipal() == null && ( configuration.recoveryCredentials() == null || configuration.recoveryCredentials().isEmpty() ) ) {
-            properties.putAll( securityProperties( configuration.principal(), configuration.credentials() ) );
-        } else {
+        if ( hasRecoveryCredentials() ) {
             properties.putAll( securityProperties( configuration.recoveryPrincipal(), configuration.recoveryCredentials() ) );
+        } else {
+            // use the main credentials when recovery credentials are not provided
+            properties.putAll( securityProperties( configuration.principal(), configuration.credentials() ) );
         }
         return properties;
     }
@@ -269,6 +269,10 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
 
     // --- //
 
+    public boolean hasRecoveryCredentials() {
+        return configuration.recoveryPrincipal() != null || ( configuration.recoveryCredentials() != null && !configuration.recoveryCredentials().isEmpty() ) ;
+    }
+    
     @Override
     public boolean isRecoverable() {
         if ( factoryMode == Mode.XA_DATASOURCE ) {

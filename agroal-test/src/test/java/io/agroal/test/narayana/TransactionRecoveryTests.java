@@ -19,6 +19,7 @@ import com.arjuna.ats.jta.xa.RecoverableXAConnection;
 import com.arjuna.ats.jta.xa.XidImple;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.api.security.NamePrincipal;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.narayana.XAExceptionUtils;
 import io.agroal.test.MockXAConnection;
@@ -26,8 +27,11 @@ import io.agroal.test.MockXADataSource;
 import io.agroal.test.MockXAResource;
 import jakarta.transaction.TransactionManager;
 import jakarta.transaction.TransactionSynchronizationRegistry;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
@@ -86,9 +90,10 @@ class TransactionRecoveryTests {
         return os;
     }
 
-
-    @Test
-    void testSuccessfulCommit() throws Exception {
+    @ParameterizedTest
+    @ValueSource( booleans = {true, false} )
+    @DisplayName( "Transaction successful commit" )
+    void testSuccessfulCommit(boolean recoveryCredentials) throws Exception {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new TransactionSynchronizationRegistryImple();
 
@@ -118,6 +123,7 @@ class TransactionRecoveryTests {
                                 false, false,
                                 recoveryManagerService))
                         .connectionFactoryConfiguration(cf -> cf
+                                .recoveryPrincipal( recoveryCredentials ? new NamePrincipal( RecoveryDataSource.RECOVERY_USER ) : null )
                                 .connectionProviderClass(RecoveryDataSource.class)));
 
         try (AgroalDataSource dataSource = AgroalDataSource.from(configurationSupplier)) {
@@ -126,15 +132,18 @@ class TransactionRecoveryTests {
             manager.scan();
 
             assertTrue(RecoveryDataSource.xids.isEmpty(), "Expected XAResource to have been committed");
-            assertEquals(1, RecoveryDataSource.closed, "Expected one connection to have been closed");
+            assertEquals(recoveryCredentials ? 1 : 0, RecoveryDataSource.closed, "Expected one connection to have been closed");
             assertEquals(StateStatus.OS_UNKNOWN, recoveryStore.currentState(txUid, typeName), "Transaction not committed successfully!");
         } finally {
             manager.terminate(true);
         }
     }
 
-    @Test
-    void testSuccessfulRollback() throws Exception {
+
+    @ParameterizedTest
+    @ValueSource( booleans = {true, false} )
+    @DisplayName( "Transaction successful rollback" )
+    void testSuccessfulRollback(boolean recoveryCredentials) throws Exception {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new TransactionSynchronizationRegistryImple();
 
@@ -156,6 +165,7 @@ class TransactionRecoveryTests {
                                 false, false,
                                 recoveryManagerService))
                         .connectionFactoryConfiguration(cf -> cf
+                                .recoveryPrincipal( recoveryCredentials ? new NamePrincipal( RecoveryDataSource.RECOVERY_USER ) : null )
                                 .connectionProviderClass(RecoveryDataSource.class)));
 
         try (AgroalDataSource dataSource = AgroalDataSource.from(configurationSupplier)) {
@@ -164,13 +174,15 @@ class TransactionRecoveryTests {
             manager.scan();
 
             assertTrue(RecoveryDataSource.xids.isEmpty(), "Expected XAResource to have been rollback");
-            assertEquals(1, RecoveryDataSource.closed, "Expected one connection to have been closed");
+            assertEquals(recoveryCredentials ? 1 : 0, RecoveryDataSource.closed, "Expected one connection to have been closed");
         } finally {
             manager.terminate(true);
         }
     }
 
     public static class RecoveryDataSource implements MockXADataSource {
+
+        public static final String RECOVERY_USER = "recoveryUser";
 
         static final Set<Xid> xids = new HashSet<>();
         static int closed = 0;
