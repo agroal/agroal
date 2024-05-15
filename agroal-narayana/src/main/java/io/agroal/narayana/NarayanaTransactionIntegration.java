@@ -69,8 +69,8 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     }
 
     public NarayanaTransactionIntegration(TransactionManager transactionManager, TransactionSynchronizationRegistry transactionSynchronizationRegistry, String jndiName, boolean connectable, boolean firstResource, XAResourceRecoveryRegistry recoveryRegistry) {
-        if (connectable && firstResource) {
-            throw new IllegalArgumentException("Setting connectable and firstResource to true is disallowed at the same time.");
+        if ( connectable && firstResource ) {
+            throw new IllegalArgumentException( "Setting both connectable and firstResource is not allowed" );
         }
         this.transactionManager = transactionManager;
         this.transactionSynchronizationRegistry = transactionSynchronizationRegistry;
@@ -118,7 +118,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
                     transactionSynchronizationRegistry.putResource( key, transactionAware );
                     if ( !transactionManager.getTransaction().enlistResource( createXaResource( transactionAware, xaResource ) ) ) {
-                        throw new SQLException("Unable to enlist connection to existing transaction");
+                        throw new SQLException( xaResource == null && !connectable ? "Failed to enlist. Check if a connection from another datasource is already enlisted to the same transaction" : "Unable to enlist connection to existing transaction" );
                     }
                 } else {
                     transactionAware.transactionStart();
