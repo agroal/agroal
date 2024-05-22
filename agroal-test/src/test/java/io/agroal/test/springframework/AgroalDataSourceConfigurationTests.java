@@ -8,7 +8,7 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.AgroalDataSource;
-import io.agroal.springframework.boot.AgroalDataSourceConfiguration;
+import io.agroal.springframework.boot.AgroalDataSourceAutoConfiguration;
 import io.agroal.springframework.boot.metrics.AgroalDataSourcePoolMetadata;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockDriver;
@@ -54,7 +54,7 @@ class AgroalDataSourceConfigurationTests {
 
     private final Class<?>[] autoconfigurationsInWrongOrder = new Class<?>[]{
             DataSourceAutoConfiguration.class,
-            AgroalDataSourceConfiguration.class
+            AgroalDataSourceAutoConfiguration.class
     };
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -225,7 +225,7 @@ class AgroalDataSourceConfigurationTests {
     void testAutoconfigureAgroalDataSourceNotPresentOnClasspath() {
         runner
                 .withClassLoader(new FilteredClassLoader(AgroalDataSource.class))
-                .run(context -> assertThat(context).doesNotHaveBean(AgroalDataSourceConfiguration.class));
+                .run(context -> assertThat(context).doesNotHaveBean(AgroalDataSourceAutoConfiguration.class));
     }
 
     @DisplayName("The context will not start due to a cycle when forcing the wrong order of autoconfigurations")
@@ -237,7 +237,7 @@ class AgroalDataSourceConfigurationTests {
                 .hasMessageContaining("AutoConfigure cycle detected");
     }
 
-    @AutoConfiguration(after = DataSourceAutoConfiguration.class, before = AgroalDataSourceConfiguration.class)
+    @AutoConfiguration(after = DataSourceAutoConfiguration.class, before = AgroalDataSourceAutoConfiguration.class)
     private static class WrongOrderForcingAutoConfiguration {
 
     }

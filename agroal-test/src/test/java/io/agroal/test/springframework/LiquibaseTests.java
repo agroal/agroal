@@ -3,7 +3,7 @@
 
 package io.agroal.test.springframework;
 
-import io.agroal.springframework.boot.AgroalDataSourceConfiguration;
+import io.agroal.springframework.boot.AgroalDataSourceAutoConfiguration;
 import liquibase.integration.spring.SpringLiquibase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LiquibaseTests {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(
-                    AgroalDataSourceConfiguration.class,
+                    AgroalDataSourceAutoConfiguration.class,
                     DataSourceAutoConfiguration.class,
                     LiquibaseAutoConfiguration.class
             ));
