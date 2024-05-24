@@ -33,23 +33,25 @@ import static org.springframework.util.StringUtils.hasLength;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-@AutoConfiguration(before = DataSourceAutoConfiguration.class)
+@AutoConfiguration( before = DataSourceAutoConfiguration.class )
 @ConditionalOnClass( AgroalDataSource.class )
 @ConditionalOnMissingBean( DataSource.class )
 @ConditionalOnProperty( name = "spring.datasource.type", havingValue = "io.agroal.springframework.boot.AgroalDataSource", matchIfMissing = true )
-@EnableConfigurationProperties(DataSourceProperties.class)
-@Import(AgroalPoolDataSourceMetadataProviderConfiguration.class)
-public class AgroalDataSourceConfiguration {
+@EnableConfigurationProperties( DataSourceProperties.class )
+@Import( AgroalPoolDataSourceMetadataProviderConfiguration.class )
+public class AgroalDataSourceAutoConfiguration {
 
-    private final Logger logger = LoggerFactory.getLogger( AgroalDataSourceConfiguration.class );
+    private final Logger logger = LoggerFactory.getLogger( AgroalDataSourceAutoConfiguration.class );
 
-    @Autowired( required = false )
-    @SuppressWarnings( "WeakerAccess" )
-    public JtaTransactionManager jtaPlatform;
+    private final JtaTransactionManager jtaPlatform;
+    private final XAResourceRecoveryRegistry recoveryRegistry;
 
-    @Autowired( required = false )
-    @SuppressWarnings( "WeakerAccess" )
-    public XAResourceRecoveryRegistry recoveryRegistry;
+    public AgroalDataSourceAutoConfiguration(
+            @Autowired( required = false ) JtaTransactionManager jtaPlatform,
+            @Autowired( required = false ) XAResourceRecoveryRegistry recoveryRegistry ) {
+        this.jtaPlatform = jtaPlatform;
+        this.recoveryRegistry = recoveryRegistry;
+    }
 
     @Bean
     @ConfigurationProperties( prefix = "spring.datasource.agroal" )
@@ -58,7 +60,7 @@ public class AgroalDataSourceConfiguration {
             DataSourceProperties properties,
             @Value( "${spring.datasource.agroal.connectable:false}" ) boolean connectable,
             @Value( "${spring.datasource.agroal.firstResource:false}" ) boolean firstResource,
-            ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder) {
+            ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder ) {
 
         AgroalDataSource dataSource = properties.initializeDataSourceBuilder().type( AgroalDataSource.class ).build();
         if ( !hasLength( properties.getDriverClassName() ) ) {

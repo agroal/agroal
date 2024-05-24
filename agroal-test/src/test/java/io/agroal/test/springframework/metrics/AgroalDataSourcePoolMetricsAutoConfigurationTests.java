@@ -4,7 +4,7 @@
 package io.agroal.test.springframework.metrics;
 
 import io.agroal.springframework.boot.AgroalDataSource;
-import io.agroal.springframework.boot.AgroalDataSourceConfiguration;
+import io.agroal.springframework.boot.AgroalDataSourceAutoConfiguration;
 import io.agroal.springframework.boot.metrics.AgroalDataSourcePoolMetricsAutoConfiguration;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -36,7 +36,7 @@ class AgroalDataSourcePoolMetricsAutoConfigurationTests {
 
     private final Class<?>[] autoconfigurationsInWrongOrder = new Class<?>[]{
             AgroalDataSourcePoolMetricsAutoConfiguration.class,
-            AgroalDataSourceConfiguration.class,
+            AgroalDataSourceAutoConfiguration.class,
             CompositeMeterRegistryAutoConfiguration.class,
             SimpleMetricsExportAutoConfiguration.class,
             MetricsAutoConfiguration.class
@@ -88,7 +88,7 @@ class AgroalDataSourcePoolMetricsAutoConfigurationTests {
     @AutoConfiguration(
             after = AgroalDataSourcePoolMetricsAutoConfiguration.class,
             before = {
-                    AgroalDataSourceConfiguration.class,
+                    AgroalDataSourceAutoConfiguration.class,
                     MetricsAutoConfiguration.class,
                     SimpleMetricsExportAutoConfiguration.class,
                     CompositeMeterRegistryAutoConfiguration.class
