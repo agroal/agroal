@@ -12,6 +12,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import static java.lang.System.identityHashCode;
 import static java.sql.DriverManager.deregisterDriver;
 import static java.sql.DriverManager.getDriver;
 import static java.sql.DriverManager.registerDriver;
@@ -27,18 +28,7 @@ public interface MockDriver extends Driver {
 
     static void registerMockDriver(Class<? extends Connection> connectionType) {
         try {
-            registerDriver(
-                    new MockDriver() {
-                        @Override
-                        public Connection connect(String url, Properties info) throws SQLException {
-                            try {
-                                return connectionType.getDeclaredConstructor().newInstance();
-                            } catch ( InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
-                                throw new SQLException( "Cannot create mock connection", e );
-                            }
-                        }
-                    }
-            );
+            registerDriver( new Empty( connectionType ) );
         } catch ( SQLException e ) {
             getLogger( MockDriver.class.getName() ).log( WARNING, "Unable to register MockDriver into Driver Manager", e );
         }
@@ -91,5 +81,32 @@ public interface MockDriver extends Driver {
     @Override
     default Logger getParentLogger() throws SQLFeatureNotSupportedException {
         return null;
+    }
+
+    class Empty implements MockDriver {
+
+        Class<? extends Connection> connectionType;
+
+        public Empty() {
+            this( MockConnection.Empty.class );
+        }
+
+        public Empty( Class<? extends Connection> connectionType ) {
+            this.connectionType = connectionType;
+        }
+
+        @Override
+        public Connection connect( String url, Properties info ) throws SQLException {
+            try {
+                return connectionType.getDeclaredConstructor().newInstance();
+            } catch ( InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
+                throw new SQLException( "Cannot create mock connection", e );
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "MockDriver@" + identityHashCode( this );
+        }
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.boot.autoconfigure.jdbc.JdbcConnectionDetails;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +52,13 @@ public class AgroalDataSourceAutoConfiguration {
             @Autowired( required = false ) XAResourceRecoveryRegistry recoveryRegistry ) {
         this.jtaPlatform = jtaPlatform;
         this.recoveryRegistry = recoveryRegistry;
+    }
+
+    @Bean
+    static AgroalJdbcConnectionDetailsBeanPostProcessor agroalJdbcConnectionDetailsBeanPostProcessor(
+            ObjectProvider<JdbcConnectionDetails> connectionDetailsProvider,
+            ObjectProvider<JtaTransactionManager> jtaPlatformProvider ) {
+        return new AgroalJdbcConnectionDetailsBeanPostProcessor( connectionDetailsProvider, jtaPlatformProvider );
     }
 
     @Bean
