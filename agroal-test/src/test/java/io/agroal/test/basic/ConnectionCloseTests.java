@@ -138,7 +138,7 @@ public class ConnectionCloseTests {
         OnWarningListener warningListener = new OnWarningListener();
         OnDestroyListener destroyListener = new OnDestroyListener( 1 );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).flushOnClose() ), warningListener, destroyListener ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.minSize( 1 ).maxSize( 1 ).flushOnClose() ), warningListener, destroyListener ) ) {
             try ( Connection connection = dataSource.getConnection() ) {
                 assertFalse( connection.isClosed() );
             }
@@ -148,6 +148,7 @@ public class ConnectionCloseTests {
             assertAll( () -> {
                 assertFalse( warningListener.getWarning().get(), "Unexpected warning on close connection" );
                 assertEquals( 1, dataSource.getMetrics().destroyCount(), "Expecting 1 destroyed connection" );
+                assertEquals( 1, dataSource.getMetrics().availableCount(), "Expecting 1 available connection" );
                 assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
             } );
         }
