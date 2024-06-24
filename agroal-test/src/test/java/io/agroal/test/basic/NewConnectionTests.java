@@ -48,6 +48,9 @@ public class NewConnectionTests {
     @BeforeAll
     static void setupMockDriver() {
         registerMockDriver( FakeConnection.class );
+        if ( Utils.isWindowsOS() ) {
+            Utils.windowsTimerHack();
+        }
     }
 
     @AfterAll

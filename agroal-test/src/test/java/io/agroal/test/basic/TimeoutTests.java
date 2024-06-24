@@ -51,6 +51,9 @@ public class TimeoutTests {
     @BeforeAll
     static void setupMockDriver() {
         registerMockDriver();
+        if ( Utils.isWindowsOS() ) {
+            Utils.windowsTimerHack();
+        }
     }
 
     @AfterAll
