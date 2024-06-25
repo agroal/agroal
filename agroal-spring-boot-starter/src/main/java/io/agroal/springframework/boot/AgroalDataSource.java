@@ -160,6 +160,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.enhancedLeakReport( enhanced );
     }
 
+    public void setFlushOnClose(boolean flush) {
+        connectionPoolConfiguration.flushOnClose( flush );
+    }
+
     // --- //
 
     // AG-234 - Allows access to the used jdbcUrl. DataSource derivation in spring boot's LiquibaseAutoConfiguration may need this.
