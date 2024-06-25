@@ -459,7 +459,7 @@ public final class ConnectionPool implements Pool {
 
         // resize on change of max-size, or flush on close
         int currentSize = allConnections.size();
-        if ( currentSize > configuration.maxSize() || configuration.flushOnClose() && currentSize > configuration.minSize() ) {
+        if ( ( currentSize > configuration.maxSize() && currentSize > configuration.minSize() ) || configuration.flushOnClose() ) {
             handler.setState( FLUSH );
             removeFromPool( handler );
             metricsRepository.afterConnectionReap();
