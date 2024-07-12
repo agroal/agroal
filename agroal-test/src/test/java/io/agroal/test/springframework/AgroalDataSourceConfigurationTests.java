@@ -3,7 +3,7 @@
 
 package io.agroal.test.springframework;
 
-import dev.snowdrop.boot.narayana.autoconfigure.NarayanaConfiguration;
+import dev.snowdrop.boot.narayana.autoconfigure.NarayanaAutoConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.narayana.NarayanaTransactionIntegration;
@@ -110,7 +110,7 @@ class AgroalDataSourceConfigurationTests {
     @Test
     void testAutoconfigureAgroalDataSourceWithNarayanaIntegration() {
         runner.withPropertyValues("narayana.logDir=ObjectStore")
-                .withConfiguration(UserConfigurations.of(NarayanaConfiguration.class))
+                .withConfiguration(UserConfigurations.of(NarayanaAutoConfiguration.class))
                 .run(context -> {
                     AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
                     TransactionIntegration transactionIntegration = dataSource.getConfiguration().connectionPoolConfiguration().transactionIntegration();
@@ -141,7 +141,7 @@ class AgroalDataSourceConfigurationTests {
         System.setProperty("java.naming.factory.initial", "org.osjava.sj.SimpleJndiContextFactory");
         System.setProperty("org.osjava.sj.jndi.shared", "true");
         System.setProperty("org.osjava.sj.jndi.ignoreClose", "true");
-        runner.withConfiguration(UserConfigurations.of(NarayanaConfiguration.class))
+        runner.withConfiguration(UserConfigurations.of(NarayanaAutoConfiguration.class))
                 .withPropertyValues(
                         "narayana.logDir=ObjectStore",
                         "spring.datasource.agroal.connectable=true",
@@ -162,7 +162,7 @@ class AgroalDataSourceConfigurationTests {
     @DisplayName("Autoconfiguration will create XADataSource with provided dataSourceClassName")
     @Test
     void testAutoconfigureAgroalDataSourceWithXaDataSourceClassName() {
-        runner.withConfiguration(UserConfigurations.of(NarayanaConfiguration.class))
+        runner.withConfiguration(UserConfigurations.of(NarayanaAutoConfiguration.class))
                 .withPropertyValues(
                         "narayana.logDir=ObjectStore",
                         "spring.datasource.url=jdbc:irrelevant",
@@ -179,7 +179,7 @@ class AgroalDataSourceConfigurationTests {
     @DisplayName("Autoconfiguration will create XADataSource with provided xaproperties")
     @Test
     void testAutoconfigureAgroalDataSourceWithXaProperties() {
-        runner.withConfiguration(UserConfigurations.of(NarayanaConfiguration.class))
+        runner.withConfiguration(UserConfigurations.of(NarayanaAutoConfiguration.class))
                 .withPropertyValues(
                         "narayana.logDir=ObjectStore",
                         "spring.datasource.xa.dataSourceClassName=org.h2.jdbcx.JdbcDataSource",

@@ -3,7 +3,7 @@
 
 package io.agroal.test.springframework;
 
-import dev.snowdrop.boot.narayana.autoconfigure.NarayanaConfiguration;
+import dev.snowdrop.boot.narayana.autoconfigure.NarayanaAutoConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
@@ -59,7 +59,7 @@ class AgroalJdbcConnectionDetailsBeanPostProcessorTests {
     @Test
     void testAgroalDataSourceWithXa() {
         runner.withPropertyValues( "narayana.logDir=ObjectStore" )
-                .withConfiguration( UserConfigurations.of( NarayanaConfiguration.class ) )
+                .withConfiguration( UserConfigurations.of( NarayanaAutoConfiguration.class ) )
                 .withBean( JdbcConnectionDetails.class, MockJdbcConnectionDetails::new )
                 .run( context -> {
                     AgroalDataSource dataSource = context.getBean( AgroalDataSource.class );
