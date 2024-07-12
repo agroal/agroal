@@ -29,7 +29,6 @@ import jakarta.transaction.TransactionManager;
 import jakarta.transaction.TransactionSynchronizationRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -50,6 +49,7 @@ import static com.arjuna.ats.arjuna.recovery.RecoveryManager.DIRECT_MANAGEMENT;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.AgroalTestGroup.TRANSACTION;
 import static java.lang.System.identityHashCode;
+import static java.util.logging.Level.INFO;
 import static java.util.logging.Logger.getLogger;
 import static javax.transaction.xa.XAException.XAER_RMERR;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -111,7 +111,7 @@ class TransactionRecoveryTests {
         OutputObjectState os = createDummyTransaction(txUid, xid);
         recoveryStore.write_committed(txUid, typeName, os);
         if (recoveryStore.currentState(txUid, typeName) == StateStatus.OS_COMMITTED) {
-            logger.info("Writing dummy transaction " + txUid);
+            logger.log(INFO, "Writing dummy transaction {0}", txUid);
         }
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -127,12 +127,12 @@ class TransactionRecoveryTests {
                                 .connectionProviderClass(RecoveryDataSource.class)));
 
         try (AgroalDataSource dataSource = AgroalDataSource.from(configurationSupplier)) {
-            logger.info("Starting recovery on DataSource " + dataSource);
+            logger.log(INFO, "Starting recovery on DataSource {0}", dataSource);
             RecoveryDataSource.xids.add(xid);
             manager.scan();
 
             assertTrue(RecoveryDataSource.xids.isEmpty(), "Expected XAResource to have been committed");
-            assertEquals(recoveryCredentials ? 1 : 0, RecoveryDataSource.closed, "Expected one connection to have been closed");
+            assertEquals(recoveryCredentials ? 2 : 0, RecoveryDataSource.closed, "Expected two connections to have been closed");
             assertEquals(StateStatus.OS_UNKNOWN, recoveryStore.currentState(txUid, typeName), "Transaction not committed successfully!");
         } finally {
             manager.terminate(true);
@@ -169,12 +169,12 @@ class TransactionRecoveryTests {
                                 .connectionProviderClass(RecoveryDataSource.class)));
 
         try (AgroalDataSource dataSource = AgroalDataSource.from(configurationSupplier)) {
-            logger.info("Starting recovery on DataSource " + dataSource);
+            logger.log(INFO, "Starting recovery on DataSource {0}", dataSource);
             RecoveryDataSource.xids.add(xid);
             manager.scan();
 
             assertTrue(RecoveryDataSource.xids.isEmpty(), "Expected XAResource to have been rollback");
-            assertEquals(recoveryCredentials ? 1 : 0, RecoveryDataSource.closed, "Expected one connection to have been closed");
+            assertEquals(recoveryCredentials ? 2 : 0, RecoveryDataSource.closed, "Expected two connections to have been closed");
         } finally {
             manager.terminate(true);
         }
@@ -195,7 +195,7 @@ class TransactionRecoveryTests {
         @Override
         public XAConnection getXAConnection() throws SQLException {
             MyMockXAConnection connection = new MyMockXAConnection();
-            logger.info("Creating a new XAConnection " + connection);
+            logger.log(INFO, "Creating a new XAConnection {0}", connection);
             return connection;
         }
 
@@ -204,7 +204,7 @@ class TransactionRecoveryTests {
 
             @Override
             public void close() throws SQLException {
-                logger.info("Closing connection " + this);
+                logger.log(INFO, "Closing connection {0}", this);
                 this.closed = true;
                 RecoveryDataSource.closed++;
             }
@@ -221,7 +221,7 @@ class TransactionRecoveryTests {
                         if (!xids.remove(xid)) {
                             throw XAExceptionUtils.xaException(XAER_RMERR, new SQLException("Unknown XID " + xid + " !"));
                         }
-                        logger.info("Committing on XAResource " + this);
+                        logger.log(INFO, "Committing on XAResource {0}", this);
                     }
 
                     @Override
@@ -232,13 +232,13 @@ class TransactionRecoveryTests {
                         if (!xids.remove(xid)) {
                             throw XAExceptionUtils.xaException(XAER_RMERR, new SQLException("Unknown XID " + xid + " !"));
                         }
-                        logger.info("Rolling back on XAResource " + this);
+                        logger.log(INFO, "Rolling back on XAResource {0}", this);
                     }
 
                     @Override
                     public Xid[] recover(int flag) throws XAException {
-                        logger.info("Recovering on XAResource " + this + " " + (flag == TMSTARTRSCAN ? "TMSTARTRSCAN" : flag == TMENDRSCAN ? "TMENDRSCAN" : flag));
-                        return flag == TMSTARTRSCAN ? xids.toArray(new Xid[0]) : new Xid[0];
+                        logger.log(INFO, "Recovering on XAResource {0} {1}", new Object[]{this, flag == TMSTARTRSCAN ? "TMSTARTRSCAN" : flag == TMENDRSCAN ? "TMENDRSCAN" : flag});
+                        return flag == TMSTARTRSCAN ? xids.toArray(Xid[]::new) : new Xid[0];
                     }
 
                     @Override
