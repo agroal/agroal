@@ -40,6 +40,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     Collection<AgroalSecurityProvider> securityProviders = new ArrayList<>();
     Principal principal;
     Collection<Object> credentials = new ArrayList<>();
+    boolean poolRecovery = true;
     Principal recoveryPrincipal;
     Collection<Object> recoveryCredentials = new ArrayList<>();
     Properties jdbcProperties = new Properties();
@@ -66,6 +67,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         transactionIsolation = existingConfiguration.jdbcTransactionIsolation();
         principal = existingConfiguration.principal();
         credentials = existingConfiguration.credentials();
+        poolRecovery = existingConfiguration.poolRecovery();
         recoveryPrincipal = existingConfiguration.recoveryPrincipal();
         recoveryCredentials = existingConfiguration.recoveryCredentials();
         jdbcProperties = existingConfiguration.jdbcProperties();
@@ -198,6 +200,15 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     }
 
     /**
+     * Sets the value of pool recovery connections. Default is true.
+     */
+    public AgroalConnectionFactoryConfigurationSupplier poolRecovery(boolean poolRecoveryEnabled) {
+        checkLock();
+        poolRecovery = poolRecoveryEnabled;
+        return this;
+    }
+
+    /**
      * Allows setting a different principal for recovery connections.
      */
     public AgroalConnectionFactoryConfigurationSupplier recoveryPrincipal(Principal loginPrincipal) {
@@ -310,6 +321,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public Collection<Object> credentials() {
                 return credentials;
+            }
+
+            @Override
+            public boolean poolRecovery() {
+                return poolRecovery;
             }
 
             @Override

@@ -225,6 +225,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionFactoryConfiguration.trackJdbcResources( track );
     }
 
+    public void setPoolRecovery(boolean poolRecovery) {
+        connectionFactoryConfiguration.poolRecovery( poolRecovery );
+    }
+
     public void setRecoveryUsername(String username) {
         connectionFactoryConfiguration.recoveryPrincipal( new NamePrincipal( username ) );
     }
