@@ -90,6 +90,10 @@ public final class Poolless implements Pool {
         transactionIntegration = configuration.transactionIntegration();
     }
 
+    private TransactionIntegration.ResourceRecoveryFactory getResourceRecoveryFactory() {
+        return connectionFactory.hasRecoveryCredentials() || !configuration.connectionFactoryConfiguration().poolRecovery() ? connectionFactory : this;
+    }
+
     public void init() {
         if ( !configuration.maxLifetime().isZero() ) {
             fireOnInfo( listeners, "Max lifetime not supported in pool-less mode" );
@@ -112,7 +116,7 @@ public final class Poolless implements Pool {
         if ( configuration.minSize() != 0 ) {
             fireOnInfo( listeners, "Min size always zero in pool-less mode" );
         }
-        transactionIntegration.addResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this );
+        transactionIntegration.addResourceRecoveryFactory( getResourceRecoveryFactory() );
     }
 
     public AgroalConnectionPoolConfiguration getConfiguration() {
@@ -167,7 +171,7 @@ public final class Poolless implements Pool {
 
     @Override
     public void close() {
-        transactionIntegration.removeResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this  );
+        transactionIntegration.removeResourceRecoveryFactory( getResourceRecoveryFactory() );
         shutdown = true;
 
         for ( ConnectionHandler handler : allConnections ) {

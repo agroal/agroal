@@ -120,6 +120,10 @@ public final class ConnectionPool implements Pool {
         reapEnabled = !configuration.reapTimeout().isZero();
     }
 
+    private TransactionIntegration.ResourceRecoveryFactory getResourceRecoveryFactory() {
+        return connectionFactory.hasRecoveryCredentials() || !configuration.connectionFactoryConfiguration().poolRecovery() ? connectionFactory : this;
+    }
+
     public void init() {
         if ( configuration.acquisitionTimeout().compareTo( configuration.connectionFactoryConfiguration().loginTimeout() ) < 0 ) {
             fireOnWarning( listeners, "Login timeout should be smaller than acquisition timeout" );
@@ -134,7 +138,7 @@ public final class ConnectionPool implements Pool {
         if ( reapEnabled ) {
             housekeepingExecutor.schedule( new ReapTask(), configuration.reapTimeout().toNanos(), NANOSECONDS );
         }
-        transactionIntegration.addResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this );
+        transactionIntegration.addResourceRecoveryFactory( getResourceRecoveryFactory() );
 
         // fill to the initial size
         if ( configuration.initialSize() < configuration.minSize() ) {
@@ -187,7 +191,7 @@ public final class ConnectionPool implements Pool {
 
     @Override
     public void close() {
-        transactionIntegration.removeResourceRecoveryFactory( connectionFactory.hasRecoveryCredentials() ? connectionFactory : this  );
+        transactionIntegration.removeResourceRecoveryFactory( getResourceRecoveryFactory() );
 
         for ( Runnable task : housekeepingExecutor.shutdownNow() ) {
             if ( task instanceof DestroyConnectionTask ) {

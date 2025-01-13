@@ -70,6 +70,11 @@ public interface AgroalConnectionFactoryConfiguration {
     Collection<Object> credentials();
 
     /**
+     * Retrieve recovery connections from the pool.
+     */
+    boolean poolRecovery();
+
+    /**
      * Entity to be authenticated in the database for recovery connections. If not set, the principal will be used.
      */
     Principal recoveryPrincipal();
