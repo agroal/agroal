@@ -5,6 +5,8 @@ package io.agroal.test.springframework;
 
 import dev.snowdrop.boot.narayana.autoconfigure.NarayanaAutoConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
+import io.agroal.api.security.AgroalSecurityProvider;
+import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.AgroalDataSource;
@@ -39,6 +41,7 @@ import javax.sql.XAConnection;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -217,6 +220,21 @@ class AgroalDataSourceConfigurationTests {
                 .run(context -> {
                     AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
                     assertThat(dataSource.getConnection()).isNotNull();
+                });
+    }
+
+    @DisplayName("Autoconfiguration will create DataSource with provided security provider and credentials")
+    @Test
+    void testAutoconfigureAgroalDataSourceWithSecurityProviderAndCredentials() {
+        runner.withPropertyValues("spring.datasource.agroal.credentials=#{user}")
+                .withBean(AgroalSecurityProvider.class, () -> Properties.class::cast)
+                .withBean("user", List.class, () -> List.of(new NamePrincipal("Bob").asProperties()))
+                .run(context -> {
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+                    try (Connection c = dataSource.getConnection()) {
+                        LOG.info("Got connection {}", c);
+                        assertThat(c.getMetaData().getUserName()).isEqualTo("BOB");
+                    }
                 });
     }
 
