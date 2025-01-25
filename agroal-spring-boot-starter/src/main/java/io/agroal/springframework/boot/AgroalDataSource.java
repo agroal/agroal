@@ -13,6 +13,7 @@ import io.agroal.api.configuration.supplier.AgroalConnectionFactoryConfiguration
 import io.agroal.api.configuration.supplier.AgroalConnectionPoolConfigurationSupplier;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.api.configuration.supplier.AgroalPropertiesReader;
+import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
 import io.agroal.api.transaction.TransactionIntegration;
@@ -190,6 +191,18 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setDriverClassName(String driver) {
         connectionFactoryConfiguration.connectionProviderClassName( driver );
+    }
+
+    public void addSecurityProvider(AgroalSecurityProvider securityProvider) {
+        connectionFactoryConfiguration.addSecurityProvider( securityProvider );
+    }
+
+    public void addCredential(Object credential) {
+        connectionFactoryConfiguration.credential( credential );
+    }
+
+    public void addRecoveryCredential(Object credential) {
+        connectionFactoryConfiguration.recoveryCredential( credential );
     }
 
     public void setUsername(String username) {

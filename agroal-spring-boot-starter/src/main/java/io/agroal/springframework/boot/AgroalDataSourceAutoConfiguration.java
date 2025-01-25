@@ -3,6 +3,9 @@
 
 package io.agroal.springframework.boot;
 
+import java.util.List;
+
+import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.jndi.AgroalDataSourceJndiBinder;
 import io.agroal.springframework.boot.jndi.DefaultAgroalDataSourceJndiBinder;
@@ -68,7 +71,10 @@ public class AgroalDataSourceAutoConfiguration {
             DataSourceProperties properties,
             @Value( "${spring.datasource.agroal.connectable:false}" ) boolean connectable,
             @Value( "${spring.datasource.agroal.firstResource:false}" ) boolean firstResource,
-            ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder ) {
+            ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder,
+            ObjectProvider<AgroalSecurityProvider> securityProvider,
+            @Value( "${spring.datasource.agroal.credentials:#{{}}}" ) List<Object> credentials,
+            @Value( "${spring.datasource.agroal.recoveryCredentials:#{{}}}" ) List<Object> recoveryCredentials ) {
 
         AgroalDataSource dataSource = properties.initializeDataSourceBuilder().type( AgroalDataSource.class ).build();
         if ( !hasLength( properties.getDriverClassName() ) ) {
@@ -99,6 +105,9 @@ public class AgroalDataSourceAutoConfiguration {
         if ( !connectable && !properties.getXa().getProperties().isEmpty() ) {
             dataSource.setXaProperties( properties.getXa().getProperties() );
         }
+        securityProvider.orderedStream().forEach( dataSource::addSecurityProvider );
+        credentials.forEach( dataSource::addCredential );
+        recoveryCredentials.forEach( dataSource::addRecoveryCredential );
         return dataSource;
     }
 }
