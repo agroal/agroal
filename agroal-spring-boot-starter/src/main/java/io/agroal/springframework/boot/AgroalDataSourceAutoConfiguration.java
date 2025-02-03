@@ -75,6 +75,7 @@ public class AgroalDataSourceAutoConfiguration {
     @SuppressWarnings( {"HardcodedFileSeparator", "StringConcatenation"} )
     public AgroalDataSource dataSource(
             DataSourceProperties properties,
+            @Value( "${spring.datasource.agroal.jta:true}" ) boolean jta,
             @Value( "${spring.datasource.agroal.connectable:false}" ) boolean connectable,
             @Value( "${spring.datasource.agroal.firstResource:false}" ) boolean firstResource,
             @Value( "${spring.datasource.agroal.credentials:#{{}}}" ) List<Object> credentials,
@@ -96,7 +97,7 @@ public class AgroalDataSourceAutoConfiguration {
         dataSource.setName( name );
 
         JtaTransactionManager jtaPlatform = jtaPlatformProvider.getIfAvailable();
-        if ( jtaPlatform != null && jtaPlatform.getTransactionManager() != null && jtaPlatform.getTransactionSynchronizationRegistry() != null ) {
+        if ( jta && jtaPlatform != null && jtaPlatform.getTransactionManager() != null && jtaPlatform.getTransactionSynchronizationRegistry() != null ) {
             String jndiName = properties.getJndiName() != null ? properties.getJndiName() : "java:comp/env/jdbc/" + name;
             dataSource.setJtaTransactionIntegration( new NarayanaTransactionIntegration(
                     jtaPlatform.getTransactionManager(),
