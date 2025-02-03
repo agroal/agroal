@@ -138,6 +138,26 @@ class AgroalDataSourceConfigurationTests {
                 });
     }
 
+    @DisplayName("Autoconfiguration will create DataSource without integration to Narayana")
+    @Test
+    void testAutoconfigureAgroalDataSourceWithoutNarayanaIntegration() {
+        runner.withPropertyValues(
+                      "narayana.logDir=ObjectStore",
+                      "spring.datasource.agroal.jta=false")
+                .withConfiguration(UserConfigurations.of(NarayanaAutoConfiguration.class))
+                .run(context -> {
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+
+                    JtaTransactionManager txManager = context.getBean(JtaTransactionManager.class);
+                    txManager.getTransaction(null);
+
+                    try (Connection c = dataSource.getConnection()) {
+                        LOG.info("Got connection {}", c);
+                        assertThat(c.getAutoCommit()).isTrue();
+                    }
+                });
+    }
+
     @DisplayName("Autoconfiguration will create connectable DataSource bound to JNDI")
     @Test
     void testAutoconfigureAgroalDataSourceBoundToJndi() {
@@ -156,7 +176,7 @@ class AgroalDataSourceConfigurationTests {
                     assertThat(dataSource).isNotNull();
                     assertThat(dataSource).isInstanceOf(AgroalDataSource.class);
 
-                    try (Connection c = ((AgroalDataSource) dataSource).getConnection()) { 
+                    try (Connection c = ((AgroalDataSource) dataSource).getConnection()) {
                         LOG.info("Got connection {}", c);
                     }
                 });
