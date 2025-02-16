@@ -59,7 +59,6 @@ public class AgroalDataSourceAutoConfiguration {
         this.recoveryRegistryProvider = recoveryRegistryProvider;
         this.jndiBinder = jndiBinder;
         this.securityProvider = securityProvider;
-
     }
 
     @Bean
