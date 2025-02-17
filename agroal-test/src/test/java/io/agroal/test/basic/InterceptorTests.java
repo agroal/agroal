@@ -22,6 +22,8 @@ import static io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSour
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
+import static java.lang.Integer.toHexString;
+import static java.lang.System.identityHashCode;
 import static java.util.Arrays.asList;
 import static java.util.List.of;
 import static java.util.logging.Logger.getLogger;
@@ -74,12 +76,15 @@ public class InterceptorTests {
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 ) );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new InterceptorListener() ) ) {
+        InterceptorListener listener = new InterceptorListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             dataSource.setPoolInterceptors( asList( new LowPriorityInterceptor(), new MainInterceptor() ) );
 
             try ( Connection c = dataSource.getConnection() ) {
                 assertSchema( "during", c );
             }
+
+            assertEquals( 2, listener.interceptors );
         }
     }
 
@@ -128,8 +133,8 @@ public class InterceptorTests {
     }
 
     @Test
-    @DisplayName( "Pooless interceptor test" )
-    void poolessInterceptorTest() throws SQLException {
+    @DisplayName( "Poolless interceptor test" )
+    void poollessInterceptorTest() throws SQLException {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .dataSourceImplementation( AGROAL_POOLLESS )
                 .connectionPoolConfiguration( cp -> cp
@@ -155,6 +160,8 @@ public class InterceptorTests {
 
     private static class InterceptorListener implements AgroalDataSourceListener {
 
+        private int interceptors;
+
         @SuppressWarnings( "WeakerAccess" )
         InterceptorListener() {
         }
@@ -167,6 +174,13 @@ public class InterceptorTests {
         @Override
         public void beforeConnectionDestroy(Connection connection) {
             assertSchema( "after", connection );
+        }
+
+        @Override
+        @SuppressWarnings( "SingleCharacterStringConcatenation" )
+        public void onPoolInterceptor(AgroalPoolInterceptor interceptor) {
+            onInfo( interceptor.getClass().getName() + "@" + toHexString( identityHashCode( interceptor ) ) + " (priority " + interceptor.getPriority() + ")" );
+            interceptors++;
         }
 
         @Override

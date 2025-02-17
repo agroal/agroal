@@ -106,6 +106,11 @@ public interface AgroalDataSourceListener {
     default void onConnectionDestroy(Connection connection) {}
 
     /**
+     * Callback is invoked for each pool interceptor that is installed.
+     */
+    default void onPoolInterceptor(AgroalPoolInterceptor interceptor) {}
+
+    /**
      * This callback is invoked to report anomalous circumstances that do not prevent the pool from functioning.
      */
     default void onWarning(String message) {}

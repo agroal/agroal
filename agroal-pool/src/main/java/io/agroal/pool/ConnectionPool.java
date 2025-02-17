@@ -61,14 +61,12 @@ import static io.agroal.pool.util.ListenerHelper.fireOnConnectionReap;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionReturn;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionValid;
 import static io.agroal.pool.util.ListenerHelper.fireOnInfo;
+import static io.agroal.pool.util.ListenerHelper.fireOnPoolInterceptor;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
-import static java.lang.Integer.toHexString;
-import static java.lang.System.identityHashCode;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
 import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -174,11 +172,8 @@ public final class ConnectionPool implements Pool {
         if ( list.isEmpty() && ( interceptors == null || interceptors.isEmpty() ) ) {
             return;
         }
-
         interceptors = list.stream().sorted( AgroalPoolInterceptor.DEFAULT_COMPARATOR ).collect( toList() );
-
-        Function<AgroalPoolInterceptor, String> interceptorName = i -> i.getClass().getName() + "@" + toHexString( identityHashCode( i ) ) + " (priority " + i.getPriority() + ")";
-        fireOnInfo( listeners, "Pool interceptors: " + interceptors.stream().map( interceptorName ).collect( joining( " >>> ", "[", "]" ) ) );
+        interceptors.forEach( interceptor -> fireOnPoolInterceptor( listeners, interceptor ) );
     }
 
     public void flushPool(AgroalDataSource.FlushMode mode) {
