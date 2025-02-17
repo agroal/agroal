@@ -4,6 +4,7 @@
 package io.agroal.pool.util;
 
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.pool.ConnectionHandler;
 
 import java.sql.Connection;
@@ -142,6 +143,12 @@ public final class ListenerHelper {
     public static void fireOnConnectionDestroy(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
             listener.onConnectionDestroy( handler.rawConnection() );
+        }
+    }
+
+    public static void fireOnPoolInterceptor(AgroalDataSourceListener[] listeners, AgroalPoolInterceptor interceptor) {
+        for ( AgroalDataSourceListener listener : listeners ) {
+            listener.onPoolInterceptor( interceptor );
         }
     }
 
