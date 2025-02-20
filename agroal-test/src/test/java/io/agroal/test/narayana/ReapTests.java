@@ -31,6 +31,7 @@ import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -83,6 +84,9 @@ public class ReapTests {
                 assertTrue( connection.isClosed(), "Expected connection closed by the reaper thread" );
                 assertFalse( tracked.isCommit(), "Unexpected connection commit" );
                 assertTrue( tracked.isRollback(), "Expected connection rollback by the reaper thread" );
+
+                // AG-252 - Get a connection after transaction timeout should throw exception
+                assertThrows( SQLException.class, dataSource::getConnection );
             } catch ( InterruptedException e ) {
                 fail( e );
             }
