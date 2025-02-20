@@ -20,9 +20,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_ACTIVE;
+import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_COMMITED;
 import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_COMPLETING;
-import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_DONE;
 import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_NONE;
+import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_ROLLED_BACK;
 import static jakarta.transaction.Status.*;
 
 /**
@@ -82,9 +83,13 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     @Override
     public TransactionAware getTransactionAware() throws SQLException {
-        if ( getTransactionPhase() == TRANSACTION_ACTIVE ) {
+        TransactionPhase phase = getTransactionPhase();
+        if ( phase == TRANSACTION_ACTIVE ) {
             return (TransactionAware) transactionSynchronizationRegistry.getResource( key );
+        } else if ( phase == TRANSACTION_ROLLED_BACK ) {
+            throw new SQLException( "The transaction has rolled back" );
         }
+        // Don't throw on TRANSACTION_COMMITED because if JDBCStore is used it will try to acquire a connection in that state
         return null;
     }
 
@@ -92,7 +97,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     public enum TransactionPhase {
         // these states are a coarser version of the transaction states
-        TRANSACTION_NONE, TRANSACTION_ACTIVE, TRANSACTION_COMPLETING, TRANSACTION_DONE
+        TRANSACTION_NONE, TRANSACTION_ACTIVE, TRANSACTION_COMPLETING, TRANSACTION_COMMITED, TRANSACTION_ROLLED_BACK
     }
 
     private XAResource createXaResource(TransactionAware transactionAware, XAResource xaResource) {
@@ -152,10 +157,6 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                 return TxUtils.isTransactionManagerTimeoutThread() ? TRANSACTION_COMPLETING : TRANSACTION_NONE;
             }
             switch ( transaction.getStatus() ) {
-                default:
-                case STATUS_UNKNOWN:
-                case STATUS_NO_TRANSACTION:
-                    return TRANSACTION_NONE;
                 case STATUS_ACTIVE:
                 case STATUS_MARKED_ROLLBACK:
                     return TRANSACTION_ACTIVE;
@@ -165,8 +166,13 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                 case STATUS_ROLLING_BACK:
                     return TRANSACTION_COMPLETING;
                 case STATUS_COMMITTED:
+                    return TRANSACTION_COMMITED;
                 case STATUS_ROLLEDBACK:
-                    return TRANSACTION_DONE;
+                    return TRANSACTION_ROLLED_BACK;
+                case STATUS_UNKNOWN:
+                case STATUS_NO_TRANSACTION:
+                default:
+                    return TRANSACTION_NONE;
             }
         } catch ( Exception e ) {
             throw new SQLException( "Exception in retrieving existing transaction", e );
@@ -210,7 +216,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     // --- //
 
-    // This auxiliary class is a contraption due to the fact that XAResource is not closable.
+    // This auxiliary class is a contraption because XAResource is not closable.
     // It creates RecoveryXAResource wrappers that keeps track of lifecycle and closes the associated connection.
     private static class AgroalXAResourceRecovery implements XAResourceRecovery {
 

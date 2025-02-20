@@ -29,7 +29,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.sql.XAConnection;
 import java.sql.Connection;
@@ -77,9 +78,10 @@ public class JDBCStoreTests {
 
     // --- //
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     @DisplayName( "Test JDBCStore with transactional datasource" )
-    void testJDBCStore() throws SystemException {
+    void testJDBCStore(boolean commit) throws SystemException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
         TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
 
@@ -95,7 +97,7 @@ public class JDBCStoreTests {
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
             AgroalJDBCAccess.dataSource = dataSource;
-            assertFalse( AgroalJDBCAccess.initialized, "JDBCStore initialized too soon" );
+            // assertFalse( AgroalJDBCAccess.initialized, "JDBCStore initialized too soon" ); // only succeeds with single test
 
             txManager.begin(); // this should cause the initialization of our ObjectStore
             assertTrue( AgroalJDBCAccess.initialized, "JDBCStore not properly initialized" );
@@ -105,10 +107,15 @@ public class JDBCStoreTests {
 
             Connection connection = dataSource.getConnection();
             logger.info( format( "Got connection {0}", connection ) );
+            assertFalse( connection.getAutoCommit(), "Connection should not be in auto-commit mode" );
 
-            txManager.commit();
-
-            assertEquals( 2, LoggingPreparedStatement.updateCount, "Unexpected number of statements executed on commit" );
+            if ( commit ) {
+                txManager.commit();
+                assertEquals( 2, LoggingPreparedStatement.updateCount, "Unexpected number of statements executed on commit" );
+            } else {
+                txManager.rollback();
+                assertEquals( 0, LoggingPreparedStatement.updateCount, "Unexpected number of statements executed on rollback" );
+            }
         } catch ( NotSupportedException | SystemException | HeuristicMixedException | HeuristicRollbackException | SQLException e ) {
             fail( "Exception: " + e.getMessage() );
         } catch ( RollbackException e ) {
