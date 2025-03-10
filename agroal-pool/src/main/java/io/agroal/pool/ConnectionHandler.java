@@ -241,7 +241,12 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     public boolean isValid() {
-        return connectionPool.getConfiguration().connectionValidator().isValid( detachedWrapper() );
+        try {
+            return connectionPool.getConfiguration().connectionValidator().isValid( detachedWrapper() );
+        } catch ( Throwable t ) {
+            fireOnWarning( connectionPool.getListeners(), t );
+            return false;
+        }
     }
 
     // --- Leak detection //
