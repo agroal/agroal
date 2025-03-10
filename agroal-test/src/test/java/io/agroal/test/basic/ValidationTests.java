@@ -53,7 +53,7 @@ public class ValidationTests {
 
     @Test
     @DisplayName( "validation throws fatal exception" )
-    void validationThrowsTest() throws SQLException, InterruptedException {
+    void validationThrowsTest() throws Exception {
         int MAX_POOL_SIZE = 3, VALIDATION_MS = 1000, IDLE_VALIDATION_MS = 100;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -64,7 +64,13 @@ public class ValidationTests {
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
                         .idleValidationTimeout( ofMillis( IDLE_VALIDATION_MS ) )
                         .acquisitionTimeout( ofMillis( 2 * VALIDATION_MS ) )
-                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
+                        .connectionValidator( connection -> {
+                            try {
+                                return connection.isValid( 0 );
+                            } catch ( SQLException e ) {
+                                throw new RuntimeException( e ); // unsafe validator
+                            }
+                        } )
                         .exceptionSorter( AgroalConnectionPoolConfiguration.ExceptionSorter.fatalExceptionSorter() )
                 );
 
@@ -95,7 +101,7 @@ public class ValidationTests {
 
     @Test
     @DisplayName( "idle validation test" )
-    void idleValidationTest() throws SQLException, InterruptedException {
+    void idleValidationTest() throws Exception {
         int POOL_SIZE = 1, IDLE_VALIDATION_MS = 100, TIMEOUT_MS = 1000;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
