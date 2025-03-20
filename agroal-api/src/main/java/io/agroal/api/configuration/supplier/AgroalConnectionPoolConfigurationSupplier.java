@@ -37,6 +37,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
     boolean enhancedLeakReport;
     boolean flushOnClose;
+    boolean recoveryEnable = true;
     int initialSize;
     volatile int minSize;
     volatile int maxSize = MAX_VALUE;
@@ -69,6 +70,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         transactionRequirement = existingConfiguration.transactionRequirement();
         multipleAcquisitionAction = existingConfiguration.multipleAcquisition();
         flushOnClose = existingConfiguration.flushOnClose();
+        recoveryEnable = existingConfiguration.recoveryEnable();
         enhancedLeakReport = existingConfiguration.enhancedLeakReport();
         initialSize = existingConfiguration.initialSize();
         minSize = existingConfiguration.minSize();
@@ -190,6 +192,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         return this;
     }
 
+    public AgroalConnectionPoolConfigurationSupplier recoveryEnable() {
+        return recoveryEnable( true );
+    }
+
+    public AgroalConnectionPoolConfigurationSupplier recoveryEnable(boolean enable) {
+        checkLock();
+        recoveryEnable = enable;
+        return this;
+    }
     /**
      * Sets the number of connections when the pool starts. Must not be negative. Default is zero.
      */
@@ -379,6 +390,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public boolean flushOnClose() {
                 return flushOnClose;
+            }
+
+            @Override
+            public boolean recoveryEnable() {
+                return recoveryEnable;
             }
 
             @Override

@@ -103,6 +103,71 @@ public class RecoveryTests {
 
     @Test
     @SuppressWarnings( "ConstantConditions" )
+    @DisplayName( "Do Not Register ConnectionFactory into XAResourceRecoveryRegistry" )
+    void noRegisterXAResourceRecoveryTest() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        DriverResourceRecoveryRegistry xaResourceRecoveryRegistry = new DriverResourceRecoveryRegistry(false);
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .recoveryEnable( false ) // disable recovery for this pool
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, xaResourceRecoveryRegistry ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .autoCommit( true ) )
+                );
+
+        assertFalse( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory should not have bee registered in XAResourceRecoveryRegistry" );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, xaResourceRecoveryRegistry.getListener() ) ) {
+            logger.info( "Testing no recovery registration for datasource " + dataSource );
+
+            assertFalse( xaResourceRecoveryRegistry.isRegistered(), "ConnectionFactory was registered in XAResourceRecoveryRegistry" );
+        }
+    }
+
+    @ParameterizedTest
+    @ArgumentsSource( RecoveryTestsArgumentsSource.class )
+    @DisplayName( "Disable Recovery for a pool" )
+    void xaResourceNoRecoverTest(boolean ignoreRecoveryFlags) throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        com.arjuna.ats.arjuna.common.recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
+        RecoveryManager recoveryManager = RecoveryManager.manager( DIRECT_MANAGEMENT );
+        recoveryManager.removeAllModules( true );
+        recoveryManager.addModule( new DoublePassXARecoveryModule() );
+
+        RecoveryManagerService recoveryService = new RecoveryManagerService();
+        recoveryService.create();
+
+        NonEmptyXidsResource.resetRecoverCount();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .recoveryEnable(false) // disable recovery for this pool
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( RequiresCloseXADataSource.class )
+                                .jdbcProperty( "ignoreRecoveryFlags", String.valueOf( ignoreRecoveryFlags ) ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
+            logger.info( "Starting recovery scan on pool which has recovery disabled: " + dataSource );
+            recoveryManager.scan();
+            assertEquals( 0, NonEmptyXidsResource.recoverCount(), "Expected zero recover calls" );
+
+            assertEquals( 0, RequiresCloseXADataSource.getClosed(), "Expected no connections to have opened" );
+        } finally {
+            recoveryManager.terminate( true );
+        }
+    }
+
+    @Test
+    @SuppressWarnings( "ConstantConditions" )
     @DisplayName( "Register ConnectionFactory into XAResourceRecoveryRegistry" )
     void registerXAResourceRecoveryTest() throws SQLException {
         TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
@@ -385,12 +450,19 @@ public class RecoveryTests {
         private final DriverAgroalDataSourceListener listener = new DriverAgroalDataSourceListener();
         private final Collection<XAResourceRecovery> xaResourceRecoverySet = new HashSet<>();
         private boolean registered;
+        private boolean enableRecovery;
 
         DriverResourceRecoveryRegistry() {
+            this(true);
+        }
+
+        DriverResourceRecoveryRegistry(boolean enableRecovery) {
+            this.enableRecovery = enableRecovery;
         }
 
         @Override
         public void addXAResourceRecovery(XAResourceRecovery recovery) {
+            assertTrue( enableRecovery, "Should not add resource recovery when enableRecovery is disabled" );
             assertFalse( listener.hasWarning() );
             assertEquals( 0, recovery.getXAResources().length, "Should not really provide any resources, it's a non-XA ConnectionFactory!!!" );
             assertTrue( listener.hasWarning(), "Should have got a warning for getXAResources on a non-XA ConnectionFactory" );
@@ -401,9 +473,11 @@ public class RecoveryTests {
 
         @Override
         public void removeXAResourceRecovery(XAResourceRecovery recovery) {
-            assertTrue( xaResourceRecoverySet.contains( recovery ), "The recovery to remove is not registered" );
+            assertTrue( !enableRecovery || xaResourceRecoverySet.contains( recovery ), "The recovery to remove is not registered" );
 
-            xaResourceRecoverySet.remove( recovery );
+            if (enableRecovery) {
+                xaResourceRecoverySet.remove(recovery);
+            }
             registered = false;
         }
 
@@ -582,6 +656,7 @@ public class RecoveryTests {
     private static class NonEmptyXidsResource implements MockXAResource {
         public static final int XID_COUNT = 5;
         private static int rollbackCount;
+        private static int recoverCount;
 
         private final List<Xid> xidArray = IntStream.range( 0, XID_COUNT ).mapToObj( ignored -> new XidImple() ).collect( toList() );
         private final boolean ignoreRecoveryFlags;
@@ -594,12 +669,21 @@ public class RecoveryTests {
             rollbackCount = 0;
         }
 
+        public static void resetRecoverCount() {
+            recoverCount = 0;
+        }
+
         public static int rollbackCount() {
             return rollbackCount;
         }
 
+        public static int recoverCount() {
+            return recoverCount;
+        }
+
         @Override
         public Xid[] recover(int flags) throws XAException {
+            recoverCount++;
             return flags == TMENDRSCAN && !ignoreRecoveryFlags ? null : xidArray.toArray( Xid[]::new );
         }
 
