@@ -190,7 +190,9 @@ public final class ConnectionPool implements Pool {
 
     @Override
     public void close() {
-        transactionIntegration.removeResourceRecoveryFactory( getResourceRecoveryFactory() );
+        if ( recoveryEnabled ) {
+            transactionIntegration.removeResourceRecoveryFactory(getResourceRecoveryFactory());
+        }
 
         for ( Runnable task : housekeepingExecutor.shutdownNow() ) {
             if ( task instanceof DestroyConnectionTask ) {

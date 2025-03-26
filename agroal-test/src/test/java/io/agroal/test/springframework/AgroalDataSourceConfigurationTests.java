@@ -112,7 +112,9 @@ class AgroalDataSourceConfigurationTests {
     @DisplayName("Autoconfiguration will create DataSource with integration to Narayana")
     @Test
     void testAutoconfigureAgroalDataSourceWithNarayanaIntegration() {
-        runner.withPropertyValues("narayana.logDir=ObjectStore")
+        runner.withPropertyValues(
+                "narayana.logDir=ObjectStore",
+                "spring.datasource.agroal.recovery-enable=false")
                 .withConfiguration(UserConfigurations.of(NarayanaAutoConfiguration.class))
                 .run(context -> {
                     AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
