@@ -91,6 +91,7 @@ public final class ConnectionPool implements Pool {
     private final boolean leakEnabled;
     private final boolean validationEnabled;
     private final boolean reapEnabled;
+    private final boolean recoveryEnabled;
 
     private final LongAccumulator maxUsed = new LongAccumulator( Math::max, Long.MIN_VALUE );
     private final LongAdder activeCount = new LongAdder();
@@ -116,6 +117,7 @@ public final class ConnectionPool implements Pool {
         leakEnabled = !configuration.leakTimeout().isZero();
         validationEnabled = !configuration.validationTimeout().isZero();
         reapEnabled = !configuration.reapTimeout().isZero();
+        recoveryEnabled = configuration.recoveryEnable();
     }
 
     private TransactionIntegration.ResourceRecoveryFactory getResourceRecoveryFactory() {
@@ -136,7 +138,9 @@ public final class ConnectionPool implements Pool {
         if ( reapEnabled ) {
             housekeepingExecutor.schedule( new ReapTask(), configuration.reapTimeout().toNanos(), NANOSECONDS );
         }
-        transactionIntegration.addResourceRecoveryFactory( getResourceRecoveryFactory() );
+        if ( recoveryEnabled ) {
+            transactionIntegration.addResourceRecoveryFactory( getResourceRecoveryFactory());
+        }
 
         // fill to the initial size
         if ( configuration.initialSize() < configuration.minSize() ) {
