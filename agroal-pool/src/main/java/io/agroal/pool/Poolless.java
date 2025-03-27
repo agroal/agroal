@@ -114,7 +114,9 @@ public final class Poolless implements Pool {
         if ( configuration.minSize() != 0 ) {
             fireOnInfo( listeners, "Min size always zero in pool-less mode" );
         }
-        transactionIntegration.addResourceRecoveryFactory( getResourceRecoveryFactory() );
+        if (configuration.recoveryEnable()) {
+            transactionIntegration.addResourceRecoveryFactory(getResourceRecoveryFactory());
+        }
     }
 
     public AgroalConnectionPoolConfiguration getConfiguration() {
@@ -166,7 +168,9 @@ public final class Poolless implements Pool {
 
     @Override
     public void close() {
-        transactionIntegration.removeResourceRecoveryFactory( getResourceRecoveryFactory() );
+        if (configuration.recoveryEnable()) {
+            transactionIntegration.removeResourceRecoveryFactory(getResourceRecoveryFactory());
+        }
         shutdown = true;
 
         for ( ConnectionHandler handler : allConnections ) {
