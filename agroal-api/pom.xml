@@ -41,7 +41,7 @@
                 </executions>
                 <configuration>
                     <packages>io.agroal.api.*</packages>
-                    <releaseVersion>1.8</releaseVersion>
+                    <releaseVersion>2.5</releaseVersion>
                 </configuration>
             </plugin>
         </plugins>
