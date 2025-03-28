@@ -165,6 +165,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.flushOnClose( flush );
     }
 
+    public void setRecoveryEnable(boolean recovery) {
+        connectionPoolConfiguration.recoveryEnable( recovery );
+    }
+
     // --- //
 
     // AG-234 - Allows access to the used jdbcUrl. DataSource derivation in spring boot's LiquibaseAutoConfiguration may need this.
