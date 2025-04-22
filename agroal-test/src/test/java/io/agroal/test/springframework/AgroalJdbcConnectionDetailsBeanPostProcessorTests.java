@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jdbc.JdbcConnectionDetails;
 import org.springframework.boot.context.annotation.UserConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.transaction.jta.JtaTransactionManager;
 
 import java.sql.Connection;
 
@@ -73,6 +74,9 @@ class AgroalJdbcConnectionDetailsBeanPostProcessorTests {
                             .isEqualTo( "jdbc:mock" );
                     assertThat( poolConfiguration.connectionFactoryConfiguration().connectionProviderClass().getName() )
                             .isEqualTo( "io.agroal.test.MockXADataSource$Empty" );
+
+                    JtaTransactionManager txManager = context.getBean( JtaTransactionManager.class );
+                    txManager.getTransaction( null );
 
                     try ( Connection c = dataSource.getConnection() ) {
                         LOG.info( "Got connection {}", c );

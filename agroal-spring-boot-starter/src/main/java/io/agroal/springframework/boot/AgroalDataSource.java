@@ -225,6 +225,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionFactoryConfiguration.autoCommit( autoCommit );
     }
 
+    public void setReadOnly(boolean readOnly) {
+        connectionFactoryConfiguration.readOnly( readOnly );
+    }
+
     public void setTrackResources(boolean track) {
         connectionFactoryConfiguration.trackJdbcResources( track );
     }

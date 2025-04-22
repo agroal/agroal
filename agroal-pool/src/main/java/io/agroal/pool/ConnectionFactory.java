@@ -242,6 +242,9 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
 
         connection.setAutoCommit( configuration.autoCommit() );
+        if ( configuration.readOnly() ) {
+            connection.setReadOnly( configuration.readOnly() );
+        }
         if ( configuration.jdbcTransactionIsolation().isDefined() ) {
             connection.setTransactionIsolation( configuration.jdbcTransactionIsolation().level() );
         } else if ( defaultIsolationLevel == null ) {

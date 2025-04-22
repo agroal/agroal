@@ -31,6 +31,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     private static final String PASSWORD_PROPERTY_NAME = "password";
 
     boolean autoCommit = true;
+    boolean readOnly;
     boolean trackJdbcResources = true;
     Duration loginTimeout = Duration.ZERO;
     String jdbcUrl = "";
@@ -60,6 +61,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             return;
         }
         autoCommit = existingConfiguration.autoCommit();
+        readOnly = existingConfiguration.readOnly();
         loginTimeout = existingConfiguration.loginTimeout();
         jdbcUrl = existingConfiguration.jdbcUrl();
         initialSql = existingConfiguration.initialSql();
@@ -90,6 +92,22 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     public AgroalConnectionFactoryConfigurationSupplier autoCommit(boolean autoCommitEnabled) {
         checkLock();
         autoCommit = autoCommitEnabled;
+        return this;
+    }
+
+    /**
+     * Sets the value of read-only for connections on the pool.
+     */
+    public AgroalConnectionFactoryConfigurationSupplier readOnly() {
+        return readOnly( true );
+    }
+
+    /**
+     * Sets the value of read-only for connections on the pool. Default is false.
+     */
+    public AgroalConnectionFactoryConfigurationSupplier readOnly(boolean readOnlyEnabled) {
+        checkLock();
+        readOnly = readOnlyEnabled;
         return this;
     }
 
@@ -276,6 +294,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public boolean autoCommit() {
                 return autoCommit;
+            }
+
+            @Override
+            public boolean readOnly() {
+                return readOnly;
             }
 
             @Override

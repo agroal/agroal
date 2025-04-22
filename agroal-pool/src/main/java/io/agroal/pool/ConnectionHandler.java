@@ -24,6 +24,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
+import static io.agroal.pool.ConnectionHandler.DirtyAttribute.READ_ONLY;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 import static java.lang.System.nanoTime;
@@ -140,6 +141,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                     AgroalConnectionFactoryConfiguration.IsolationLevel isolation = connectionFactoryConfiguration.jdbcTransactionIsolation();
                     connection.setTransactionIsolation( isolation.isDefined() ? isolation.level() : connectionPool.defaultJdbcIsolationLevel() );
                 }
+                if ( dirtyAttributes.contains( READ_ONLY ) ) {
+                    connection.setReadOnly( connectionFactoryConfiguration.readOnly() );
+                }
                 // other attributes do not have default values in connectionFactoryConfiguration
             } catch ( SQLException se ) {
                 setFlushOnly( se );
@@ -246,6 +250,15 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         } catch ( Throwable t ) {
             fireOnWarning( connectionPool.getListeners(), t );
             return false;
+        }
+    }
+
+    public void verifyReadOnly(boolean readOnly) throws SQLException {
+        if ( enlisted ) {
+            throw new SQLException( "Attempted to modify read-only state while enlisted in transaction" );
+        }
+        if ( connectionPool.getConfiguration().connectionFactoryConfiguration().readOnly() && !readOnly ) {
+            throw new SQLException( "Attempted to modify read-only state of read-only connection" );
         }
     }
 
@@ -413,6 +426,6 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     public enum DirtyAttribute {
-        AUTOCOMMIT, TRANSACTION_ISOLATION, NETWORK_TIMEOUT, SCHEMA, CATALOG
+        AUTOCOMMIT, TRANSACTION_ISOLATION, NETWORK_TIMEOUT, SCHEMA, CATALOG, READ_ONLY
     }
 }
