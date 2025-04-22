@@ -571,7 +571,9 @@ public final class ConnectionWrapper extends AutoCloseableElement implements Con
     public void setReadOnly(boolean readOnly) throws SQLException {
         try {
             handler.traceConnectionOperation( "setReadOnly(boolean)" );
+            handler.verifyReadOnly( readOnly );
             handler.verifyEnlistment();
+            handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.READ_ONLY );
             wrappedConnection.setReadOnly( readOnly );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );

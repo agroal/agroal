@@ -5,6 +5,7 @@ package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+import io.agroal.api.configuration.supplier.AgroalConnectionFactoryConfigurationSupplier;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockDataSource;
@@ -32,8 +33,10 @@ import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -118,6 +121,40 @@ public class ConnectionResetTests {
     // --- //
 
     @Test
+    @DisplayName( "Test connection reset with default read-only" )
+    void defaultReadOnlyTest() throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
+                cp -> cp.maxSize( 1 ) ) ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                 assertFalse( connection.isReadOnly() );
+                 connection.setReadOnly( true );
+                 assertTrue( connection.isReadOnly() );
+            }
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertFalse( connection.isReadOnly() );
+            }
+        }
+    }
+
+    @Test
+    @DisplayName( "Test read-only connection reset" )
+    void readOnlyTest() throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration(
+                cp -> cp.maxSize( 1 ).connectionFactoryConfiguration( AgroalConnectionFactoryConfigurationSupplier::readOnly ) ) ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertTrue( connection.isReadOnly() );
+                assertThrows( SQLException.class, () -> connection.setReadOnly( false ) );
+                assertTrue( connection.isReadOnly() );
+            }
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertTrue( connection.isReadOnly() );
+            }
+        }
+    }
+
+    // --- //
+
+    @Test
     @DisplayName( "Test connection autoCommit status remains the same after being changed" )
     void autoCommitTest() throws SQLException {
         autocommit( false );
@@ -185,6 +222,7 @@ public class ConnectionResetTests {
 
         private int isolation = DEFAULT_ISOLATION;
         private boolean autoCommit;
+        private boolean readOnly;
         private boolean warnings = true;
 
         @Override
@@ -206,6 +244,16 @@ public class ConnectionResetTests {
         @Override
         public void setAutoCommit(boolean autoCommit) {
             this.autoCommit = autoCommit;
+        }
+
+        @Override
+        public boolean isReadOnly() throws SQLException {
+            return readOnly;
+        }
+
+        @Override
+        public void setReadOnly(boolean readOnly) throws SQLException {
+            this.readOnly = readOnly;
         }
 
         @Override

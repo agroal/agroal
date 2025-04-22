@@ -24,6 +24,11 @@ public interface AgroalConnectionFactoryConfiguration {
     boolean autoCommit();
 
     /**
+     * If pooled connections are kept in read-only state, according to {@link java.sql.Connection#setReadOnly(boolean)}}. The JDBC driver is responsible for enforcing.
+     */
+    boolean readOnly();
+
+    /**
      * If JDBC resources ({@link java.sql.Statement} and {@link java.sql.ResultSet}) should be tracked to be closed if leaked.
      */
     boolean trackJdbcResources();

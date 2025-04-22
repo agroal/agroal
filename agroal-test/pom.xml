@@ -284,6 +284,8 @@
                         <configuration>
                             <groups>spring</groups>
                             <excludedGroups>none</excludedGroups>
+                            <!-- Run each test on this configuration on its own JVM fork -->
+                            <reuseForks>false</reuseForks>
                         </configuration>
                     </execution>
                 </executions>

@@ -101,6 +101,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
 
     public static final String JDBC_URL = "jdbcUrl";
     public static final String AUTO_COMMIT = "autoCommit";
+    public static final String READ_ONLY = "readOnly";
     public static final String TRACK_JDBC_RESOURCES = "trackJdbcResources";
     public static final String LOGIN_TIMEOUT = "loginTimeout";
     public static final String INITIAL_SQL = "initialSQL";
@@ -211,6 +212,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
 
         apply( connectionFactorySupplier::jdbcUrl, identity(), properties, JDBC_URL );
         apply( connectionFactorySupplier::autoCommit, Boolean::parseBoolean, properties, AUTO_COMMIT );
+        apply( connectionFactorySupplier::readOnly, Boolean::parseBoolean, properties, READ_ONLY );
         apply( connectionFactorySupplier::trackJdbcResources, Boolean::parseBoolean, properties, TRACK_JDBC_RESOURCES );
         apply( connectionFactorySupplier::loginTimeout, Duration::parse, properties, LOGIN_TIMEOUT );
         apply( connectionFactorySupplier::initialSql, identity(), properties, INITIAL_SQL );
