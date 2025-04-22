@@ -66,6 +66,7 @@ public class HikariUnderTheCovers implements AgroalDataSource {
 
         hikariConfig.setJdbcUrl( factoryConfiguration.jdbcUrl() );
         hikariConfig.setAutoCommit( factoryConfiguration.autoCommit() );
+        hikariConfig.setReadOnly( factoryConfiguration.readOnly() );
         hikariConfig.setConnectionInitSql( factoryConfiguration.initialSql() );
 
         for ( AgroalSecurityProvider provider : configuration.connectionPoolConfiguration().connectionFactoryConfiguration().securityProviders() ) {
