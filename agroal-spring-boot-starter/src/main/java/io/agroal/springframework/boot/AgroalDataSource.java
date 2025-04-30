@@ -8,6 +8,8 @@ import io.agroal.api.AgroalDataSourceMetrics;
 import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalConnectionFactoryConfigurationSupplier;
 import io.agroal.api.configuration.supplier.AgroalConnectionPoolConfigurationSupplier;
@@ -157,6 +159,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         setJtaTransactionIntegration( jtaPlatform );
     }
 
+    public void setTransactionRequirement( TransactionRequirement requirement ) {
+        connectionPoolConfiguration.transactionRequirement( requirement );
+    }
+
     public void setEnhancedLeakReport(boolean enhanced) {
         connectionPoolConfiguration.enhancedLeakReport( enhanced );
     }
@@ -167,6 +173,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setRecoveryEnable(boolean recovery) {
         connectionPoolConfiguration.recoveryEnable( recovery );
+    }
+
+    public void setMultipleAcquisition( MultipleAcquisitionAction acquisition ) {
+        connectionPoolConfiguration.multipleAcquisition( acquisition );
     }
 
     // --- //
