@@ -74,7 +74,9 @@ public final class XAConnectionWrapper extends AutoCloseableElement implements X
         if ( wrappedXAConnection != CLOSED_XA_CONNECTION ) {
             wrappedXAConnection = CLOSED_XA_CONNECTION;
 
-            trackedXAResources.closeAllAutocloseableElements();
+            if ( trackedXAResources != null ) {
+                trackedXAResources.closeAllAutocloseableElements();
+            }
             handler.transactionEnd();
         }
     }
