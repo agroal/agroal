@@ -19,7 +19,7 @@ import org.springframework.util.Assert;
 import java.util.Map;
 
 @AutoConfiguration( before = DataSourceHealthContributorAutoConfiguration.class, after = AgroalDataSourceAutoConfiguration.class )
-@ConditionalOnClass( AgroalDataSource.class )
+@ConditionalOnClass( { DataSourceHealthContributorAutoConfiguration.class, AgroalDataSource.class } )
 @ConditionalOnBean( AgroalDataSource.class )
 @ConditionalOnEnabledHealthIndicator( "db" )
 public class AgroalDataSourceHealthContributorAutoConfiguration {
