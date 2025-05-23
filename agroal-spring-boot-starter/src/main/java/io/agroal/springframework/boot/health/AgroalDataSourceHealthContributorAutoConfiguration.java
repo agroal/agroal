@@ -13,10 +13,14 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.jdbc.DataSourceUnwrapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.Assert;
 
+import javax.sql.DataSource;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @AutoConfiguration( before = DataSourceHealthContributorAutoConfiguration.class, after = AgroalDataSourceAutoConfiguration.class )
 @ConditionalOnClass( { DataSourceHealthContributorAutoConfiguration.class, AgroalDataSource.class } )
@@ -26,8 +30,16 @@ public class AgroalDataSourceHealthContributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean( name = { "dbHealthIndicator", "dbHealthContributor" } )
-    public HealthContributor dbHealthContributor( Map<String, AgroalDataSource> dataSources ) {
-        return createContributor( dataSources );
+    public HealthContributor dbHealthContributor(Map<String, ? extends DataSource> dataSources) {
+        final Map<String, AgroalDataSource> agroalDataSources = dataSources.entrySet().stream()
+                .flatMap(entry -> {
+                    final AgroalDataSource agroalDataSource = DataSourceUnwrapper.unwrap(entry.getValue(), AgroalDataSource.class);
+                    if (null != agroalDataSource) {
+                        return Stream.of(Map.entry(entry.getKey(), agroalDataSource));
+                    }
+                    return Stream.empty();
+                }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        return createContributor(agroalDataSources);
     }
 
     private HealthContributor createContributor( Map<String, AgroalDataSource> beans ) {
