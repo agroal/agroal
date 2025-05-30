@@ -60,11 +60,11 @@ public final class ResultSetWrapper extends AutoCloseableElement implements Resu
 
     // --- //
 
-    private final StatementWrapper statement;
+    private final AbstractStatementWrapper<?> statement;
 
     private ResultSet wrappedResultSet;
 
-    public ResultSetWrapper(StatementWrapper statementWrapper, ResultSet resultSet, AutoCloseableElement head) {
+    public ResultSetWrapper(AbstractStatementWrapper<?> statementWrapper, ResultSet resultSet, AutoCloseableElement head) {
         super( head );
         statement = statementWrapper;
         wrappedResultSet = resultSet;
