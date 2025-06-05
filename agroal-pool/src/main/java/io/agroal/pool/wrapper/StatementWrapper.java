@@ -16,7 +16,7 @@ import io.agroal.pool.util.AutoCloseableElement;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
-public class StatementWrapper extends AbstractStatementWrapper<Statement> {
+public class StatementWrapper extends BaseStatementWrapper<Statement> {
 
     static final String CLOSED_STATEMENT_STRING = StatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
 
@@ -36,13 +36,11 @@ public class StatementWrapper extends AbstractStatementWrapper<Statement> {
         }
     };
 
-    private static final Statement CLOSED_STATEMENT = (Statement) newProxyInstance( Statement.class.getClassLoader(), new Class[]{Statement.class}, CLOSED_HANDLER );
-
-    private static final AbstractStatementWrapperState<Statement> CLOSED_STATE = new AbstractStatementWrapperState<Statement>(CLOSED_STATEMENT, null);
+    static final Statement CLOSED_STATEMENT = (Statement) newProxyInstance( Statement.class.getClassLoader(), new Class[]{Statement.class}, CLOSED_HANDLER );
 
     @Override
-    protected AbstractStatementWrapperState<Statement> getClosedStatementState() {
-        return CLOSED_STATE;
+    protected Statement getClosedStatement() {
+        return CLOSED_STATEMENT;
     }
 
     public StatementWrapper(ConnectionWrapper connectionWrapper, Statement statement, boolean trackResources, AutoCloseableElement head) {

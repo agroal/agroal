@@ -35,7 +35,7 @@ import io.agroal.pool.util.AutoCloseableElement;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
-public final class PreparedStatementWrapper extends AbstractStatementWrapper<PreparedStatement> implements PreparedStatement {
+public final class PreparedStatementWrapper extends BaseStatementWrapper<PreparedStatement> implements PreparedStatement {
 
     static final String CLOSED_PREPARED_STATEMENT_STRING = PreparedStatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
 
@@ -55,9 +55,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         }
     };
 
-    private static final PreparedStatement CLOSED_STATEMENT = (PreparedStatement) newProxyInstance( PreparedStatement.class.getClassLoader(), new Class[]{PreparedStatement.class}, CLOSED_HANDLER );
-
-    private static final AbstractStatementWrapperState<PreparedStatement> CLOSED_STATE = new AbstractStatementWrapperState<PreparedStatement>(CLOSED_STATEMENT, null);
+    static final PreparedStatement CLOSED_STATEMENT = (PreparedStatement) newProxyInstance( PreparedStatement.class.getClassLoader(), new Class[]{PreparedStatement.class}, CLOSED_HANDLER );
 
     // --- //
 
@@ -66,8 +64,8 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
     }
 
     @Override
-    protected AbstractStatementWrapperState<PreparedStatement> getClosedStatementState() {
-        return CLOSED_STATE;
+    protected PreparedStatement getClosedStatement() {
+        return CLOSED_STATEMENT;
     }
 
     // --- //
@@ -77,7 +75,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             return trackResultSet( state.wrappedStatement.executeQuery() );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -87,7 +85,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             return state.wrappedStatement.executeUpdate();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -97,7 +95,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNull( parameterIndex, sqlType );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -107,7 +105,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBoolean( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -117,7 +115,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setByte( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -127,7 +125,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setShort( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -137,7 +135,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setInt( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -147,7 +145,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setLong( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -157,7 +155,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setFloat( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -167,7 +165,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setDouble( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -177,7 +175,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBigDecimal( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -187,7 +185,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setString( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -197,7 +195,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBytes( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -207,7 +205,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setDate( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -217,7 +215,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setTime( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -227,7 +225,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setTimestamp( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -237,7 +235,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setAsciiStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -248,7 +246,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setUnicodeStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -258,7 +256,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBinaryStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -268,7 +266,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.clearParameters();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -278,7 +276,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setObject( parameterIndex, x, targetSqlType );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -288,7 +286,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setObject( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -298,7 +296,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             return state.wrappedStatement.execute();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -308,7 +306,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.addBatch();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -318,7 +316,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setCharacterStream( parameterIndex, reader, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -328,7 +326,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setRef( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -338,7 +336,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBlob( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -348,7 +346,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setClob( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -358,7 +356,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setArray( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -368,7 +366,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             return state.wrappedStatement.getMetaData();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -378,7 +376,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setDate( parameterIndex, x, cal );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -388,7 +386,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setTime( parameterIndex, x, cal );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -398,7 +396,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setTimestamp( parameterIndex, x, cal );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -408,7 +406,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNull( parameterIndex, sqlType, typeName );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -418,7 +416,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setURL( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -428,7 +426,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             return state.wrappedStatement.getParameterMetaData();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -438,7 +436,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setRowId( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -448,7 +446,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNString( parameterIndex, value );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -458,7 +456,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNCharacterStream( parameterIndex, value, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -468,7 +466,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNClob( parameterIndex, value );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -478,7 +476,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setClob( parameterIndex, reader, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -488,7 +486,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBlob( parameterIndex, inputStream, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -498,7 +496,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNClob( parameterIndex, reader, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -508,7 +506,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setSQLXML( parameterIndex, xmlObject );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -518,7 +516,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setObject( parameterIndex, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -528,7 +526,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setAsciiStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -538,7 +536,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBinaryStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -548,7 +546,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setCharacterStream( parameterIndex, reader, length );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -558,7 +556,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setAsciiStream( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -568,7 +566,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBinaryStream( parameterIndex, x );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -578,7 +576,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setCharacterStream( parameterIndex, reader );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -588,7 +586,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNCharacterStream( parameterIndex, value );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -598,7 +596,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setClob( parameterIndex, reader );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -608,7 +606,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setBlob( parameterIndex, inputStream );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -618,7 +616,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setNClob( parameterIndex, reader );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -630,7 +628,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setObject( parameterIndex, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -640,7 +638,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             state.wrappedStatement.setObject( parameterIndex, x, targetSqlType );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -650,7 +648,7 @@ public final class PreparedStatementWrapper extends AbstractStatementWrapper<Pre
         try {
             return state.wrappedStatement.executeLargeUpdate();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }

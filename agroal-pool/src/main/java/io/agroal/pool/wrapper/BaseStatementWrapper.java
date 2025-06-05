@@ -15,13 +15,17 @@ import io.agroal.pool.util.AutoCloseableElement;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
-public abstract class AbstractStatementWrapper<T extends Statement> extends AutoCloseableElement implements Statement {
+public class BaseStatementWrapper<T extends Statement> extends AutoCloseableElement implements Statement {
 
-    static final class AbstractStatementWrapperState<S extends Statement> {
+    static final class BaseStatementWrapperState<S extends Statement> {
         final S wrappedStatement;
         final AutoCloseableElement trackedResultSets;
+        final ConnectionWrapper connection;
 
-        AbstractStatementWrapperState(S wrappedStatement, AutoCloseableElement trackedResultSets) {
+        // --- //
+
+        BaseStatementWrapperState(ConnectionWrapper connection, S wrappedStatement, AutoCloseableElement trackedResultSets) {
+            this.connection = connection;
             this.trackedResultSets = trackedResultSets;
             this.wrappedStatement = wrappedStatement;
         }
@@ -29,15 +33,11 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
 
     // --- //
 
-    @SuppressWarnings( "ProtectedField" )
-    protected final ConnectionWrapper connection;
+    protected BaseStatementWrapperState<T> state;
 
-    protected AbstractStatementWrapperState<T> state;
-
-    public AbstractStatementWrapper(ConnectionWrapper connectionWrapper, T statement, boolean trackResources, AutoCloseableElement head) {
+    public BaseStatementWrapper(ConnectionWrapper connectionWrapper, T statement, boolean trackResources, AutoCloseableElement head) {
         super( head );
-        connection = connectionWrapper;
-        state = new AbstractStatementWrapperState<T>(statement, trackResources ? AutoCloseableElement.newHead() : null);
+        state = new BaseStatementWrapperState<T>(connectionWrapper, statement, trackResources ? AutoCloseableElement.newHead() : null);
     }
 
     // --- //
@@ -51,30 +51,32 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
 
     private void closeTrackedResultSets() throws SQLException {
         if ( state.trackedResultSets != null ) {
-            connection.addLeakedResultSets( state.trackedResultSets.closeAllAutocloseableElements() );
+            state.connection.addLeakedResultSets( state.trackedResultSets.closeAllAutocloseableElements() );
         }
     }
 
     ConnectionWrapper getConnectionWrapper() throws SQLException {
-        return connection;
+        return state.connection;
     }
 
     @Override
     public void close() throws SQLException {
         try {
-            if ( state.wrappedStatement != getClosedStatementState().wrappedStatement ) {
+            if ( state.wrappedStatement != getClosedStatement() ) {
                 closeTrackedResultSets();
                 state.wrappedStatement.close();
             }
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         } finally {
-            state = getClosedStatementState();
+            state = state.connection.getClosedStatementState(this);
         }
     }
 
-    protected abstract AbstractStatementWrapperState<T> getClosedStatementState();
+    protected T getClosedStatement() {
+        throw new UnsupportedOperationException("getClosedStatement() must be overridden in a subclass");
+    }
 
     // --- //
 
@@ -83,7 +85,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.clearWarnings();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -93,7 +95,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return trackResultSet( state.wrappedStatement.executeQuery( sql ) );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -103,7 +105,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeUpdate( sql );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -113,7 +115,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getMaxFieldSize();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -123,7 +125,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setMaxFieldSize( max );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -133,7 +135,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getMaxRows();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -143,7 +145,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setMaxRows( max );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -153,7 +155,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setEscapeProcessing( enable );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -163,7 +165,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getQueryTimeout();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -173,7 +175,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setQueryTimeout( seconds );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -183,7 +185,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.cancel();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -193,7 +195,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setCursorName( name );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -203,7 +205,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.execute( sql );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -213,7 +215,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return trackResultSet( state.wrappedStatement.getResultSet() );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -223,7 +225,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getUpdateCount();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -233,7 +235,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getMoreResults();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -243,7 +245,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getFetchDirection();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -253,7 +255,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setFetchDirection( direction );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -263,7 +265,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getFetchSize();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -273,7 +275,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setFetchSize( rows );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -283,7 +285,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getResultSetConcurrency();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -293,7 +295,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getResultSetType();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -303,7 +305,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.addBatch( sql );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -313,7 +315,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.clearBatch();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -323,14 +325,14 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeBatch();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
 
     @Override
     public final Connection getConnection() throws SQLException {
-        return connection;
+        return state.connection;
     }
 
     @Override
@@ -338,7 +340,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getMoreResults( current );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -348,7 +350,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return trackResultSet( state.wrappedStatement.getGeneratedKeys() );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -358,7 +360,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeUpdate( sql, autoGeneratedKeys );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -368,7 +370,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeUpdate( sql, columnIndexes );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -378,7 +380,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeUpdate( sql, columnNames );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -388,7 +390,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.execute( sql, autoGeneratedKeys );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -398,7 +400,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.execute( sql, columnIndexes );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -408,7 +410,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.execute( sql, columnNames );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -418,7 +420,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getResultSetHoldability();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -428,7 +430,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.isPoolable();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -438,7 +440,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setPoolable( poolable );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -448,7 +450,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.closeOnCompletion();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -458,7 +460,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.isCloseOnCompletion();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -468,7 +470,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getWarnings();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -478,7 +480,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.isClosed();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -490,7 +492,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getLargeUpdateCount();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -500,7 +502,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.getLargeMaxRows();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -510,7 +512,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             state.wrappedStatement.setLargeMaxRows( max );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -520,7 +522,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeLargeBatch();
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -530,7 +532,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeLargeUpdate( sql );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -540,7 +542,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeLargeUpdate( sql, autoGeneratedKeys );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -550,7 +552,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeLargeUpdate( sql, columnIndexes );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -560,7 +562,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.executeLargeUpdate( sql, columnNames );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -572,7 +574,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.unwrap( target );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
@@ -582,7 +584,7 @@ public abstract class AbstractStatementWrapper<T extends Statement> extends Auto
         try {
             return state.wrappedStatement.isWrapperFor( target );
         } catch ( SQLException se ) {
-            connection.getHandler().setFlushOnly( se );
+            state.connection.getHandler().setFlushOnly( se );
             throw se;
         }
     }
