@@ -3,8 +3,7 @@
 
 package io.agroal.pool.wrapper;
 
-import io.agroal.pool.ConnectionHandler;
-import io.agroal.pool.util.AutoCloseableElement;
+import static java.lang.reflect.Proxy.newProxyInstance;
 
 import java.lang.reflect.InvocationHandler;
 import java.sql.Array;
@@ -26,7 +25,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
+import io.agroal.pool.ConnectionHandler;
+import io.agroal.pool.util.AutoCloseableElement;
+import io.agroal.pool.wrapper.BaseStatementWrapper.BaseStatementWrapperState;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -69,24 +70,31 @@ public final class ConnectionWrapper extends AutoCloseableElement implements Con
 
     private Connection wrappedConnection;
 
+    private final BaseStatementWrapperState<Statement> statementClosedState;
+    private final BaseStatementWrapperState<PreparedStatement> preparedStatementClosedState;
+    private final BaseStatementWrapperState<CallableStatement> callableStatementClosedState;
+
     public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources) {
         this(connectionHandler, trackResources, false );
     }
 
     public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, boolean detached) {
-        super( null );
-        handler = connectionHandler;
-        wrappedConnection = connectionHandler.rawConnection();
-        trackedStatements = trackResources ? AutoCloseableElement.newHead() : null;
-        this.detached = detached;
+        this(connectionHandler, trackResources, detached, null);
     }
 
     public ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, AutoCloseableElement head ) {
+        this(connectionHandler, trackResources, false, head);
+    }
+
+    protected ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, boolean detached, AutoCloseableElement head) {
         super( head );
         handler = connectionHandler;
         wrappedConnection = connectionHandler.rawConnection();
         trackedStatements = trackResources ? AutoCloseableElement.newHead() : null;
-        detached = false;
+        this.detached = detached;
+        statementClosedState = new BaseStatementWrapperState<>( this, StatementWrapper.CLOSED_STATEMENT, null );
+        preparedStatementClosedState = new BaseStatementWrapperState<>( this, PreparedStatementWrapper.CLOSED_STATEMENT, null );
+        callableStatementClosedState = new BaseStatementWrapperState<>( this, CallableStatementWrapper.CLOSED_STATEMENT, null );
     }
 
     public ConnectionHandler getHandler() {
@@ -831,5 +839,17 @@ public final class ConnectionWrapper extends AutoCloseableElement implements Con
         public boolean hasLeak() {
             return statementCount != 0 || resultSetCount != 0;
         }
+    }
+
+    <T extends Statement> BaseStatementWrapperState<T> getClosedStatementState(BaseStatementWrapper<T> baseStatementWrapper) {
+        T closedStatement = baseStatementWrapper.getClosedStatement();
+        if (closedStatement instanceof PreparedStatement) {
+            return (BaseStatementWrapperState<T>) preparedStatementClosedState;
+        } else if (closedStatement instanceof Statement) {
+            return (BaseStatementWrapperState<T>) statementClosedState;
+        } else if (closedStatement instanceof CallableStatement) {
+            return (BaseStatementWrapperState<T>) callableStatementClosedState;
+        }
+        throw new IllegalStateException("Unknown statement type: " + closedStatement.getClass().getName());
     }
 }
