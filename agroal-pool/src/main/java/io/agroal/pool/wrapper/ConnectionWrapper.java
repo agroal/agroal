@@ -832,4 +832,10 @@ public final class ConnectionWrapper extends AutoCloseableElement implements Con
             return statementCount != 0 || resultSetCount != 0;
         }
     }
+
+    void pruneClosedStatements() {
+        if (trackedStatements != null) {
+            trackedStatements.pruneClosed();
+        }
+    }
 }
