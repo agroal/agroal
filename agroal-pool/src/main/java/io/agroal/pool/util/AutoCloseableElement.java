@@ -16,8 +16,7 @@ import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater
  * There is the invariant that at any given point in time the list can be traversed from the head and all inserted elements are reachable.
  * As an implementation detail, the collection formed is actually a stack (FILO behaviour) and is thread-safe.
  * <p>
- * The resources do not remove themselves on close. It's assumed that the implementations of this interface are wrappers and the contents are dropped at that moment.
- * Also, allowing removal of elements would introduce an undesirable amount of complexity to this class.
+ * The resources do not remove themselves on close, rather there is a {@link #pruneClosed()} method that must be called to remove subsequent closed elements.
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
@@ -28,6 +27,10 @@ public abstract class AutoCloseableElement implements AutoCloseable {
     private volatile AutoCloseableElement nextElement;
 
     public abstract boolean isClosed() throws Exception;
+
+    protected boolean wasClosed() {
+        return false;
+    }
 
     @SuppressWarnings( "ThisEscapedInObjectConstruction" )
     protected AutoCloseableElement(AutoCloseableElement head) {
@@ -79,6 +82,18 @@ public abstract class AutoCloseableElement implements AutoCloseable {
 
     private AutoCloseableElement resetNextElement() {
         return NEXT_UPDATER.getAndSet( this, null );
+    }
+
+    /**
+     * Check for runs of closed elements after the current position and remove them from the linked list
+     */
+    public void pruneClosed() {
+        for (int i = 0; i < 1000; i++) { // add some limit to the amount of pruning in a single call
+            AutoCloseableElement next = nextElement;
+            if (next == null || !next.wasClosed() || !setNextElement(next, next.nextElement)) {
+                break;
+            }
+        }
     }
 
     // --- head of the list //
