@@ -83,6 +83,8 @@ public class StatementWrapper extends AutoCloseableElement implements Statement 
             if ( wrappedStatement != CLOSED_STATEMENT ) {
                 closeTrackedResultSets();
                 wrappedStatement.close();
+                pruneClosed();
+                connection.pruneClosedStatements();
             }
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
@@ -606,5 +608,10 @@ public class StatementWrapper extends AutoCloseableElement implements Statement 
     @Override
     public final String toString() {
         return "wrapped[ " + wrappedStatement + " ]";
+    }
+
+    @Override
+    protected boolean wasClosed() {
+        return this.wrappedStatement == CLOSED_STATEMENT;
     }
 }
