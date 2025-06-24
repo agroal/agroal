@@ -29,7 +29,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Function;
 
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
@@ -184,7 +183,7 @@ public final class ConnectionPool implements Pool {
 
     public void flushPool(AgroalDataSource.FlushMode mode) {
         if ( mode == LEAK && !leakEnabled ) {
-            fireOnWarning( listeners, "Flushing leak connections with no specified leak timout." );
+            fireOnWarning( listeners, "Flushing leak connections with no specified leak timeout." );
             return;
         }
         housekeepingExecutor.execute( new FlushTask( mode ) );
