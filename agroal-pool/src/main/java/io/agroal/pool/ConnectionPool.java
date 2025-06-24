@@ -92,6 +92,7 @@ public final class ConnectionPool implements Pool {
     private final boolean validationEnabled;
     private final boolean reapEnabled;
     private final boolean recoveryEnabled;
+    private final boolean poolStatsEnabled;
 
     private final LongAccumulator maxUsed = new LongAccumulator( Math::max, Long.MIN_VALUE );
     private final LongAdder activeCount = new LongAdder();
@@ -118,6 +119,7 @@ public final class ConnectionPool implements Pool {
         validationEnabled = !configuration.validationTimeout().isZero();
         reapEnabled = !configuration.reapTimeout().isZero();
         recoveryEnabled = configuration.recoveryEnable();
+        poolStatsEnabled = configuration.poolStatisticsEnabled();
     }
 
     private TransactionIntegration.ResourceRecoveryFactory getResourceRecoveryFactory() {
@@ -231,8 +233,10 @@ public final class ConnectionPool implements Pool {
                 }
             } while ( ( borrowValidationEnabled && !borrowValidation( checkedOutHandler ) )
                     || ( idleValidationEnabled && !idleValidation( checkedOutHandler ) ) );
-            
-            activeCount.increment();
+
+            if ( poolStatsEnabled ) {
+                activeCount.increment();
+            }
             fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
             afterAcquire( stamp, checkedOutHandler, false );
             return checkedOutHandler.xaConnectionWrapper();
@@ -296,7 +300,9 @@ public final class ConnectionPool implements Pool {
                     || ( idleValidationEnabled && !idleValidation( checkedOutHandler ) ) );
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
 
-            activeCount.increment();
+            if ( poolStatsEnabled ) {
+                activeCount.increment();
+            }
             fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
             afterAcquire( stamp, checkedOutHandler, true );
             return checkedOutHandler.connectionWrapper();
@@ -460,7 +466,9 @@ public final class ConnectionPool implements Pool {
         } catch ( Throwable ignored ) {
         }
 
-        activeCount.decrement();
+        if ( poolStatsEnabled ) {
+            activeCount.decrement();
+        }
 
         // resize on change of max-size, or flush on close
         int currentSize = allConnections.size();
@@ -512,14 +520,23 @@ public final class ConnectionPool implements Pool {
     }
 
     public long activeCount() {
+        checkPoolStatsEnabled();
         return activeCount.sum();
     }
 
+    private void checkPoolStatsEnabled() {
+        if ( !poolStatsEnabled ) {
+            fireOnWarning( listeners, "Invoked ConnectionPool#activeCount() while pool stats have been disabled." );
+        }
+    }
+
     public long availableCount() {
+        checkPoolStatsEnabled();
         return allConnections.size() - activeCount.sum();
     }
 
     public long maxUsedCount() {
+        checkPoolStatsEnabled();
         return maxUsed.get();
     }
 
@@ -595,7 +612,9 @@ public final class ConnectionPool implements Pool {
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
 
-                maxUsed.accumulate( allConnections.size() );
+                if ( poolStatsEnabled ) {
+                    maxUsed.accumulate( allConnections.size() );
+                }
                 fireOnConnectionPooled( listeners, handler );
 
                 return handler;

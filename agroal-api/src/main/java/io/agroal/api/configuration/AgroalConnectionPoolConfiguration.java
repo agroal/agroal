@@ -153,6 +153,18 @@ public interface AgroalConnectionPoolConfiguration {
      */
     void setAcquisitionTimeout(Duration timeout);
 
+    /**
+     * When set to {@code false}, Agroal will not be updating essential pool usage stats such as active count, available count, max used
+     * count. Those stats will stay at zero and should not be relied on.
+     * Disabling these stats is generally not recommended, but could be useful when these stats
+     * are not being used, for example when these are duplicating other means to get such details.
+     *
+     * @return {@code true} unless overriden
+     */
+    default boolean poolStatisticsEnabled() {
+        return true;
+    };
+
     // --- //
 
     /**

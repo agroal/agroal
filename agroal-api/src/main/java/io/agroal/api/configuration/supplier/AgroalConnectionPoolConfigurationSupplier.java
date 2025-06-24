@@ -50,6 +50,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     Duration reapTimeout = ZERO;
     Duration maxLifetime = ZERO;
     volatile Duration acquisitionTimeout = ZERO;
+    boolean poolStatisticsEnabled = true;
 
     private volatile boolean lock;
 
@@ -84,6 +85,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         reapTimeout = existingConfiguration.reapTimeout();
         maxLifetime = existingConfiguration.maxLifetime();
         acquisitionTimeout = existingConfiguration.acquisitionTimeout();
+        poolStatisticsEnabled = existingConfiguration.poolStatisticsEnabled();
     }
 
     private void checkLock() {
@@ -173,6 +175,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier enhancedLeakReport(boolean enhanced) {
         checkLock();
         enhancedLeakReport = enhanced;
+        return this;
+    }
+
+    /**
+     * Enables or disables pool statistics. Default is true.
+     */
+    public AgroalConnectionPoolConfigurationSupplier poolStatistics(boolean enabled) {
+        checkLock();
+        poolStatisticsEnabled = enabled;
         return this;
     }
 
@@ -490,6 +501,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public Duration maxLifetime() {
                 return maxLifetime;
+            }
+
+            @Override
+            public boolean poolStatisticsEnabled() {
+                return poolStatisticsEnabled;
             }
         };
     }
