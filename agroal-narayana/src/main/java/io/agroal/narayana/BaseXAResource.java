@@ -67,7 +67,9 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             xaResource.end( xid, flags );
         } catch ( XAException xe ) {
-            transactionAware.setFlushOnly();
+            if ( !XAExceptionUtils.isUnilateralRollbackOnAbort( xe.errorCode, flags ) ) {
+                transactionAware.setFlushOnly();
+            }
             throw xe;
         } catch ( Exception e ) {
             transactionAware.setFlushOnly();
