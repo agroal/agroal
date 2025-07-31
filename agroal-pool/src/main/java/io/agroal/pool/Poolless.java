@@ -9,17 +9,19 @@ import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
-import io.agroal.pool.util.AgroalSynchronizer;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
+import io.agroal.pool.util.XAConnectionAdaptor;
 
 import javax.sql.XAConnection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.TransferQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAccumulator;
-import java.util.function.Function;
 
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
@@ -51,6 +53,7 @@ import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.unmodifiableList;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -61,12 +64,22 @@ import static java.util.stream.Collectors.toList;
  */
 public final class Poolless implements Pool {
 
+    static {
+        try {
+            TRANSFER_POISON = new ConnectionHandler( new XAConnectionAdaptor( null ), null );
+        } catch ( SQLException e ) {
+            throw new RuntimeException( e );
+        }
+    }
+
+    private static final ConnectionHandler TRANSFER_POISON; // Dummy object to unblock waiting threads, for example on close()
+
     private final AgroalConnectionPoolConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
 
     private final StampedCopyOnWriteArrayList<ConnectionHandler> allConnections;
+    private final TransferQueue<ConnectionHandler> handlerTransferQueue = new LinkedTransferQueue<>();
 
-    private final AgroalSynchronizer synchronizer;
     private final ConnectionFactory connectionFactory;
     private final TransactionIntegration transactionIntegration;
 
@@ -82,8 +95,6 @@ public final class Poolless implements Pool {
         this.listeners = listeners;
 
         allConnections = new StampedCopyOnWriteArrayList<>( ConnectionHandler.class );
-
-        synchronizer = new AgroalSynchronizer();
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
         transactionIntegration = configuration.transactionIntegration();
     }
@@ -114,8 +125,8 @@ public final class Poolless implements Pool {
         if ( configuration.minSize() != 0 ) {
             fireOnInfo( listeners, "Min size always zero in pool-less mode" );
         }
-        if (configuration.recoveryEnable()) {
-            transactionIntegration.addResourceRecoveryFactory(getResourceRecoveryFactory());
+        if ( configuration.recoveryEnable() ) {
+            transactionIntegration.addResourceRecoveryFactory( getResourceRecoveryFactory() );
         }
     }
 
@@ -168,8 +179,8 @@ public final class Poolless implements Pool {
 
     @Override
     public void close() {
-        if (configuration.recoveryEnable()) {
-            transactionIntegration.removeResourceRecoveryFactory(getResourceRecoveryFactory());
+        if ( configuration.recoveryEnable() ) {
+            transactionIntegration.removeResourceRecoveryFactory( getResourceRecoveryFactory() );
         }
         shutdown = true;
 
@@ -178,8 +189,7 @@ public final class Poolless implements Pool {
             destroyConnection( handler );
         }
         allConnections.clear();
-
-        synchronizer.release( synchronizer.getQueueLength() );
+        while ( handlerTransferQueue.tryTransfer( TRANSFER_POISON ) ) ; // Unblock waiting threads with CancellationException
     }
 
     // --- //
@@ -244,7 +254,7 @@ public final class Poolless implements Pool {
 
     private ConnectionHandler handlerFromSharedCache() throws SQLException {
         long remaining = configuration.acquisitionTimeout().toNanos();
-        remaining = remaining > 0 ? remaining : Long.MAX_VALUE;
+        long deadline = remaining > 0 ? nanoTime() + remaining : Long.MAX_VALUE;
         try {
             for ( ; ; ) {
                 // Try to get a "token" to create a new connection
@@ -258,21 +268,20 @@ public final class Poolless implements Pool {
                 } else {
                     activeCount.decrementAndGet();
                 }
-
-                // Pool full, will have to wait for a connection to be returned
-                long synchronizationStamp = synchronizer.getStamp();
-                long start = nanoTime();
-                if ( remaining < 0 || !synchronizer.tryAcquireNanos( synchronizationStamp, remaining ) ) {
-                    throw new SQLException( "Sorry, acquisition timeout!" );
-                }
-                if ( shutdown ) {
-                    throw new SQLException( "Can't create new connection as the pool is shutting down" );
-                }
-                remaining -= nanoTime() - start;
+                waitAvailableHandler( deadline ); // Wait for a connection to be returned
             }
         } catch ( InterruptedException e ) {
             currentThread().interrupt();
             throw new SQLException( "Interrupted while acquiring" );
+        }
+    }
+
+    private void waitAvailableHandler(long deadline) throws InterruptedException, SQLException {
+        ConnectionHandler handler = handlerTransferQueue.poll( deadline - nanoTime(), NANOSECONDS );
+        if ( handler == null ) {
+            throw new SQLException( "Sorry, acquisition timeout!" );
+        } else if ( handler == TRANSFER_POISON ) {
+            throw new CancellationException( "" );
         }
     }
 
@@ -350,7 +359,7 @@ public final class Poolless implements Pool {
     }
 
     public long awaitingCount() {
-        return synchronizer.getQueueLength();
+        return handlerTransferQueue.getWaitingConsumerCount();
     }
 
     // --- health check //
@@ -426,7 +435,7 @@ public final class Poolless implements Pool {
         handler.setState( FLUSH );
         allConnections.remove( handler );
         activeCount.decrementAndGet();
-        synchronizer.releaseConditional();
+        handlerTransferQueue.tryTransfer( handler );
         metricsRepository.afterConnectionFlush();
         fireOnConnectionFlush( listeners, handler );
         destroyConnection( handler );

@@ -19,6 +19,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
 
@@ -60,7 +61,7 @@ class PoollessTests {
     @DisplayName( "Pool-less Test" )
     @SuppressWarnings( {"AnonymousInnerClassMayBeStatic", "ObjectAllocationInLoop", "JDBCResourceOpenedButNotSafelyClosed"} )
     void poollessTest() throws SQLException {
-        int TIMEOUT_MS = 100, NUM_THREADS = 4;
+        int TIMEOUT_MS = 100, NUM_THREADS = 5;
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .dataSourceImplementation( AGROAL_POOLLESS )
@@ -69,7 +70,7 @@ class PoollessTests {
                         .initialSize( 1 ) // ignored
                         .minSize( 1 ) // ignored
                         .maxSize( 2 )
-                        .acquisitionTimeout( Duration.ofMillis( 5 * TIMEOUT_MS ) )
+                        .acquisitionTimeout( Duration.ofMillis( 6 * TIMEOUT_MS ) )
                 );
 
         CountDownLatch destroyLatch = new CountDownLatch( 1 );
@@ -135,7 +136,7 @@ class PoollessTests {
 
                 try {
                     Thread.sleep( TIMEOUT_MS );
-                    assertEquals( 4, dataSource.getMetrics().awaitingCount(), "Insufficient number of blocked threads" );
+                    assertEquals( NUM_THREADS, dataSource.getMetrics().awaitingCount(), "Insufficient number of blocked threads" );
                     assertEquals( 4, dataSource.getMetrics().creationCount() );
 
                     logger.info( "Closing connection to unblock one waiting thread" );
@@ -143,7 +144,7 @@ class PoollessTests {
 
                     Thread.sleep( TIMEOUT_MS );
 
-                    assertEquals( 3, dataSource.getMetrics().awaitingCount(), "Insufficient number of blocked threads" );
+                    assertEquals( NUM_THREADS - 1, dataSource.getMetrics().awaitingCount(), "Insufficient number of blocked threads" );
                     assertEquals( 5, dataSource.getMetrics().creationCount() );
 
                     for ( Thread thread : threads ) {
@@ -171,7 +172,7 @@ class PoollessTests {
                 Connection c = dataSource.getConnection();
                 assertFalse( c.isClosed() );
                 logger.info( currentThread().getName() + " got one connection !!!" );
-            } catch ( SQLException e ) {
+            } catch ( CancellationException | SQLException e ) {
                 logger.info( currentThread().getName() + " got none" );
             }
         } );
