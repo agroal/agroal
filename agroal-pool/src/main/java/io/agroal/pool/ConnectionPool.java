@@ -182,7 +182,7 @@ public final class ConnectionPool implements Pool {
 
     public void flushPool(AgroalDataSource.FlushMode mode) {
         if ( mode == LEAK && !leakEnabled ) {
-            fireOnWarning( listeners, "Flushing leak connections with no specified leak timout." );
+            fireOnWarning( listeners, "Flushing leak connections with no specified leak timeout." );
             return;
         }
         housekeepingExecutor.execute( new FlushTask( mode ) );
@@ -231,8 +231,10 @@ public final class ConnectionPool implements Pool {
                 }
             } while ( ( borrowValidationEnabled && !borrowValidation( checkedOutHandler ) )
                     || ( idleValidationEnabled && !idleValidation( checkedOutHandler ) ) );
-            
-            activeCount.increment();
+
+            if ( metricsRepository.collectPoolMetrics() ) {
+                activeCount.increment();
+            }
             fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
             afterAcquire( stamp, checkedOutHandler, false );
             return checkedOutHandler.xaConnectionWrapper();
@@ -296,7 +298,9 @@ public final class ConnectionPool implements Pool {
                     || ( idleValidationEnabled && !idleValidation( checkedOutHandler ) ) );
             transactionIntegration.associate( checkedOutHandler, checkedOutHandler.getXaResource() );
 
-            activeCount.increment();
+            if ( metricsRepository.collectPoolMetrics() ) {
+                activeCount.increment();
+            }
             fireOnConnectionAcquiredInterceptor( interceptors, checkedOutHandler );
             afterAcquire( stamp, checkedOutHandler, true );
             return checkedOutHandler.connectionWrapper();
@@ -460,7 +464,9 @@ public final class ConnectionPool implements Pool {
         } catch ( Throwable ignored ) {
         }
 
-        activeCount.decrement();
+        if ( metricsRepository.collectPoolMetrics() ) {
+            activeCount.decrement();
+        }
 
         // resize on change of max-size, or flush on close
         int currentSize = allConnections.size();
@@ -595,7 +601,9 @@ public final class ConnectionPool implements Pool {
                 handler.setState( CHECKED_IN );
                 allConnections.add( handler );
 
-                maxUsed.accumulate( allConnections.size() );
+                if ( metricsRepository.collectPoolMetrics() ) {
+                    maxUsed.accumulate( allConnections.size() );
+                }
                 fireOnConnectionPooled( listeners, handler );
 
                 return handler;
