@@ -42,6 +42,13 @@ public interface MetricsRepository extends AgroalDataSourceMetrics {
     default void afterConnectionDestroy() {
     }
 
+    /**
+     * Hint to the pool that it doesn't need to collect statistics
+     */
+    default boolean collectPoolMetrics() {
+        return true;
+    }
+
     // --- //
 
     final class EmptyMetricsRepository implements MetricsRepository {
@@ -49,6 +56,11 @@ public interface MetricsRepository extends AgroalDataSourceMetrics {
         @Override
         public String toString() {
             return "Metrics Disabled";
+        }
+
+        @Override
+        public boolean collectPoolMetrics() {
+            return false;
         }
     }
 
