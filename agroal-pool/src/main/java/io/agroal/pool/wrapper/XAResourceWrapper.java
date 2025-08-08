@@ -43,10 +43,15 @@ public class XAResourceWrapper extends AutoCloseableElement implements XAResourc
         handler = connectionHandler;
         wrappedXAResource = resource;
     }
+    
+    @Override
+    protected boolean internalClosed() {
+        return wrappedXAResource == CLOSED_XA_RESOURCE;
+    }
 
     @Override
     public boolean isClosed() throws Exception {
-        return wrappedXAResource == CLOSED_XA_RESOURCE;
+        return internalClosed();
     }
 
     @Override

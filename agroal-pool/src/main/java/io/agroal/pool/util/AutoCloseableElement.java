@@ -28,9 +28,7 @@ public abstract class AutoCloseableElement implements AutoCloseable {
 
     public abstract boolean isClosed() throws Exception;
 
-    protected boolean wasClosed() {
-        return false;
-    }
+    protected abstract boolean internalClosed();
 
     @SuppressWarnings( "ThisEscapedInObjectConstruction" )
     protected AutoCloseableElement(AutoCloseableElement head) {
@@ -88,11 +86,9 @@ public abstract class AutoCloseableElement implements AutoCloseable {
      * Check for runs of closed elements after the current position and remove them from the linked list
      */
     public void pruneClosed() {
-        for (int i = 0; i < 1000; i++) { // add some limit to the amount of pruning in a single call
-            AutoCloseableElement next = nextElement;
-            if (next == null || !next.wasClosed() || !setNextElement(next, next.nextElement)) {
-                break;
-            }
+        AutoCloseableElement next = nextElement;
+        while (next != null && next.internalClosed() && setNextElement(next, next.nextElement)) {
+            next = nextElement;
         }
     }
 
@@ -119,6 +115,11 @@ public abstract class AutoCloseableElement implements AutoCloseable {
         @Override
         public void close() throws Exception {
             throw new IllegalStateException();
+        }
+
+        @Override
+        protected boolean internalClosed() {
+            return false;
         }
     }
 }

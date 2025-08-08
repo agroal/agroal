@@ -2026,4 +2026,9 @@ public final class ResultSetWrapper extends AutoCloseableElement implements Resu
             throw se;
         }            
     }
+
+    @Override
+    protected boolean internalClosed() {
+        return wrappedResultSet == CLOSED_RESULT_SET;
+    }
 }

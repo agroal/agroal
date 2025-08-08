@@ -838,4 +838,9 @@ public final class ConnectionWrapper extends AutoCloseableElement implements Con
             trackedStatements.pruneClosed();
         }
     }
+
+    @Override
+    protected boolean internalClosed() {
+        return wrappedConnection == CLOSED_CONNECTION;
+    }
 }
