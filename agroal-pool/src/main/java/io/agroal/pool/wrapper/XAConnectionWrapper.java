@@ -60,12 +60,17 @@ public final class XAConnectionWrapper extends AutoCloseableElement implements X
         }
         return resource;
     }
+    
+    @Override
+    protected boolean internalClosed() {
+        return wrappedXAConnection == CLOSED_XA_CONNECTION;
+    }
 
     // --- //
 
     @Override
     public boolean isClosed() throws SQLException {
-        return wrappedXAConnection == CLOSED_XA_CONNECTION;
+        return internalClosed();
     }
 
     @Override
@@ -128,4 +133,5 @@ public final class XAConnectionWrapper extends AutoCloseableElement implements X
         handler.traceConnectionOperation( "removeStatementEventListener()" );
         wrappedXAConnection.removeStatementEventListener( listener );
     }
+
 }

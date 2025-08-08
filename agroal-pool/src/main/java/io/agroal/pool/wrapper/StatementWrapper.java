@@ -611,7 +611,7 @@ public class StatementWrapper extends AutoCloseableElement implements Statement 
     }
 
     @Override
-    protected boolean wasClosed() {
-        return this.wrappedStatement == CLOSED_STATEMENT;
+    protected boolean internalClosed() {
+        return wrappedStatement == CLOSED_STATEMENT;
     }
 }
