@@ -152,6 +152,12 @@ public final class ListenerHelper {
         }
     }
 
+    public static void fireBeforePoolBlock(AgroalDataSourceListener[] listeners, long timeout) {
+        for ( AgroalDataSourceListener listener : listeners ) {
+            listener.beforePoolBlock( timeout );
+        }
+    }
+
     public static void fireOnWarning(AgroalDataSourceListener[] listeners, String message) {
         for ( AgroalDataSourceListener listener : listeners ) {
             listener.onWarning( message );

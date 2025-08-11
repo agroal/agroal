@@ -51,6 +51,7 @@ import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionLeak;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionReap;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionReturn;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionValidation;
+import static io.agroal.pool.util.ListenerHelper.fireBeforePoolBlock;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionAcquired;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreation;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionDestroy;
@@ -342,7 +343,9 @@ public final class ConnectionPool implements Pool {
                 if ( i == 0 && handlerTransferQueue.hasWaitingConsumer() ) { // On the first iteration, block right away if there are other threads already blocked
                     // There is a race condition here (if a thread was blocked but by the time poll is executed a transfer allready took place)
                     // Because of that do not block for the whole remaining duration. Do it for at most a second and then move on to perform a scan
-                    ConnectionHandler handler = handlerTransferQueue.poll( Long.min( ONE_SECOND, remaining > 0 ? remaining * 9 / 10 : MAX_VALUE ), NANOSECONDS );
+                    long timeout = Long.min( ONE_SECOND, remaining > 0 ? remaining * 9 / 10 : MAX_VALUE );
+                    fireBeforePoolBlock( listeners, timeout );
+                    ConnectionHandler handler = handlerTransferQueue.poll( timeout, NANOSECONDS );
                     if ( handler != null && handler.acquire() ) {
                         return handler;
                     }
@@ -364,7 +367,9 @@ public final class ConnectionPool implements Pool {
                     }
                 } else {
                     // Wait for the new connection instead of the transferQueue to propagate any exception on connection establishment
-                    ConnectionHandler handler = task.get( deadline - nanoTime(), NANOSECONDS );
+                    long timeout = deadline - nanoTime();
+                    fireBeforePoolBlock( listeners, timeout );
+                    ConnectionHandler handler = task.get( timeout, NANOSECONDS );
                     if ( handler != null && handler.acquire() ) {
                         return handler;
                     }
@@ -391,7 +396,9 @@ public final class ConnectionPool implements Pool {
     }
 
     private ConnectionHandler waitAvailableHandler(long deadline) throws InterruptedException, SQLException {
-        ConnectionHandler handler = handlerTransferQueue.poll( deadline - nanoTime(), NANOSECONDS );
+        long timeout = deadline - nanoTime();
+        fireBeforePoolBlock( listeners, timeout );
+        ConnectionHandler handler = handlerTransferQueue.poll( timeout, NANOSECONDS );
         if ( handler == null ) {
             throw new SQLException( "Sorry, acquisition timeout!" );
         } else if ( handler == TRANSFER_POISON ) {
