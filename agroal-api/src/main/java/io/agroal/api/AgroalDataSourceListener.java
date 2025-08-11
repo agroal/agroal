@@ -111,6 +111,11 @@ public interface AgroalDataSourceListener {
     default void onPoolInterceptor(AgroalPoolInterceptor interceptor) {}
 
     /**
+     * This callback is invoked before a thread blocks waiting for an available connection
+     */
+    default void beforePoolBlock(long timeout) {}
+
+    /**
      * This callback is invoked to report anomalous circumstances that do not prevent the pool from functioning.
      */
     default void onWarning(String message) {}

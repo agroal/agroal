@@ -39,6 +39,7 @@ import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionDestroy;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionFlush;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionReturn;
 import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionValidation;
+import static io.agroal.pool.util.ListenerHelper.fireBeforePoolBlock;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionAcquired;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreation;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionDestroy;
@@ -277,6 +278,8 @@ public final class Poolless implements Pool {
     }
 
     private void waitAvailableHandler(long deadline) throws InterruptedException, SQLException {
+        long timeout = deadline - nanoTime();
+        fireBeforePoolBlock( listeners, timeout );
         ConnectionHandler handler = handlerTransferQueue.poll( deadline - nanoTime(), NANOSECONDS );
         if ( handler == null ) {
             throw new SQLException( "Sorry, acquisition timeout!" );
