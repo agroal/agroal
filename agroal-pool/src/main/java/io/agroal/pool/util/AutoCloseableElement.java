@@ -49,7 +49,7 @@ public abstract class AutoCloseableElement implements AutoCloseable {
         // if under contention, the call that succeeds to reset the head is the one and only that will traverse the whole collection
         for ( AutoCloseableElement next = resetNextElement(); next != null; next = next.resetNextElement() ) {
             try {
-                if ( !next.isClosed() ) {
+                if ( !next.internalClosed() ) {
                     count++;
                     if ( next instanceof Statement ) {
                         try {
