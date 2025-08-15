@@ -50,7 +50,7 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
                 case "toString":
                     return CLOSED_PREPARED_STATEMENT_STRING;
                 default:
-                    throw new SQLException( "CallableStatement is closed" );
+                    throw new SQLException( "PreparedStatement is closed" );
             }
         }
     };
