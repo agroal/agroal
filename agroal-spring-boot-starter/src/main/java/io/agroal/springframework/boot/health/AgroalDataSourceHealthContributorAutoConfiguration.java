@@ -6,16 +6,16 @@ package io.agroal.springframework.boot.health;
 import io.agroal.api.AgroalDataSource;
 import io.agroal.springframework.boot.AgroalDataSourceAutoConfiguration;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
-import org.springframework.boot.actuate.autoconfigure.jdbc.DataSourceHealthContributorAutoConfiguration;
-import org.springframework.boot.actuate.health.CompositeHealthContributor;
-import org.springframework.boot.actuate.health.HealthContributor;
-import org.springframework.boot.actuate.jdbc.DataSourceHealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator;
+import org.springframework.boot.health.contributor.CompositeHealthContributor;
+import org.springframework.boot.health.contributor.HealthContributor;
 import org.springframework.boot.jdbc.DataSourceUnwrapper;
+import org.springframework.boot.jdbc.autoconfigure.health.DataSourceHealthContributorAutoConfiguration;
+import org.springframework.boot.jdbc.health.DataSourceHealthIndicator;
 import org.springframework.boot.jdbc.metadata.CompositeDataSourcePoolMetadataProvider;
 import org.springframework.boot.jdbc.metadata.DataSourcePoolMetadata;
 import org.springframework.boot.jdbc.metadata.DataSourcePoolMetadataProvider;
@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @AutoConfiguration( before = DataSourceHealthContributorAutoConfiguration.class, after = AgroalDataSourceAutoConfiguration.class )
-@ConditionalOnClass( { DataSourceHealthContributorAutoConfiguration.class, AgroalDataSource.class } )
+@ConditionalOnClass( { DataSourceHealthContributorAutoConfiguration.class, AgroalDataSource.class, ConditionalOnEnabledHealthIndicator.class } )
 @ConditionalOnBean( DataSource.class )
 @ConditionalOnEnabledHealthIndicator( "db" )
 public class AgroalDataSourceHealthContributorAutoConfiguration {
