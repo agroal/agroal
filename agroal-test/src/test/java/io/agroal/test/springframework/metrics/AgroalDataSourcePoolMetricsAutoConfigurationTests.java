@@ -14,12 +14,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
-import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
-import org.springframework.boot.actuate.autoconfigure.metrics.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.sql.Connection;
@@ -71,8 +70,8 @@ class AgroalDataSourcePoolMetricsAutoConfigurationTests {
     @DisplayName("AgroalDataSourcePoolMetricsAutoConfiguration will not trigger without micrometer on the classpath")
     @Test
     void testMicrometerNotPresentOnClasspath() {
-        runner
-                .withClassLoader(new FilteredClassLoader(MeterRegistry.class))
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(AgroalDataSourcePoolMetricsAutoConfiguration.class, AgroalDataSourceAutoConfiguration.class))
                 .run(context -> assertThat(context).doesNotHaveBean(AgroalDataSourcePoolMetricsAutoConfiguration.class));
     }
 
