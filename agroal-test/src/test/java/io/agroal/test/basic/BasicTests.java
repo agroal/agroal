@@ -5,6 +5,7 @@ package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockStatement;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -23,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Logger;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.fatalExceptionSorter;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.STRICT;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.WARN;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -122,6 +125,7 @@ public class BasicTests {
                         .maxSize( MAX_POOL_SIZE )
                         .leakTimeout( ofMillis( LEAK_DETECTION_MS ) )
                         .acquisitionTimeout( ofMillis( LEAK_DETECTION_MS ) )
+                        .exceptionSorter( fatalExceptionSorter() )
                 );
         CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
 
@@ -130,12 +134,16 @@ public class BasicTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
             for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
                 Connection connection = dataSource.getConnection();
-                assertNotNull( connection.getSchema(), "Expected non null value" );
+                if ( i % 10 == 0 ) { // once every 10 connections the getCatalog() method is called to throw exception and put the connection in FLUSH state
+                    assertThrows( SQLException.class, connection::getCatalog, "Expected SQLException on getCatalog call" );
+                } else {
+                    assertNotNull( connection.getSchema(), "Expected non null value" );
+                }
                 //connection.close();
             }
             try {
                 logger.info( format( "Holding all {0} connections from the pool and waiting for leak notifications", MAX_POOL_SIZE ) );
-                if ( !latch.await( 3L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
+                if ( !latch.await( 2L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
                     fail( format( "Missed detection of {0} leaks", latch.getCount() ) );
                 }
             } catch ( InterruptedException e ) {
@@ -535,6 +543,12 @@ public class BasicTests {
         @Override
         public String getSchema() throws SQLException {
             return FAKE_SCHEMA;
+        }
+
+        @Override
+        public String getCatalog() throws SQLException {
+            // this method always throws a SQLException
+            throw new SQLFeatureNotSupportedException();
         }
 
         @Override
