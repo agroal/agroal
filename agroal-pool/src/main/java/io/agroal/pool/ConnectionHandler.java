@@ -225,7 +225,8 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     private boolean isActive() {
-        return stateUpdater.get( this ) == State.CHECKED_OUT;
+        State observedState = stateUpdater.get( this );
+        return observedState == State.CHECKED_OUT || observedState == State.FLUSH;
     }
 
     public void touch() {
