@@ -52,12 +52,7 @@ public interface AgroalDataSourceConfiguration {
         /**
          * Specialization of the Agroal pool for the flush-on-close use case.
          */
-        AGROAL_POOLLESS( "io.agroal.pool.DataSource" ),
-
-        /**
-         * The popular Hikari connection pool. Mainly for testing purposes as the Agroal API is not fully supported.
-         */
-        HIKARI( "io.agroal.hikari.HikariUnderTheCovers" );
+        AGROAL_POOLLESS( "io.agroal.pool.DataSource" );
 
         private final String className;
 
