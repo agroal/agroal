@@ -25,18 +25,6 @@
         </dependency>
         <dependency>
             <groupId>io.agroal</groupId>
-            <artifactId>agroal-hikari</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>io.agroal</groupId>
             <artifactId>agroal-pool</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
