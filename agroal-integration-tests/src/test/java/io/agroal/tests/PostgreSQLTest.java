@@ -5,20 +5,22 @@ import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplie
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.sql.SQLException;
 
+@Testcontainers
 public class PostgreSQLTest {
+
+    @Container
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine");
 
     AgroalDataSource datasource;
-
-    @BeforeAll
-    static void startPostgreSQLDB() {
-        postgres.start();
-    }
 
     @BeforeEach
     void setupDataSource() throws SQLException {
@@ -47,10 +49,4 @@ public class PostgreSQLTest {
             this.datasource.close();
         }
     }
-
-    @AfterAll
-    static void stopPostgreSQLDB() {
-        postgres.stop();
-    }
-
 }
