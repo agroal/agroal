@@ -243,6 +243,25 @@ public interface AgroalConnectionPoolConfiguration {
             };
         }
 
+        /**
+         * A validator that uses the provided SQL statement for validation with a timeout (in seconds).
+         * If the timeout period expires before the operation completes, the connection is invalidated.
+         * A timeout of 0 means no timeout.
+         */
+        static ConnectionValidator sqlValidator(String sql, int timeoutSeconds) {
+            return new ConnectionValidator() {
+                @Override
+                public boolean isValid(Connection connection) {
+                    try (var statement = connection.createStatement()) {
+                        statement.setQueryTimeout( timeoutSeconds );
+                        statement.execute( sql );
+                        return true;
+                    } catch (Exception t) {
+                        return false;
+                    }
+                }
+            };
+        }
         // --- //
 
         /**

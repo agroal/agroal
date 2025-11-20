@@ -1,7 +1,7 @@
 package io.agroal.tests;
 
 import io.agroal.api.AgroalDataSource;
-import org.assertj.core.api.Assertions;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +11,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.sql.SQLException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
 @Testcontainers
@@ -29,6 +30,14 @@ public class PostgreSQLTest {
     @Test
     void shouldConnect() {
         assertThatNoException().isThrownBy(() -> datasource.getConnection().close());
+    }
+
+    @Test
+    void testConnectionValidatorTest() throws SQLException {
+        try (var connection = datasource.getConnection()) {
+            assertThat(ConnectionValidator.sqlValidator("select pg_sleep(2)", 5).isValid(connection)).isTrue();
+            assertThat(ConnectionValidator.sqlValidator("select pg_sleep(3)", 2).isValid(connection)).isFalse();
+        }
     }
 
     @AfterEach
