@@ -45,7 +45,10 @@ jobs:
         with:
           name: agroal-repository-artifact
           path: ~/.m2/repository/io/agroal
-      - run: mvn --projects agroal-test verify
+      - if: runner.os == 'Linux'
+        run: mvn -Pit --projects agroal-test,agroal-integration-tests verify
+      - if: runner.os == 'Windows'
+        run: mvn --projects agroal-test verify
 
   deploy:
     if: ${{ github.repository == 'agroal/agroal' && github.ref == 'refs/heads/master' }}

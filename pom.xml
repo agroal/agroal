@@ -136,12 +136,6 @@
   <profiles>
     <profile>
       <id>it</id>
-      <activation>
-        <property>
-          <name>performRelease</name>
-          <value>!true</value>
-        </property>
-      </activation>
       <modules>
         <module>agroal-integration-tests</module>
       </modules>
