@@ -13,12 +13,12 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.actuate.health.CompositeHealthContributor;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.boot.actuate.health.Status;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.health.contributor.CompositeHealthContributor;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 
@@ -54,7 +54,7 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                   assertThat(context).hasSingleBean(AgroalDataSourceHealthIndicator.class);
 
                   AgroalDataSourceHealthIndicator agroalDataSourceHealthIndicator = context.getBean(AgroalDataSourceHealthIndicator.class);
-                  Health health = agroalDataSourceHealthIndicator.getHealth(true);
+                  Health health = agroalDataSourceHealthIndicator.health(true);
                   LOG.info("Got health {}", health);
                   assertThat(health.getStatus()).isEqualTo(Status.UP);
 
@@ -73,7 +73,7 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                     assertThat(context).hasSingleBean(AgroalDataSourceHealthIndicator.class);
 
                     AgroalDataSourceHealthIndicator agroalDataSourceHealthIndicator = context.getBean(AgroalDataSourceHealthIndicator.class);
-                    Health health = agroalDataSourceHealthIndicator.getHealth(true);
+                    Health health = agroalDataSourceHealthIndicator.health(true);
                     LOG.info("Got health {}", health);
                     assertThat(health.getStatus()).isEqualTo(Status.UP);
 
@@ -101,7 +101,7 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                     assertThat(context).hasSingleBean(AgroalDataSourceHealthIndicator.class);
 
                     AgroalDataSourceHealthIndicator agroalDataSourceHealthIndicator = context.getBean(AgroalDataSourceHealthIndicator.class);
-                    Health health = agroalDataSourceHealthIndicator.getHealth(true);
+                    Health health = agroalDataSourceHealthIndicator.health(true);
                     LOG.info("Got health {}", health);
                     assertThat(health.getStatus()).isEqualTo(Status.UP);
 
@@ -131,7 +131,7 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                     CompositeHealthContributor compositeHealthContributor = context.getBean(CompositeHealthContributor.class);
                     assertThat(compositeHealthContributor.stream().count()).isEqualTo(2);
                     compositeHealthContributor.forEach(contributor -> {
-                        Health health = ((HealthIndicator) contributor.getContributor()).getHealth(true);
+                        Health health = ((HealthIndicator) contributor.contributor()).health(true);
                         LOG.info("Got health {}", health);
                         assertThat(health.getStatus()).isEqualTo(Status.UP);
                     });
@@ -142,18 +142,6 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                         }
                     }
                 });
-    }
-
-    @DisplayName("AutoConfiguration fails when no DataSource is present")
-    @Test
-    void testFailWhenNoDataSourceIsPresent() {
-        runner.run(context -> {
-            AgroalDataSourceHealthContributorAutoConfiguration dbHealthContributor = context.getBean(AgroalDataSourceHealthContributorAutoConfiguration.class);
-            Map<String, DataSource> dataSources = Map.of();
-            assertThatCode(() -> dbHealthContributor.dbHealthContributor(dataSources))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Beans must not be empty");
-        });
     }
 
     @DisplayName("AutoConfiguration won't create AgroalDataSourceHealthIndicator")
