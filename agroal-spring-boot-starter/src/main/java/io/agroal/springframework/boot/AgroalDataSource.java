@@ -395,6 +395,11 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         }
 
         @Override
+        public void onConnectionCreationFailure(SQLException sqlException) {
+            logger.warn( "Failure to establish connection", sqlException );
+        }
+
+        @Override
         public void onConnectionAcquire(Connection connection) {
             if ( logger.isDebugEnabled() ) {
                 logger.debug( "Connection acquired {}", connection );

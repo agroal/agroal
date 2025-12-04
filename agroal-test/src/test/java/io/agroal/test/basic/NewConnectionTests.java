@@ -172,7 +172,8 @@ public class NewConnectionTests {
             Thread.sleep( INITIAL_TIMEOUT_MS );
 
             assertEquals( 0, dataSource.getMetrics().creationCount() );
-            assertEquals( INITIAL_SIZE, warningsListener.warningCount(), "Expected warning(s)" );
+            assertEquals( 0, warningsListener.warningCount(), "Unexpected warning(s)" );
+            assertEquals( INITIAL_SIZE, warningsListener.failuresCount(), "Expected warning(s)" );
         } catch ( InterruptedException e ) {
             fail( "Interrupt " + e );
         }
@@ -182,22 +183,32 @@ public class NewConnectionTests {
 
     public static class WarningsAgroalListener implements AgroalDataSourceListener {
 
-        private final AtomicInteger warnings = new AtomicInteger();
+        private final AtomicInteger warnings = new AtomicInteger(), failures = new AtomicInteger();
 
         @Override
         public void onWarning(String message) {
             warnings.getAndIncrement();
-            logger.info( "Expected WARN: " + message );
+            logger.warning( "Unexpected WARN: " + message );
         }
 
         @Override
         public void onWarning(Throwable throwable) {
             warnings.getAndIncrement();
-            logger.info( "Expected WARN" + throwable.getMessage() );
+            logger.warning( "Unexpected WARN" + throwable.getMessage() );
+        }
+
+        @Override
+        public void onConnectionCreationFailure(SQLException sqlException) {
+            failures.getAndIncrement();
+            logger.info( "Expected callback " + sqlException.getMessage() );
         }
 
         public int warningCount() {
             return warnings.get();
+        }
+
+        public int failuresCount() {
+            return failures.get();
         }
     }
 

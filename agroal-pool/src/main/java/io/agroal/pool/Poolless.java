@@ -42,6 +42,7 @@ import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionValidation;
 import static io.agroal.pool.util.ListenerHelper.fireBeforePoolBlock;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionAcquired;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreation;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreationFailure;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionDestroy;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionFlush;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionInvalid;
@@ -411,7 +412,7 @@ public final class Poolless implements Pool {
 
             return handler;
         } catch ( SQLException e ) {
-            fireOnWarning( listeners, e );
+            fireOnConnectionCreationFailure( listeners, e );
             throw e;
         }
     }

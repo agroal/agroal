@@ -8,6 +8,7 @@ import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.pool.ConnectionHandler;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Arrays;
 
 /**
@@ -28,6 +29,12 @@ public final class ListenerHelper {
     public static void fireOnConnectionCreation(AgroalDataSourceListener[] listeners, ConnectionHandler handler) {
         for ( AgroalDataSourceListener listener : listeners ) {
             listener.onConnectionCreation( handler.rawConnection() );
+        }
+    }
+
+    public static void fireOnConnectionCreationFailure(AgroalDataSourceListener[] listeners, SQLException sqlException) {
+        for ( AgroalDataSourceListener listener : listeners ) {
+            listener.onConnectionCreationFailure( sqlException );
         }
     }
 

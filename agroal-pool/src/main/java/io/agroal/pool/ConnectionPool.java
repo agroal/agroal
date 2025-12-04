@@ -54,6 +54,7 @@ import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionValidation;
 import static io.agroal.pool.util.ListenerHelper.fireBeforePoolBlock;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionAcquired;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreation;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreationFailure;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionDestroy;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionFlush;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionInvalid;
@@ -643,10 +644,10 @@ public final class ConnectionPool implements Pool {
                 handlerTransferQueue.tryTransfer( handler );
                 return handler;
             } catch ( SQLException e ) {
-                fireOnWarning( listeners, e );
+                fireOnConnectionCreationFailure( listeners, e );
                 throw e;
             } catch ( Throwable t ) {
-                fireOnWarning( listeners, "Failed to create connection due to " + t.getClass().getSimpleName() );
+                fireOnConnectionCreationFailure( listeners, new SQLException( "Failed to create connection due to " + t.getClass().getSimpleName(), t ) );
                 throw t;
             }
         }
