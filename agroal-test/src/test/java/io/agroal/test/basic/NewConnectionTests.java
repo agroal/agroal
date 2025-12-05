@@ -80,6 +80,22 @@ public class NewConnectionTests {
     }
 
     @Test
+    @DisplayName( "Test connection readOnly status" )
+    void readOnlyTest() throws SQLException {
+        readOnly( false );
+        readOnly( true );
+    }
+
+    private static void readOnly(boolean readOnly) throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
+            Connection connection = dataSource.getConnection( readOnly);
+            assertEquals( connection.isReadOnly(), readOnly );
+            logger.info( format( "Got readOnly \"{0}\" from {1}", connection.isReadOnly(), connection ) );
+            connection.close();
+        }
+    }
+
+    @Test
     @DisplayName( "Test connection autoCommit status" )
     void autoCommitTest() throws SQLException {
         autocommit( false );
@@ -288,6 +304,7 @@ public class NewConnectionTests {
     public static class FakeConnection implements MockConnection {
 
         private int isolation;
+        private boolean readOnly;
         private boolean autoCommit;
 
         @Override
@@ -298,6 +315,16 @@ public class NewConnectionTests {
         @Override
         public void setTransactionIsolation(int level) {
             isolation = level;
+        }
+
+        @Override
+        public boolean isReadOnly() {
+            return readOnly;
+        }
+
+        @Override
+        public void setReadOnly(boolean readOnly) {
+            this.readOnly = readOnly;
         }
 
         @Override
