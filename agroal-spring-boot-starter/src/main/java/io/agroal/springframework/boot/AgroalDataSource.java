@@ -322,6 +322,11 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         return delegate.getConnection( username, password );
     }
 
+    @Override
+    public Connection getConnection(boolean readOnly) throws SQLException {
+        return delegate.getConnection( readOnly );
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {

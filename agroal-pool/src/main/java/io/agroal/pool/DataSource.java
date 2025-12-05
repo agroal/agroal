@@ -91,6 +91,11 @@ public final class DataSource implements AgroalDataSource {
         throw new SQLException( "username and password combination invalid on a pooled data source!" );
     }
 
+    @Override
+    public Connection getConnection(boolean readOnly) throws SQLException {
+        return connectionPool.getConnection( readOnly );
+    }
+
     // --- Wrapper methods //
 
     @Override
