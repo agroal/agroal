@@ -4,6 +4,7 @@
 package io.agroal.api;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 
 /**
  * This interface defines a set of callback methods that are invoked on events considered important for the state of the pool.
@@ -24,6 +25,11 @@ public interface AgroalDataSourceListener {
      * This callback is invoked for every new connection.
      */
     default void onConnectionCreation(Connection connection) {}
+
+    /**
+     * This callback is invoked when a new connection can't be established.
+     */
+    default void onConnectionCreationFailure(SQLException sqlException) {}
 
     /**
      * This callback is invoked right after a connection is added to the pool. The connection may have been acquired concurrently.
