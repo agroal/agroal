@@ -18,6 +18,12 @@
     </repositories>
     <dependencies>
         <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.3.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.agroal</groupId>
             <artifactId>agroal-api</artifactId>
             <version>${project.version}</version>
@@ -226,6 +232,18 @@
             <artifactId>simple-jndi</artifactId>
             <version>${version.com.github.h-thurow}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.agroal</groupId>
+            <artifactId>agroal-api</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${version.org.junit.jupiter}</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
     <build>

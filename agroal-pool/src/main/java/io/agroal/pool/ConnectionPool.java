@@ -123,7 +123,8 @@ public final class ConnectionPool implements Pool {
         localCache = configuration.connectionCache();
 
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
-        housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet(), listeners );
+
+        housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet(), configuration.connectionCreateTimeout(), listeners );
         transactionIntegration = configuration.transactionIntegration();
 
         borrowValidationEnabled = configuration.validateOnBorrow();
@@ -370,10 +371,20 @@ public final class ConnectionPool implements Pool {
                     // Wait for the new connection instead of the transferQueue to propagate any exception on connection establishment
                     long timeout = deadline - nanoTime();
                     fireBeforePoolBlock( listeners, timeout );
-                    ConnectionHandler handler = task.get( timeout, NANOSECONDS );
-                    if ( handler != null && handler.acquire() ) {
-                        return handler;
+                    try{
+                        ConnectionHandler handler = task.get( timeout, NANOSECONDS );
+                        if ( handler != null && handler.acquire() ) {
+                            return handler;
+                        }
+                    } catch ( CancellationException e ) {
+                        if(housekeepingExecutorIsShuttingDown()){
+                            // Do not continue with loop, if we detect that the CancellationException was due to a shutdown!
+                            throw e;
+                        }
+                        // Connection attempt was canceled, but continue trying to acquire a connection via for loop, until the acquisition time is over!
+                        fireOnWarning(listeners, new RuntimeException("Canceled connection attempt, because create connection timed out. Continuing with acquisition, until acquisition timeout.", e));
                     }
+
                     task = null;
                 }
             }
@@ -383,9 +394,17 @@ public final class ConnectionPool implements Pool {
         } catch ( ExecutionException e ) {
             throw unwrapExecutionException( e );
         } catch ( RejectedExecutionException | CancellationException e ) {
-            throw new SQLException( "Can't create new connection as the pool is shutting down", e );
+            if(housekeepingExecutorIsShuttingDown()){
+                throw new SQLException( "Can't create new connection as the pool is shutting down", e );
+            }else {
+                throw new SQLException( "Can't create new connection, due to unexpected " + e.getClass().getSimpleName(), e );
+            }
         } catch ( TimeoutException e ) {
-            task.cancel( true );
+            if(configuration.connectionCreateTimeout().isZero()){
+                // Cancel this task only if there is no dedicated connectionCreateTimeout
+                task.cancel( true );
+            }
+
             // AG-201: Last effort. Connections may have returned to the pool while waiting.
             for ( ConnectionHandler handler : allConnections ) {
                 if ( handler.acquire() ) {
@@ -394,6 +413,11 @@ public final class ConnectionPool implements Pool {
             }
             throw new SQLException( "Acquisition timeout while waiting for new connection", e );
         }
+    }
+
+    private boolean housekeepingExecutorIsShuttingDown(){
+        return this.housekeepingExecutor.isShutdown() || this.housekeepingExecutor.isTerminating()
+                || this.housekeepingExecutor.isTerminated();
     }
 
     private ConnectionHandler waitAvailableHandler(long deadline) throws InterruptedException, SQLException {
@@ -621,9 +645,10 @@ public final class ConnectionPool implements Pool {
             }
             fireBeforeConnectionCreation( listeners );
             long metricsStamp = metricsRepository.beforeConnectionCreation();
-
+            ConnectionHandler handler = null ;
             try {
-                ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
+                handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
+
                 metricsRepository.afterConnectionCreation( metricsStamp );
 
                 if ( !configuration.maxLifetime().isZero() ) {
@@ -648,6 +673,14 @@ public final class ConnectionPool implements Pool {
                 throw e;
             } catch ( Throwable t ) {
                 fireOnConnectionCreationFailure( listeners, new SQLException( "Failed to create connection due to " + t.getClass().getSimpleName(), t ) );
+                if(handler != null) {
+                    try{
+                        // Making sure that in case of arbitrary exceptions the connection is closed afterwards!
+                        handler.closeConnection();
+                    }catch ( Throwable n ) {
+                        t.addSuppressed( n );
+                    }
+                }
                 throw t;
             }
         }
