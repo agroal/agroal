@@ -264,7 +264,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
      * <li>`empty` for the default {@link ConnectionValidator#emptyValidator()}</li>
      * <li>`default` for {@link ConnectionValidator#defaultValidator()}</li>
      * <li>`defaultX` for {@link ConnectionValidator#defaultValidatorWithTimeout(int)} where `X` is the timeout in seconds</li>
-     * <li>`custom[QUERY]X` for {@link ConnectionValidator#sqlValidator(String, int)} where `QUERY` is the sql query and `X` is the timeout in seconds</li>
+     * <li>`sql[QUERY]X` for {@link ConnectionValidator#sqlValidator(String, int)} where `QUERY` is the sql query and `X` is the timeout in seconds</li>
      * <li>the name of a class that implements {@link ConnectionValidator}</li>
      * </ul>
      */
