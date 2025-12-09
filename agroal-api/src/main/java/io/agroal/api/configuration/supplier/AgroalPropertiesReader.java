@@ -32,10 +32,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidatorWithTimeout;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.emptyValidator;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionValidator.sqlValidator;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.defaultExceptionSorter;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.emptyExceptionSorter;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter.fatalExceptionSorter;
@@ -114,6 +117,10 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String RECOVERY_CREDENTIAL = "recoveryCredential";
     public static final String JDBC_PROPERTIES = "jdbcProperties";
     public static final String XA_PROPERTIES = "xaProperties";
+
+    // --- //
+
+    private static final Pattern SQL_VALIDATOR_PATTERN = Pattern.compile( "^sql\\[(.+?)\\](\\d*)$" );
 
     // --- //
 
@@ -257,6 +264,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
      * <li>`empty` for the default {@link ConnectionValidator#emptyValidator()}</li>
      * <li>`default` for {@link ConnectionValidator#defaultValidator()}</li>
      * <li>`defaultX` for {@link ConnectionValidator#defaultValidatorWithTimeout(int)} where `X` is the timeout in seconds</li>
+     * <li>`sql[QUERY]X` for {@link ConnectionValidator#sqlValidator(String, int)} where `QUERY` is the sql query and `X` is the timeout in seconds</li>
      * <li>the name of a class that implements {@link ConnectionValidator}</li>
      * </ul>
      */
@@ -267,6 +275,14 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
             return defaultValidator();
         } else if ( connectionValidatorName.regionMatches( true, 0, "default", 0, "default".length() ) ) {
             return defaultValidatorWithTimeout( (int) parseDurationS( connectionValidatorName.substring( "default".length() ) ).toSeconds() );
+        } else if ( connectionValidatorName.regionMatches( true, 0, "sql", 0, "sql".length() ) ) {
+            Matcher matcher = SQL_VALIDATOR_PATTERN.matcher(connectionValidatorName);
+            if ( matcher.matches() ) {
+                String query = matcher.group( 1 );
+                String timeout = matcher.group( 2 );
+                return sqlValidator( query, !timeout.isEmpty() ? (int) parseDurationS( timeout ).toSeconds() : 0 );
+            }
+            throw new IllegalArgumentException( "Unparsable sql connection validator " + connectionValidatorName );
         }
 
         try {
