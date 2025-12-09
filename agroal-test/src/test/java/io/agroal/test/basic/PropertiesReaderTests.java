@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -50,6 +51,25 @@ class PropertiesReaderTests {
         Assertions.assertInstanceOf( PostgreSQLExceptionSorter.class, configuration.connectionPoolConfiguration().exceptionSorter() );
     }
 
+    @Test
+    @DisplayName( "Parse custom sql query validator" )
+    void sqlValidatorTest() throws NoSuchFieldException, IllegalAccessException {
+        String connectionValidatorName;
+        AgroalConnectionPoolConfiguration.ConnectionValidator validator;
+
+        connectionValidatorName = "sql[select 1]";
+        validator = AgroalPropertiesReader.parseConnectionValidator(connectionValidatorName);
+        Assertions.assertEquals( "io.agroal.api.configuration.AgroalConnectionPoolConfiguration$ConnectionValidator$4", validator.getClass().getName() );
+        Assertions.assertEquals( "select 1", getDeclaredField( validator, "val$sql" ) );
+        Assertions.assertEquals( 0, getDeclaredField( validator, "val$timeoutSeconds" ) );
+
+        connectionValidatorName = "sql[select 1]5000";
+        validator = AgroalPropertiesReader.parseConnectionValidator(connectionValidatorName);
+        Assertions.assertEquals( "io.agroal.api.configuration.AgroalConnectionPoolConfiguration$ConnectionValidator$4", validator.getClass().getName() );
+        Assertions.assertEquals( "select 1", getDeclaredField( validator, "val$sql" ) );
+        Assertions.assertEquals( 5000, getDeclaredField( validator, "val$timeoutSeconds" ) );
+    }
+
     // --- //
 
     /**
@@ -61,5 +81,11 @@ class PropertiesReaderTests {
         public boolean isValid(Connection connection) {
             return LocalTime.now().getHour() % 2 == 0;
         }
+    }
+
+    private static Object getDeclaredField(Object obj, String fieldName) throws NoSuchFieldException, IllegalAccessException {
+        Field field = obj.getClass().getDeclaredField( fieldName );
+        field.setAccessible( true );
+        return field.get( obj );
     }
 }
