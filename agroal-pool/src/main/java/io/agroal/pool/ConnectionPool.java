@@ -54,6 +54,7 @@ import static io.agroal.pool.util.ListenerHelper.fireBeforeConnectionValidation;
 import static io.agroal.pool.util.ListenerHelper.fireBeforePoolBlock;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionAcquired;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreation;
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreationCanceled;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreationFailure;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionDestroy;
 import static io.agroal.pool.util.ListenerHelper.fireOnConnectionFlush;
@@ -403,6 +404,7 @@ public final class ConnectionPool implements Pool {
             if(configuration.connectionCreateTimeout().isZero()){
                 // Cancel this task only if there is no dedicated connectionCreateTimeout
                 task.cancel( true );
+                fireOnConnectionCreationCanceled(listeners);
             }
 
             // AG-201: Last effort. Connections may have returned to the pool while waiting.
@@ -617,6 +619,7 @@ public final class ConnectionPool implements Pool {
                 throw new SQLException( "Can't create new connection as the pool is shutting down", e );
             } catch ( TimeoutException e ) {
                 task.cancel( true );
+                fireOnConnectionCreationCanceled(listeners);
                 throw new SQLException( "Acquisition timeout on health check" );
             }
         } else {

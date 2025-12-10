@@ -27,6 +27,11 @@ public interface AgroalDataSourceListener {
     default void onConnectionCreation(Connection connection) {}
 
     /**
+     * This callback is invoked when a new connection creation task is canceled.
+     */
+    default void onConnectionCreationCanceled() {}
+
+    /**
      * This callback is invoked when a new connection can't be established.
      */
     default void onConnectionCreationFailure(SQLException sqlException) {}

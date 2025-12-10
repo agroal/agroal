@@ -21,6 +21,10 @@ public class MySQLConnectMockDriver implements MockDriver {
      private final Duration connectTimeout;
      private final Duration socketTimeout;
 
+    public MySQLConnectMockDriver(ServerBehavior behavior) {
+        this(behavior, Duration.ofSeconds(0), Duration.ofSeconds(0));
+    }
+
      public MySQLConnectMockDriver(ServerBehavior behavior, Duration connectTimeout, Duration socketTimeout) {
          this.behavior = behavior;
          this.connectTimeout = connectTimeout;

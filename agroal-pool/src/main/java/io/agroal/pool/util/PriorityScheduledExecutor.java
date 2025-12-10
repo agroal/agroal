@@ -24,6 +24,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreationCanceled;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 
 /**
@@ -83,6 +84,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
         for ( RunnableFuture<?> priorityTask; ( priorityTask = priorityTasks.poll() ) != null; ) {
             if ( isShutdown() ) {
                 priorityTask.cancel( false );
+                fireOnConnectionCreationCanceled(listeners);
             } else {
                 try {
                     if(this.connectionCreationExecutor == null){
@@ -95,6 +97,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
                         }catch (TimeoutException t){
                             priorityTask.cancel( true );
                             future.cancel( true );
+                            fireOnConnectionCreationCanceled(listeners);
                         }
                     }
                     afterExecute( priorityTask, null );
@@ -126,6 +129,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     public List<Runnable> shutdownNow() {
         for ( RunnableFuture<?> runnableFuture : priorityTasks ) {
             runnableFuture.cancel( true );
+            fireOnConnectionCreationCanceled(listeners);
         }
 
         if(connectionCreationExecutor != null){

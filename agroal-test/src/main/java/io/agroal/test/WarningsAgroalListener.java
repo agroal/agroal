@@ -11,10 +11,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static java.util.logging.Logger.getLogger;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class WarningsAgroalListener implements AgroalDataSourceListener {
@@ -67,5 +67,8 @@ public class WarningsAgroalListener implements AgroalDataSourceListener {
         return s.toString();
     }
 
+    public void assertNoConnectionFailures() {
+        assertEquals(0, failuresCount());
+    }
 }
 
