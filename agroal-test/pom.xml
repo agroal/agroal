@@ -27,7 +27,7 @@
             <groupId>io.agroal</groupId>
             <artifactId>agroal-api</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.agroal</groupId>
@@ -57,7 +57,7 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>${version.org.junit.jupiter}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <!-- OSGi -->
         <dependency>
@@ -232,18 +232,6 @@
             <artifactId>simple-jndi</artifactId>
             <version>${version.com.github.h-thurow}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.agroal</groupId>
-            <artifactId>agroal-api</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${version.org.junit.jupiter}</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
     <build>

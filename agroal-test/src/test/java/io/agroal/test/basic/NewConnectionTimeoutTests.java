@@ -21,7 +21,8 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.Duration;import java.util.logging.Logger;
+import java.time.Duration;
+import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
