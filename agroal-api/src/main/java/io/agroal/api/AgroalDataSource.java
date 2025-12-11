@@ -9,6 +9,7 @@ import javax.sql.DataSource;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
@@ -55,6 +56,11 @@ public interface AgroalDataSource extends AutoCloseable, DataSource, Serializabl
     }
 
     // --- //
+
+    /**
+     * Get connection with read only set on demand.
+     */
+    Connection getReadOnlyConnection() throws SQLException;
 
     /**
      * Allows inspection of the configuration. Some properties allow read / write.

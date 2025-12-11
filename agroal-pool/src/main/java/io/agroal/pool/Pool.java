@@ -25,6 +25,8 @@ public interface Pool extends MetricsEnabledListener, AutoCloseable, ResourceRec
 
     Connection getConnection() throws SQLException;
 
+    Connection getReadOnlyConnection() throws SQLException;
+
     AgroalConnectionPoolConfiguration getConfiguration();
 
     AgroalDataSourceMetrics getMetrics();

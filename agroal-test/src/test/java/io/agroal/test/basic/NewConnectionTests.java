@@ -35,6 +35,7 @@ import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -75,6 +76,17 @@ public class NewConnectionTests {
             Connection connection = dataSource.getConnection();
             assertEquals( connection.getTransactionIsolation(), level );
             logger.info( format( "Got isolation \"{0}\" from {1}", connection.getTransactionIsolation(), connection ) );
+            connection.close();
+        }
+    }
+
+    @Test
+    @DisplayName( "Test connection readOnly status" )
+    void readOnlyConnectionTest() throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
+            Connection connection = dataSource.getReadOnlyConnection();
+            assertTrue( connection.isReadOnly() );
+            logger.info( format( "Got readOnly \"{0}\" from {1}", connection.isReadOnly(), connection ) );
             connection.close();
         }
     }
@@ -288,6 +300,7 @@ public class NewConnectionTests {
     public static class FakeConnection implements MockConnection {
 
         private int isolation;
+        private boolean readOnly;
         private boolean autoCommit;
 
         @Override
@@ -298,6 +311,16 @@ public class NewConnectionTests {
         @Override
         public void setTransactionIsolation(int level) {
             isolation = level;
+        }
+
+        @Override
+        public boolean isReadOnly() {
+            return readOnly;
+        }
+
+        @Override
+        public void setReadOnly(boolean readOnly) {
+            this.readOnly = readOnly;
         }
 
         @Override

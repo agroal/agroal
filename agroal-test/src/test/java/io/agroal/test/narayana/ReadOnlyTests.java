@@ -31,6 +31,8 @@ import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -130,6 +132,46 @@ class ReadOnlyTests {
                 assertThrows( SQLException.class, () -> connection.setReadOnly( true ) );
                 assertThrows( SQLException.class, () -> connection.setReadOnly( false ) );
                 assertTrue( connection.isReadOnly() );
+            }
+
+            txManager.commit();
+        } catch ( NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException e ) {
+            fail( "Exception: " + e.getMessage() );
+        }
+    }
+
+    @Test
+    @DisplayName( "Test read-only connection with on demand activation" )
+    void readOnlyOnDemandTest() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            txManager.begin();
+
+            try ( Connection connection = dataSource.getConnection() ) {
+                logger.info( format( "Got connection {0} with tx", connection ) );
+
+                assertFalse( connection.isReadOnly() );
+                assertThrows( SQLException.class, dataSource::getReadOnlyConnection );
+                assertDoesNotThrow( () -> dataSource.getConnection() );
+            }
+
+            txManager.commit();
+
+            txManager.begin();
+
+            try ( Connection connection = dataSource.getReadOnlyConnection() ) {
+                logger.info( format( "Got connection {0} with tx", connection ) );
+
+                assertTrue( connection.isReadOnly() );
+                assertDoesNotThrow( () -> dataSource.getConnection() );
             }
 
             txManager.commit();
