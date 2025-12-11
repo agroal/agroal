@@ -20,7 +20,6 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -631,7 +630,7 @@ public final class ConnectionPool implements Pool {
 
     // --- create //
 
-    private final class CreateConnectionTask implements Callable<ConnectionHandler> {
+    private final class CreateConnectionTask implements CreateConnectionCallable  {
 
         private boolean initial;
 

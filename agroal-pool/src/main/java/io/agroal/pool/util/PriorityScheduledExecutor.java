@@ -4,6 +4,8 @@
 package io.agroal.pool.util;
 
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.pool.ConnectionHandler;
+import io.agroal.pool.CreateConnectionFuture;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -56,17 +58,17 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     }
 
     @SuppressWarnings( "WeakerAccess" )
-    public void executeNow(Runnable priorityTask) {
+    private void executeNow(Runnable priorityTask) {
         executeNow( new FutureTask<>( priorityTask, null ) );
     }
 
     @SuppressWarnings( "WeakerAccess" )
-    public <T> Future<T> executeNow(Callable<T> priorityTask) {
-        return executeNow( new FutureTask<>( priorityTask ) );
+    public Future<ConnectionHandler> executeNow(Callable<ConnectionHandler> priorityTask) {
+        return executeNow(new CreateConnectionFuture(priorityTask));
     }
 
     @SuppressWarnings( "WeakerAccess" )
-    public <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
+    private <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
         if ( isShutdown() ) {
             throw new RejectedExecutionException( "Task " + priorityFuture + " rejected from " + this );
         }
@@ -87,8 +89,9 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
                 fireOnConnectionCreationCanceled(listeners);
             } else {
                 try {
-                    if(this.connectionCreationExecutor == null){
+                    if(this.connectionCreationExecutor == null || !(priorityTask instanceof CreateConnectionFuture)) {
                         // Do not use another thread in case there is anyhow no timeout!
+                        // Do not use another thread if it is not a connection creation!
                         priorityTask.run();
                     }else{
                         Future<?> future = this.connectionCreationExecutor.submit(priorityTask);
