@@ -76,9 +76,9 @@ public class AgroalDataSourceAutoConfiguration {
             DataSourceProperties properties,
             @Value( "${spring.datasource.agroal.jta:true}" ) boolean jta,
             @Value( "${spring.datasource.agroal.connectable:false}" ) boolean connectable,
-            @Value( "${spring.datasource.agroal.firstResource:false}" ) boolean firstResource,
+            @Value( "${spring.datasource.agroal.first-resource:false}" ) boolean firstResource,
             @Value( "${spring.datasource.agroal.credentials:#{{}}}" ) List<Object> credentials,
-            @Value( "${spring.datasource.agroal.recoveryCredentials:#{{}}}" ) List<Object> recoveryCredentials ) {
+            @Value( "${spring.datasource.agroal.recovery-credentials:#{{}}}" ) List<Object> recoveryCredentials ) {
 
         AgroalDataSource dataSource = properties.initializeDataSourceBuilder().type( AgroalDataSource.class ).build();
 
