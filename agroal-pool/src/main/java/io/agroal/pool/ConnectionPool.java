@@ -382,7 +382,7 @@ public final class ConnectionPool implements Pool {
                             throw e;
                         }
                         // Connection attempt was canceled, but continue trying to acquire a connection via for loop, until the acquisition time is over!
-                        fireOnWarning(listeners, new RuntimeException("Canceled connection attempt, because create connection timed out. Continuing with acquisition, until acquisition timeout.", e));
+                        fireOnWarning(listeners, new RuntimeException("Cancelled connection attempt, because create connection timed out. Continuing with acquisition, until acquisition timeout is reached.", e));
                     }
 
                     task = null;
