@@ -70,5 +70,10 @@ public class WarningsAgroalListener implements AgroalDataSourceListener {
     public void assertNoConnectionFailures() {
         assertEquals(0, failuresCount());
     }
+
+    public void reset() {
+        warnings.clear();
+        failures.clear();
+    }
 }
 

@@ -60,4 +60,14 @@ public class ConnectionListener implements AgroalDataSourceListener {
     public void assertConnectionCreationStarted() {
         assertEquals(1, getStartedConnectionCreations());
     }
+
+    public void assertNoConnectionCreationStarted() {
+        assertEquals(0, getStartedConnectionCreations());
+    }
+
+    public void reset() {
+        createdConnections.set(0);
+        canceledConnections.set(0);
+        beforeConnectionCreation.set(0);
+    }
 }
