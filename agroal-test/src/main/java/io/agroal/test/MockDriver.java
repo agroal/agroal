@@ -9,6 +9,7 @@ import java.sql.Driver;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -24,11 +25,21 @@ import static java.util.logging.Logger.getLogger;
  */
 public interface MockDriver extends Driver {
 
+    Logger logger = getLogger( MockDriver.class.getName() );
+
     DriverPropertyInfo[] EMPTY_PROPERTY_INFO = new DriverPropertyInfo[0];
 
     static void registerMockDriver(Class<? extends Connection> connectionType) {
+        registerMockDriver( new MockDriver.Empty( connectionType ) );
+    }
+
+    static void registerMockDriver(Driver... drivers) {
+        registerMockDriver( new MultiStepMockDriver( List.of( drivers ) ) );
+    }
+
+    static void registerMockDriver(Driver driver) {
         try {
-            registerDriver( new Empty( connectionType ) );
+            registerDriver( driver );
         } catch ( SQLException e ) {
             getLogger( MockDriver.class.getName() ).log( WARNING, "Unable to register MockDriver into Driver Manager", e );
         }
@@ -39,10 +50,19 @@ public interface MockDriver extends Driver {
     }
 
     static void deregisterMockDriver() {
+        Driver driver = null;
         try {
-            deregisterDriver( getDriver( "" ) );
+            driver = getDriver( "" );
         } catch ( SQLException e ) {
-            getLogger( MockDriver.class.getName() ).log( WARNING, "Unable to deregister MockDriver from Driver Manager", e );
+            if ( !"No suitable driver".equals( e.getMessage() ) ) {
+                throw new RuntimeException( "Unexpected Exception during getDriver", e );
+            }
+        }
+
+        try {
+            deregisterDriver( driver );
+        } catch ( SQLException e ) {
+            throw new RuntimeException( "Unable to deregister MockDriver from Driver Manager", e );
         }
     }
 
@@ -91,12 +111,12 @@ public interface MockDriver extends Driver {
             this( MockConnection.Empty.class );
         }
 
-        public Empty( Class<? extends Connection> connectionType ) {
+        public Empty(Class<? extends Connection> connectionType) {
             this.connectionType = connectionType;
         }
 
         @Override
-        public Connection connect( String url, Properties info ) throws SQLException {
+        public Connection connect(String url, Properties info) throws SQLException {
             try {
                 return connectionType.getDeclaredConstructor().newInstance();
             } catch ( InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
