@@ -103,6 +103,7 @@ public interface MockPreparedStatement extends MockStatement, PreparedStatement 
     }
 
     @Override
+    @Deprecated
     default void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
     }
 
