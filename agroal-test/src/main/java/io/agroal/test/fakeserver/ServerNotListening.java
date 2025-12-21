@@ -7,8 +7,8 @@ import java.net.ServerSocket;
 
 public class ServerNotListening implements ServerBehavior {
 
-    @Override
-    public void start(ServerSocket server) throws Throwable {
-        server.close();
+    public AcceptResult accept(ServerSocket serverSocket) throws Exception {
+        serverSocket.close();
+        return new AcceptResult(ProceedWith.BREAK, null);
     }
 }

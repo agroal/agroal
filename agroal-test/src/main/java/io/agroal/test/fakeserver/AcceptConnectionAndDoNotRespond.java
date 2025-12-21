@@ -3,23 +3,13 @@
 
 package io.agroal.test.fakeserver;
 
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
 public class AcceptConnectionAndDoNotRespond implements ServerBehavior {
 
-    protected Socket socket;
-
-    @Override
-    public void start(ServerSocket server) throws IOException {
-        socket = server.accept();
-    }
-
-    @Override
-    public void close() throws Exception {
-        if ( socket != null ) {
-            socket.close();
-        }
+    public AcceptResult accept(ServerSocket serverSocket) throws Exception {
+        Socket clientSocket = serverSocket.accept();
+        return new AcceptResult(ProceedWith.BREAK, clientSocket);
     }
 }

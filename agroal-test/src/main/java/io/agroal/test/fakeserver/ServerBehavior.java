@@ -4,12 +4,41 @@
 package io.agroal.test.fakeserver;
 
 import java.net.ServerSocket;
+import java.net.Socket;
 
-public interface ServerBehavior extends AutoCloseable {
+public interface ServerBehavior {
 
-    void start(ServerSocket server) throws Throwable;
+    default AcceptResult accept(ServerSocket serverSocket) throws Exception {
+        Socket clientSocket = serverSocket.accept();
+        return new AcceptResult(ProceedWith.CREATE_CONNECTION, clientSocket);
+    }
 
-    @Override
-    default void close() throws Exception {
+    default byte[] sendInitialHandshake(byte[] packet) {
+        return packet;
+    }
+
+    default byte[] receivedInitialHandshakeResponse(byte[] packet) {
+        return packet;
+    }
+
+    default byte[] sendCompleteAuthentication(byte[] packet) {
+        return packet;
+    }
+
+    default Command receivedCommandRequest(Command command) {
+        return command;
+    }
+
+    default byte[] sendCommandResponse(byte[] packet) {
+        return packet;
+    }
+
+    record Command(int commandType, String commandName, String commandText) {}
+    record AcceptResult(ProceedWith proceedWith, Socket clientSocket) {}
+
+    enum ProceedWith {
+        CREATE_CONNECTION,
+        NEXT_ACCEPT,
+        BREAK,
     }
 }

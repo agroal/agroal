@@ -7,7 +7,7 @@ import java.net.ServerSocket;
 
 public class NotAcceptConnection implements ServerBehavior {
 
-    @Override
-    public void start(ServerSocket server) {
+    public AcceptResult accept(ServerSocket serverSocket) throws Exception {
+        return new AcceptResult(ProceedWith.BREAK, null);
     }
 }

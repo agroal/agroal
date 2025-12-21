@@ -12,8 +12,10 @@ import io.agroal.test.MySQLConnectMockDriver;
 import io.agroal.test.WarningsAgroalListener;
 import io.agroal.test.fakeserver.AcceptConnectionAndClose;
 import io.agroal.test.fakeserver.AcceptConnectionAndDoNotRespond;
+import io.agroal.test.fakeserver.LoginDoesNotComplete;
 import io.agroal.test.fakeserver.NotAcceptConnection;
 import io.agroal.test.fakeserver.ServerNotListening;
+import io.agroal.test.fakeserver.CommandExecutionDoesNotComplete;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -171,7 +173,7 @@ public class NewConnectionTimeoutTests {
     }
 
     @Test
-    void WhenServerAcceptsAndDoNotRespond_ThenAcquisitionTimeoutAndConnectionCreationHangs() throws Exception {
+    void WhenNoLoginTimeoutSetAndServerAcceptsAndDoNotRespond_ThenAcquisitionTimeoutAndConnectionCreationHangs() throws Exception {
         registerMockDriver( new MySQLConnectMockDriver( new AcceptConnectionAndDoNotRespond() ), new MockDriver.Empty() );
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
@@ -216,6 +218,100 @@ public class NewConnectionTimeoutTests {
                 // Which will block the pool, and new connections couldn't be created
                 connectionListener.assertNoConnectionCreated();
                 warningsListener.assertNoConnectionFailures();
+            }
+        }
+    }
+
+    @Test
+    void WhenLoginTimeoutSetAndCommandExecutionDoesNotComplete_ThenAcquisitionTimeoutAndConnectionCreationHangs() throws Exception {
+
+        registerMockDriver( new MySQLConnectMockDriver( new CommandExecutionDoesNotComplete()), new MockDriver.Empty() );
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .acquisitionTimeout( Duration.ofSeconds( 1 ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .loginTimeout( Duration.ofSeconds( 1 ) )
+                        )
+                );
+
+        WarningsAgroalListener warningsListener = new WarningsAgroalListener();
+        ConnectionListener connectionListener = new ConnectionListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, warningsListener, connectionListener ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "Not supposed to create a connection" ); // Supposed to fail
+            } catch ( SQLException e ) {
+                // Connection creation was started but Acquisition timed out
+                connectionListener.assertConnectionCreationStarted();
+                assertTrue( e.getMessage().contains( "Acquisition" ) );
+
+                // even if we give some time to interrupt, cancel will not take effect in the connection creation thread...
+                Thread.sleep( 2000 );
+
+                // Single thread for creating the db connection is still running and hangs - can't be canceled
+                // Which will block the pool, and new connections couldn't be created
+                connectionListener.assertNoConnectionCreated();
+                warningsListener.assertNoConnectionFailures();
+            }
+
+            warningsListener.reset();
+            connectionListener.reset();
+
+            // Proof that NO new db connection can be created
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "Not supposed to create a connection" ); // Supposed to fail
+            } catch ( SQLException e ) {
+                // Thread is still blocked with previous connection creation therefore connection creation was NOT started
+                connectionListener.assertNoConnectionCreationStarted();
+
+                // Second attempt also timed out
+                assertTrue( e.getMessage().contains( "Acquisition" ) );
+
+                // Single thread for creating the db connection is still running and hangs - can't be canceled
+                // Which will block the pool, and new connections couldn't be created
+                connectionListener.assertNoConnectionCreated();
+                warningsListener.assertNoConnectionFailures();
+            }
+        }
+    }
+
+
+    @Test
+    void WhenLoginTimeoutSetAndLoginDoesNotComplete_ThenAcquisitionTimeoutAndConnectionCreated() throws Exception {
+
+        registerMockDriver( new MySQLConnectMockDriver( new LoginDoesNotComplete()), new MockDriver.Empty() );
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .acquisitionTimeout( Duration.ofSeconds( 1 ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .loginTimeout( Duration.ofSeconds( 1 ) )
+                        )
+                );
+
+        WarningsAgroalListener warningsListener = new WarningsAgroalListener();
+        ConnectionListener connectionListener = new ConnectionListener();
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, warningsListener, connectionListener ) ) {
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "Not supposed to create a connection" ); // Supposed to fail
+            } catch ( SQLException e ) {
+                // Connection creation was started but Acquisition timed out
+                connectionListener.assertConnectionCreationStarted();
+                assertTrue( e.getMessage().contains( "Acquisition" ) );
+
+                connectionListener.assertNoConnectionCreated();
+            }
+
+            connectionListener.reset();
+
+            // Proof that NO new db connection can be created
+            try ( Connection c = dataSource.getConnection() ) {
+                logger.info( "Got connection " + c + " with some URL" );
+                assertEquals( 1, connectionListener.getStartedConnectionCreations() );
+
+                connectionListener.assertConnectionCreated();
             }
         }
     }
