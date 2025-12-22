@@ -8,6 +8,7 @@ import io.agroal.test.fakeserver.ServerBehavior;
 import org.junit.platform.commons.util.StringUtils;
 
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -33,12 +34,6 @@ public class MySQLConnectMockDriver implements MockDriver {
 
      @Override
      public Connection connect(String url, Properties info) {
-
-         // Prevent recursion!
-         if(url == null || url.startsWith("jdbc:mysql://")) {
-             return null;
-         }
-
          try (var server = new MySqlFakeServer(this.behavior)) {
              Executors.newSingleThreadExecutor().execute(server);
              String hostAndPort = "localhost:" + server.getPort();
@@ -57,7 +52,8 @@ public class MySQLConnectMockDriver implements MockDriver {
              }
 
              String connUrl = "jdbc:mysql://"+hostAndPort+"/test" + connParams;
-             return DriverManager.getConnection(connUrl, info);
+             Driver driver = DriverManager.drivers().filter(d -> d.getClass().getName().startsWith( "com.mysql" ) ).findFirst().orElseThrow();
+             return driver.connect(connUrl, info);
          } catch (Exception e) {
              throw new RuntimeException(e);
          }
