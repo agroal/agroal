@@ -554,7 +554,12 @@ public final class ConnectionPool implements Pool {
     private void removeFromPool(ConnectionHandler handler) {
         allConnections.remove( handler );
         housekeepingExecutor.execute( new FillTask() );
-        housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+        if ( configuration.flushOnClose() ) {
+            // AG-276 - Avoid connection overwhelming because destruction remain due to priority reason compared to creation
+            housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
+        } else {
+            housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+        }
     }
 
     // --- Exposed statistics //
