@@ -351,6 +351,7 @@ public final class ConnectionPool implements Pool {
         long remaining = configuration.acquisitionTimeout().toNanos();
         long deadline = remaining > 0 ? nanoTime() + remaining : MAX_VALUE;
         Future<ConnectionHandler> task = null;
+        ExecutionException createException = null;
         try {
             for ( int i = 0; ; i++ ) {
                 // If min-size increases, create a connection right away
@@ -382,7 +383,7 @@ public final class ConnectionPool implements Pool {
                     if ( handler.acquire() ) {
                         return handler;
                     }
-                } else {
+                } else try {
                     // Wait for the new connection instead of the transferQueue to propagate any exception on connection establishment
                     long timeout = deadline - nanoTime();
                     fireBeforePoolBlock( listeners, timeout );
@@ -391,13 +392,29 @@ public final class ConnectionPool implements Pool {
                         return handler;
                     }
                     task = null;
+                } catch ( ExecutionException e ) {
+                    long timeout = deadline - nanoTime();
+                    if ( createException != null || remaining == 0 || timeout < 0 ) {
+                        throw unwrapExecutionException( e );
+                    } else {
+                        // AG-274: connection failed but the acquisitionTimeout has not expired. fire message and perform a single retry
+                        fireOnInfo( listeners, "Retrying establishment of connection after " + e.getCause().getClass().getName() );
+                        createException = e;
+                        task = null;
+
+                        // wait at most a second before retrying, if that is not possible try to give 100 ms for connection establishment
+                        long backoff = Long.min( ONE_SECOND, timeout - ( ONE_SECOND / 10 ) );
+                        fireBeforePoolBlock( listeners, backoff );
+                        ConnectionHandler handler = handlerTransferQueue.poll( backoff, NANOSECONDS );
+                        if ( handler != null && handler.acquire() ) {
+                            return handler;
+                        }
+                    }
                 }
             }
         } catch ( InterruptedException e ) {
             currentThread().interrupt();
             throw new SQLException( "Interrupted while acquiring" );
-        } catch ( ExecutionException e ) {
-            throw unwrapExecutionException( e );
         } catch ( RejectedExecutionException | CancellationException e ) {
             throw new SQLException( "Can't create new connection as the pool is shutting down", e );
         } catch ( TimeoutException e ) {
@@ -408,7 +425,7 @@ public final class ConnectionPool implements Pool {
                     return handler;
                 }
             }
-            throw new SQLException( "Acquisition timeout while waiting for new connection", e );
+            throw createException == null ? new SQLException( "Acquisition timeout while waiting for new connection", e ) : unwrapExecutionException( createException );
         }
     }
 
