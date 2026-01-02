@@ -16,6 +16,7 @@ import io.agroal.api.exceptionsorter.MySQLExceptionSorter;
 import io.agroal.api.exceptionsorter.OracleExceptionSorter;
 import io.agroal.api.exceptionsorter.PostgreSQLExceptionSorter;
 import io.agroal.api.exceptionsorter.SybaseExceptionSorter;
+import io.agroal.api.exceptionsorter.FirebirdSQLExceptionSorter;
 import io.agroal.api.security.NamePrincipal;
 import io.agroal.api.security.SimplePassword;
 
@@ -333,6 +334,8 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
             return new PostgreSQLExceptionSorter();
         } else if ( "Sybase".equalsIgnoreCase( exceptionSorterName ) ) {
             return new SybaseExceptionSorter();
+        } else if ( "Firebird".equalsIgnoreCase( exceptionSorterName ) || "FirebirdSQL".equalsIgnoreCase( exceptionSorterName ) ) {
+            return new FirebirdSQLExceptionSorter();
         }
         try {
             Class<? extends ExceptionSorter> sorterClass = Thread.currentThread().getContextClassLoader().loadClass( exceptionSorterName ).asSubclass( ExceptionSorter.class );
