@@ -56,7 +56,6 @@
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
         <version.com.github.h-thurow>0.25.0</version.com.github.h-thurow>
         <version.com.h2database>2.4.240</version.com.h2database>
-        <version.com.zaxxer>7.0.2</version.com.zaxxer>
         <version.dev.snowdrop>4.0.0</version.dev.snowdrop>
         <version.io.micrometer>1.16.0</version.io.micrometer>
         <version.org.apache.felix>7.0.5</version.org.apache.felix>
