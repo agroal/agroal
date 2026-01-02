@@ -234,6 +234,61 @@ public class BasicConcurrencyTests {
         } );
     }
 
+    @Test
+    @DisplayName( "FlushOnClose DataSource under pressure" )
+    void flushOnClosePressureTest() throws SQLException {
+        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 5, CALLS = 5000, SLEEP_TIME = 1, OVERHEAD = 5;
+
+        ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
+        CountDownLatch latch = new CountDownLatch( CALLS );
+        BasicConcurrencyTestsListener listener1 = new BasicConcurrencyTestsListener();
+        ResourceLimitListener listener2 = new ResourceLimitListener( MAX_POOL_SIZE );
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MAX_POOL_SIZE )
+                        .maxSize( MAX_POOL_SIZE )
+                        .flushOnClose()
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener1, listener2 ) ) {
+
+            for (int i = 0; i < CALLS; i++) {
+                executor.submit(() -> {
+                    try {
+                        Connection connection = dataSource.getConnection();
+                        // logger.info( format( "{0} got {1}", Thread.currentThread().getName(), connection ) );
+                        LockSupport.parkNanos(ofMillis(SLEEP_TIME).toNanos());
+                        connection.close();
+                    } catch (SQLException e) {
+                        fail("Unexpected SQLException " + e.getMessage());
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+
+            try {
+                long waitTime = ( SLEEP_TIME + OVERHEAD ) * CALLS / MAX_POOL_SIZE;
+                logger.info( format( "Main thread waiting for {0}ms", waitTime ) );
+                if ( !latch.await( waitTime, MILLISECONDS ) ) {
+                    fail( "Did not execute within the required amount of time" );
+                }
+            } catch ( InterruptedException e ) {
+                fail( "Test fail due to interrupt" );
+            }
+            logger.info( format( "Closing DataSource" ) );
+        }
+        logger.info( format( "Main thread proceeding with assertions" ) );
+
+        assertAll( () -> {
+            assertFalse(listener2.getLimitExceeded().get(), "Unexpected resource limit exceeded");
+            assertEquals(CALLS, listener1.getCreationCount().longValue());
+            assertEquals(CALLS, listener1.getDestroyCount().longValue());
+        } );
+    }
+
     // --- //
 
     @SuppressWarnings( "WeakerAccess" )
@@ -334,6 +389,33 @@ public class BasicConcurrencyTests {
 
         boolean getWarning() {
             return warning;
+        }
+    }
+
+    private static class ResourceLimitListener implements AgroalDataSourceListener {
+        private final int maxPoolSize;
+        private final LongAdder poolSize = new LongAdder();
+        private final AtomicBoolean limitExceeded = new AtomicBoolean( false );
+
+        ResourceLimitListener(int maxPoolSize) {
+            this.maxPoolSize = maxPoolSize;
+        }
+
+        @Override
+        public void onConnectionCreation(Connection connection) {
+            poolSize.increment();
+            if ( poolSize.sum() > maxPoolSize ) {
+                limitExceeded.set( true );
+            }
+        }
+
+        @Override
+        public void onConnectionDestroy(Connection connection) {
+           poolSize.decrement();
+        }
+
+        public AtomicBoolean getLimitExceeded() {
+            return limitExceeded;
         }
     }
 }
