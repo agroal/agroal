@@ -50,6 +50,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     Duration reapTimeout = ZERO;
     Duration maxLifetime = ZERO;
     volatile Duration acquisitionTimeout = ZERO;
+    volatile Duration connectionCreateTimeout = ZERO;
 
     private volatile boolean lock;
 
@@ -84,6 +85,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         reapTimeout = existingConfiguration.reapTimeout();
         maxLifetime = existingConfiguration.maxLifetime();
         acquisitionTimeout = existingConfiguration.acquisitionTimeout();
+        connectionCreateTimeout = existingConfiguration.connectionCreateTimeout();
     }
 
     private void checkLock() {
@@ -265,6 +267,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     /**
+     * Sets the duration of the connectionCreate  timeout. Default is {@link Duration#ZERO} meaning that a thread will wait indefinitely.
+     */
+    public AgroalConnectionPoolConfigurationSupplier connectionCreateTimeout(Duration timeout) {
+        checkLock();
+        connectionCreateTimeout = timeout;
+        return this;
+    }
+
+    /**
      * Sets the duration of idle time for foreground validation to be executed. Default is {@link Duration#ZERO} meaning that this feature is disabled.
      */
     public AgroalConnectionPoolConfigurationSupplier idleValidationTimeout(Duration timeout) {
@@ -332,6 +343,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         }
         if ( acquisitionTimeout.isNegative() ) {
             throw new IllegalArgumentException( "Acquisition timeout must not be negative" );
+        }
+        if ( connectionCreateTimeout.isNegative() ) {
+            throw new IllegalArgumentException( "Connection create timeout must not be negative" );
         }
         if ( idleValidationTimeout.isNegative() ) {
             throw new IllegalArgumentException( "Idle validation timeout must not be negative" );
@@ -445,11 +459,24 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             }
 
             @Override
+            public Duration connectionCreateTimeout() {
+                return connectionCreateTimeout;
+            }
+
+            @Override
             public void setAcquisitionTimeout(Duration timeout) {
                 if ( timeout.isNegative() ) {
                     throw new IllegalArgumentException( "Acquisition timeout must not be negative" );
                 }
                 acquisitionTimeout = timeout;
+            }
+
+            @Override
+            public void setConnectionCreateTimeout(Duration timeout) {
+                if ( timeout.isNegative() ) {
+                    throw new IllegalArgumentException( "Connection create timeout must not be negative" );
+                }
+                connectionCreateTimeout = timeout;
             }
 
             @Override

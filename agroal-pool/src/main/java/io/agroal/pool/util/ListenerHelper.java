@@ -32,6 +32,12 @@ public final class ListenerHelper {
         }
     }
 
+    public static void fireOnConnectionCreationTimeout(AgroalDataSourceListener[] listeners) {
+        for ( AgroalDataSourceListener listener : listeners ) {
+            listener.onConnectionCreationTimeout();
+        }
+    }
+
     public static void fireOnConnectionCreationFailure(AgroalDataSourceListener[] listeners, SQLException sqlException) {
         for ( AgroalDataSourceListener listener : listeners ) {
             listener.onConnectionCreationFailure( sqlException );

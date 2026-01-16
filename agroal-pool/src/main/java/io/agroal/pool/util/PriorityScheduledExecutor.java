@@ -4,21 +4,29 @@
 package io.agroal.pool.util;
 
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.pool.ConnectionHandler;
+import io.agroal.pool.CreateConnectionFuture;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.agroal.pool.util.ListenerHelper.fireOnConnectionCreationTimeout;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
 
 /**
@@ -34,25 +42,33 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
 
     private final Queue<RunnableFuture<?>> priorityTasks = new ConcurrentLinkedQueue<>();
     private final AgroalDataSourceListener[] listeners;
+    private final ExecutorService connectionCreationExecutor;
+    private final Duration connectionCreationTimeout;
 
-    public PriorityScheduledExecutor(int executorSize, String threadPrefix, AgroalDataSourceListener... listeners) {
+    public PriorityScheduledExecutor(int executorSize, String threadPrefix, Duration connectionCreationTimeout, AgroalDataSourceListener... listeners) {
         super( executorSize, new PriorityExecutorThreadFactory( threadPrefix ), new ThreadPoolExecutor.CallerRunsPolicy() );
         setRemoveOnCancelPolicy( true );
         this.listeners = listeners;
+        this.connectionCreationTimeout = connectionCreationTimeout;
+        if(connectionCreationTimeout.isZero()) {
+            this.connectionCreationExecutor = null;
+        }else {
+            this.connectionCreationExecutor = Executors.newCachedThreadPool(this.getThreadFactory());
+        }
     }
 
     @SuppressWarnings( "WeakerAccess" )
-    public void executeNow(Runnable priorityTask) {
+    private void executeNow(Runnable priorityTask) {
         executeNow( new FutureTask<>( priorityTask, null ) );
     }
 
     @SuppressWarnings( "WeakerAccess" )
-    public <T> Future<T> executeNow(Callable<T> priorityTask) {
-        return executeNow( new FutureTask<>( priorityTask ) );
+    public Future<ConnectionHandler> executeNow(Callable<ConnectionHandler> priorityTask) {
+        return executeNow(new CreateConnectionFuture(priorityTask));
     }
 
     @SuppressWarnings( "WeakerAccess" )
-    public <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
+    private <T> Future<T> executeNow(RunnableFuture<T> priorityFuture) {
         if ( isShutdown() ) {
             throw new RejectedExecutionException( "Task " + priorityFuture + " rejected from " + this );
         }
@@ -70,9 +86,23 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
         for ( RunnableFuture<?> priorityTask; ( priorityTask = priorityTasks.poll() ) != null; ) {
             if ( isShutdown() ) {
                 priorityTask.cancel( false );
+                fireOnConnectionCreationTimeout(listeners);
             } else {
                 try {
-                    priorityTask.run();
+                    if(this.connectionCreationExecutor == null || !(priorityTask instanceof CreateConnectionFuture)) {
+                        // Do not use another thread in case there is anyhow no timeout!
+                        // Do not use another thread if it is not a connection creation!
+                        priorityTask.run();
+                    }else{
+                        Future<?> future = this.connectionCreationExecutor.submit(priorityTask);
+                        try{
+                            future.get(connectionCreationTimeout.toNanos(), TimeUnit.NANOSECONDS);
+                        }catch (TimeoutException t){
+                            priorityTask.cancel( true );
+                            future.cancel( true );
+                            fireOnConnectionCreationTimeout(listeners);
+                        }
+                    }
                     afterExecute( priorityTask, null );
                 } catch ( Throwable t ) {
                     afterExecute( priorityTask, t );
@@ -102,7 +132,13 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
     public List<Runnable> shutdownNow() {
         for ( RunnableFuture<?> runnableFuture : priorityTasks ) {
             runnableFuture.cancel( true );
+            fireOnConnectionCreationTimeout(listeners);
         }
+
+        if(connectionCreationExecutor != null){
+            this.connectionCreationExecutor.shutdown();
+        }
+
         List<Runnable> allTasks = new ArrayList<>( priorityTasks );
         priorityTasks.clear();
 

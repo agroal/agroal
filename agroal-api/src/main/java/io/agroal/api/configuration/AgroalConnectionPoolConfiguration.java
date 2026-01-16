@@ -153,6 +153,17 @@ public interface AgroalConnectionPoolConfiguration {
      */
     void setAcquisitionTimeout(Duration timeout);
 
+    /**
+     * The maximum amount of time the agroal housekeeping thread may be blocked waiting for a new connection.
+     * A duration of {@link Duration#ZERO} means that a thread will wait indefinitely.
+     */
+    Duration connectionCreateTimeout();
+
+    /**
+     * Sets a new amount of time the agroal housekeeping thread may be blocked waiting for a new connection. Threads already blocked when this value changes do not see the new value when they unblock.
+     * A duration of {@link Duration#ZERO} means that a thread will wait indefinitely.
+     */
+    void setConnectionCreateTimeout(Duration timeout);
     // --- //
 
     /**

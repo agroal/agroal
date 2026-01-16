@@ -4,12 +4,13 @@
 package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
-import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockDataSource;
+import io.agroal.test.NoWarningsAgroalListener;
+import io.agroal.test.WarningsAgroalListener;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.NONE;
@@ -192,50 +192,6 @@ public class NewConnectionTests {
     }
 
     // --- //
-
-    public static class WarningsAgroalListener implements AgroalDataSourceListener {
-
-        private final AtomicInteger warnings = new AtomicInteger(), failures = new AtomicInteger();
-
-        @Override
-        public void onWarning(String message) {
-            warnings.getAndIncrement();
-            logger.warning( "Unexpected WARN: " + message );
-        }
-
-        @Override
-        public void onWarning(Throwable throwable) {
-            warnings.getAndIncrement();
-            logger.warning( "Unexpected WARN" + throwable.getMessage() );
-        }
-
-        @Override
-        public void onConnectionCreationFailure(SQLException sqlException) {
-            failures.getAndIncrement();
-            logger.info( "Expected callback " + sqlException.getMessage() );
-        }
-
-        public int warningCount() {
-            return warnings.get();
-        }
-
-        public int failuresCount() {
-            return failures.get();
-        }
-    }
-
-    public static class NoWarningsAgroalListener implements AgroalDataSourceListener {
-
-        @Override
-        public void onWarning(String message) {
-            fail( "Unexpected warning " + message );
-        }
-
-        @Override
-        public void onWarning(Throwable throwable) {
-            fail( "Unexpected warning " + throwable.getMessage() );
-        }
-    }
 
     public static class FaultyUrlDataSource implements MockDataSource {
 
