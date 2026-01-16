@@ -18,10 +18,16 @@
     </repositories>
     <dependencies>
         <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.3.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.agroal</groupId>
             <artifactId>agroal-api</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.agroal</groupId>
@@ -51,7 +57,7 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>${version.org.junit.jupiter}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <!-- OSGi -->
         <dependency>
