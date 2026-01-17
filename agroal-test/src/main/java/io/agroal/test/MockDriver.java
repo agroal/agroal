@@ -4,31 +4,39 @@
 package io.agroal.test;
 
 import java.lang.reflect.InvocationTargetException;
+
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
 import static java.lang.System.identityHashCode;
-import static java.sql.DriverManager.deregisterDriver;
-import static java.sql.DriverManager.getDriver;
-import static java.sql.DriverManager.registerDriver;
-import static java.util.logging.Level.WARNING;
+import static java.sql.DriverManager.*;
+import static java.util.logging.Level.*;
 import static java.util.logging.Logger.getLogger;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public interface MockDriver extends Driver {
-
+    static final Logger logger = getLogger( MockDriver.class.getName() );
     DriverPropertyInfo[] EMPTY_PROPERTY_INFO = new DriverPropertyInfo[0];
 
     static void registerMockDriver(Class<? extends Connection> connectionType) {
+        registerMockDriver( new MockDriver.Empty( connectionType ));
+    }
+
+    static void registerMockDriver(Driver ... drivers) {
+        registerMockDriver( new MultiStepMockDriver(List.of(drivers)));
+    }
+
+    static void registerMockDriver(Driver driver) {
         try {
-            registerDriver( new Empty( connectionType ) );
+            registerDriver( driver );
         } catch ( SQLException e ) {
             getLogger( MockDriver.class.getName() ).log( WARNING, "Unable to register MockDriver into Driver Manager", e );
         }
@@ -39,10 +47,19 @@ public interface MockDriver extends Driver {
     }
 
     static void deregisterMockDriver() {
+        Driver driver = null;
         try {
-            deregisterDriver( getDriver( "" ) );
+            driver = getDriver("");
         } catch ( SQLException e ) {
-            getLogger( MockDriver.class.getName() ).log( WARNING, "Unable to deregister MockDriver from Driver Manager", e );
+            if(!"No suitable driver".equals(e.getMessage())){
+                throw new RuntimeException( "Unexpected Exception during getDriver", e );
+            }
+        }
+
+        try {
+            deregisterDriver(driver);
+        } catch ( SQLException e ) {
+            throw new RuntimeException( "Unable to deregister MockDriver from Driver Manager", e );
         }
     }
 
