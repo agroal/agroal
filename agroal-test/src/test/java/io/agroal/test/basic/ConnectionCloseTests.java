@@ -136,14 +136,14 @@ public class ConnectionCloseTests {
     @DisplayName( "Flush on close" )
     void flushOnCloseTest() throws Exception {
         OnWarningListener warningListener = new OnWarningListener();
-        OnDestroyListener destroyListener = new OnDestroyListener( 1 );
+        OnPooledListener pooledListener = new OnPooledListener( 3 );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.minSize( 1 ).maxSize( 1 ).flushOnClose() ), warningListener, destroyListener ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.minSize( 1 ).maxSize( 1 ).flushOnClose() ), warningListener, pooledListener ) ) {
             try ( Connection connection = dataSource.getConnection() ) {
                 assertFalse( connection.isClosed() );
             }
 
-            assertTrue( destroyListener.awaitSeconds( 1 ) );
+            assertTrue( pooledListener.awaitSeconds( 1 ) );
 
             assertAll( () -> {
                 assertFalse( warningListener.getWarning().get(), "Unexpected warning on close connection" );
@@ -281,12 +281,17 @@ public class ConnectionCloseTests {
     }
 
     @SuppressWarnings( {"WeakerAccess", "SameParameterValue"} )
-    private static class OnDestroyListener implements AgroalDataSourceListener {
+    private static class OnPooledListener implements AgroalDataSourceListener {
 
         private final CountDownLatch latch;
 
-        OnDestroyListener(int count) {
+        OnPooledListener(int count) {
             latch = new CountDownLatch( count );
+        }
+
+        @Override
+        public void onConnectionPooled(Connection connection) {
+            latch.countDown();
         }
 
         @Override
