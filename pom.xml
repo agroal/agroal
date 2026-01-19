@@ -20,6 +20,7 @@
     </issueManagement>
     <modules>
         <module>agroal-api</module>
+        <module>agroal-integration-tests</module>
         <module>agroal-narayana</module>
         <module>agroal-pool</module>
         <module>agroal-spring-boot-starter</module>
