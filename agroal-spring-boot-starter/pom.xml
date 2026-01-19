@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.agroal</groupId>
         <artifactId>agroal-parent</artifactId>
-        <version>3.0-SNAPSHOT</version>
+        <version>3.0</version>
     </parent>
     <artifactId>agroal-spring-boot-starter</artifactId>
     <name>Agroal Spring Boot Starter</name>
