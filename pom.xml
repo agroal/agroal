@@ -9,7 +9,7 @@
     </parent>
     <groupId>io.agroal</groupId>
     <artifactId>agroal-parent</artifactId>
-    <version>3.0</version>
+    <version>3.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Agroal</name>
     <description>The natural database connection pool</description>
@@ -20,6 +20,7 @@
     </issueManagement>
     <modules>
         <module>agroal-api</module>
+        <module>agroal-integration-tests</module>
         <module>agroal-narayana</module>
         <module>agroal-pool</module>
         <module>agroal-spring-boot-starter</module>
@@ -36,7 +37,7 @@
         <connection>scm:git:git://github.com/agroal/agroal.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/agroal/agroal.git</developerConnection>
         <url>https://github.com/agroal/agroal</url>
-        <tag>3.0</tag>
+        <tag>3.0.1</tag>
     </scm>
     <developers>
         <developer>
@@ -132,12 +133,4 @@
             </plugin>
         </plugins>
     </build>
-  <profiles>
-    <profile>
-      <id>it</id>
-      <modules>
-        <module>agroal-integration-tests</module>
-      </modules>
-    </profile>
-  </profiles>
 </project>
