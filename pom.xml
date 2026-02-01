@@ -133,12 +133,4 @@
             </plugin>
         </plugins>
     </build>
-  <profiles>
-    <profile>
-      <id>it</id>
-      <modules>
-        <module>agroal-integration-tests</module>
-      </modules>
-    </profile>
-  </profiles>
 </project>
