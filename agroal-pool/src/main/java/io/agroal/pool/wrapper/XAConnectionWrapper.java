@@ -19,7 +19,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public final class XAConnectionWrapper extends AutoCloseableElement implements XAConnection {
+public final class XAConnectionWrapper extends AutoCloseableElement<XAConnectionWrapper> implements XAConnection {
 
     private static final String CLOSED_HANDLER_STRING = XAConnectionWrapper.class.getSimpleName() + ".CLOSED_XA_CONNECTION";
 
@@ -41,7 +41,7 @@ public final class XAConnectionWrapper extends AutoCloseableElement implements X
     // --- //
 
     // Collection of XAResources to close them on close(). If null Statements are not tracked.
-    private final AutoCloseableElement trackedXAResources;
+    private final AutoCloseableElement<XAResourceWrapper> trackedXAResources;
 
     private final ConnectionHandler handler;
 
@@ -103,7 +103,8 @@ public final class XAConnectionWrapper extends AutoCloseableElement implements X
         try {
             handler.traceConnectionOperation( "getConnection()" );
             handler.verifyEnlistment();
-            return new ConnectionWrapper( handler, trackedXAResources != null, true );
+            // this is used for recovery. set detached true and holdable false
+            return new ConnectionWrapper( handler, trackedXAResources != null, true, false );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;

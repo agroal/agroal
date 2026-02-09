@@ -3,8 +3,8 @@
 
 package io.agroal.pool.util;
 
-import java.sql.SQLException;
-import java.sql.Statement;
+import io.agroal.pool.wrapper.ConnectionWrapper;
+
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater;
@@ -20,18 +20,26 @@ import static java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public abstract class AutoCloseableElement implements AutoCloseable {
+public abstract class AutoCloseableElement<T extends AutoCloseableElement<T>> implements AutoCloseable {
 
+    @SuppressWarnings( "rawtypes" )
     private static final AtomicReferenceFieldUpdater<AutoCloseableElement, AutoCloseableElement> NEXT_UPDATER = newUpdater( AutoCloseableElement.class, AutoCloseableElement.class, "nextElement" );
 
-    private volatile AutoCloseableElement nextElement;
+    private volatile AutoCloseableElement<T> nextElement;
+
+    public boolean isHeld() {
+        return true;
+    }
 
     public abstract boolean isClosed() throws Exception;
 
     protected abstract boolean internalClosed();
 
+    protected void beforeClose() {
+    }
+
     @SuppressWarnings( "ThisEscapedInObjectConstruction" )
-    protected AutoCloseableElement(AutoCloseableElement head) {
+    protected AutoCloseableElement(AutoCloseableElement<T> head) {
         if ( head != null ) {
             // point to the first element of the list and attempt to have the head to point at us
             do {
@@ -45,40 +53,41 @@ public abstract class AutoCloseableElement implements AutoCloseable {
      * This method should be invoked on the collection head only, otherwise it may not traverse the whole collection.
      */
     public int closeAllAutocloseableElements() {
-        int count = 0;
-        // if under contention, the call that succeeds to reset the head is the one and only that will traverse the whole collection
-        for ( AutoCloseableElement next = resetNextElement(); next != null; next = next.resetNextElement() ) {
-            try {
-                if ( !next.internalClosed() ) {
-                    count++;
-                    if ( next instanceof Statement ) {
-                        try {
-                            // AG-231 - we have to cancel the Statement on cleanup to avoid overloading the DB
-                            ( (Statement) next ).cancel();
-                        } catch ( SQLException e ) {
-                            // ignore and proceed with close()
-                        }
-                    }
-                    next.close();
-                }
-            } catch ( Exception e ) {
-                // ignore
-            }
-        }
-        return count;
+        // To be called on the head of the list
+        throw new IllegalStateException();
     }
 
-    // --- convenience private methods to access the field updater //
+    /**
+     * Returns the number of resources that were not held and are not properly closed.
+     * After run the resources that are not held are closed and remove from the list.
+     * This method should be invoked on the collection head only, otherwise it may not traverse the whole collection.
+     */
+    public int closeNotHeldAutocloseableElements() {
+        // To be called on the head of the list
+        throw new IllegalStateException();
+    }
 
-    private boolean setNextElement(AutoCloseableElement expected, AutoCloseableElement element) {
+    /**
+     * Check if the list of elements is empty
+     */
+    public boolean isElementListEmpty() {
+        // To be called on the head of the list
+        throw new IllegalStateException();
+    }
+
+    // --- convenience protected methods to access the field updater //
+
+    protected boolean setNextElement(AutoCloseableElement<T> expected, AutoCloseableElement<T> element) {
         return NEXT_UPDATER.compareAndSet( this, expected, element );
     }
 
-    private AutoCloseableElement getNextElement() {
+    @SuppressWarnings( "unchecked" )
+    protected AutoCloseableElement<T> getNextElement() {
         return NEXT_UPDATER.get( this );
     }
 
-    private AutoCloseableElement resetNextElement() {
+    @SuppressWarnings( "unchecked" )
+    protected AutoCloseableElement<T> resetNextElement() {
         return NEXT_UPDATER.getAndSet( this, null );
     }
 
@@ -86,8 +95,8 @@ public abstract class AutoCloseableElement implements AutoCloseable {
      * Check for runs of closed elements after the current position and remove them from the linked list
      */
     public void pruneClosed() {
-        AutoCloseableElement next = nextElement;
-        while (next != null && next.internalClosed() && setNextElement(next, next.nextElement)) {
+        AutoCloseableElement<T> next = nextElement;
+        while ( next != null && next.internalClosed() && setNextElement( next, next.nextElement ) ) {
             next = nextElement;
         }
     }
@@ -97,14 +106,24 @@ public abstract class AutoCloseableElement implements AutoCloseable {
     /**
      * Create a special marker element to be used as head of a collection.
      */
-    public static AutoCloseableElement newHead() {
-        return new AutoCloseableElementHead();
+    public static <T extends AutoCloseableElement<T>> AutoCloseableElement<T> newHead() {
+        return new AutoCloseableElementHead<>();
     }
 
-    private static class AutoCloseableElementHead extends AutoCloseableElement {
+    private static class AutoCloseableElementHead<T extends AutoCloseableElement<T>> extends AutoCloseableElement<T> {
 
         private AutoCloseableElementHead() {
             super( null );
+        }
+
+        @Override
+        public boolean isElementListEmpty() {
+            return getNextElement() == null;
+        }
+
+        @Override
+        public boolean isHeld() {
+            throw new IllegalStateException();
         }
 
         @Override
@@ -120,6 +139,48 @@ public abstract class AutoCloseableElement implements AutoCloseable {
         @Override
         protected boolean internalClosed() {
             return false;
+        }
+
+        public int closeAllAutocloseableElements() {
+            int count = 0;
+            // if under contention, the call that succeeds to reset the head is the one and only that will traverse the whole collection
+            for ( AutoCloseableElement<T> next = resetNextElement(); next != null; next = next.resetNextElement() ) {
+                try {
+                    if ( !next.internalClosed() ) {
+                        next.beforeClose();
+                        next.close();
+                        count++;
+                    }
+                } catch ( Exception e ) {
+                    // ignore
+                }
+            }
+            return count;
+        }
+
+        public int closeNotHeldAutocloseableElements() {
+            int count = 0;
+            for ( AutoCloseableElement<T> current = this; current != null && current.nextElement != null; ) {
+                AutoCloseableElement<T> next = current.nextElement;
+                try {
+                    boolean holdElement = next.isHeld() && !next.internalClosed();
+                    if ( !holdElement && next instanceof ConnectionWrapper connectionWrapper ) {
+                        connectionWrapper.closeNotHeldTrackedStatements();
+                        holdElement = !connectionWrapper.hasTrackedStatements();
+                    }
+
+                    if ( !holdElement && current.setNextElement( next, next.nextElement ) && !next.internalClosed() ) {
+                        next.beforeClose();
+                        next.close();
+                        count++;
+                    } else {
+                        current = current.nextElement;
+                    }
+                } catch ( Exception e ) {
+                    // ignore
+                }
+            }
+            return count;
         }
     }
 }

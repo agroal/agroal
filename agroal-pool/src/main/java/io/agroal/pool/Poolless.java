@@ -68,7 +68,7 @@ public final class Poolless implements Pool {
 
     static {
         try {
-            TRANSFER_POISON = new ConnectionHandler( new XAConnectionAdaptor( null ), null );
+            TRANSFER_POISON = new ConnectionHandler( new XAConnectionAdaptor( null ), null, 0 , 0 );
         } catch ( SQLException e ) {
             throw new RuntimeException( e );
         }
@@ -367,6 +367,16 @@ public final class Poolless implements Pool {
         return activeCount.get();
     }
 
+    public long heldCount() {
+        int held = 0;
+        for ( ConnectionHandler handler : allConnections ) {
+            if ( handler.isHeldOverCommit() ) {
+                held++;
+            }
+        }
+        return held;
+    }
+
     public long availableCount() {
         return configuration.maxSize() - activeCount.get();
     }
@@ -415,7 +425,8 @@ public final class Poolless implements Pool {
         long metricsStamp = metricsRepository.beforeConnectionCreation();
 
         try {
-            ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), this );
+            XAConnection xaConnection = connectionFactory.createConnection();
+            ConnectionHandler handler = new ConnectionHandler( xaConnection, this, connectionFactory.defaultJdbcIsolationLevel(), connectionFactory.defaultHoldability() );
             metricsRepository.afterConnectionCreation( metricsStamp );
 
             fireOnConnectionCreation( listeners, handler );

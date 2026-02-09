@@ -14,7 +14,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public class XAResourceWrapper extends AutoCloseableElement implements XAResource {
+public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> implements XAResource {
 
     private static final String CLOSED_HANDLER_STRING = XAResourceWrapper.class.getSimpleName() + ".CLOSED_XA_RESOURCE";
 
@@ -38,7 +38,7 @@ public class XAResourceWrapper extends AutoCloseableElement implements XAResourc
     private final ConnectionHandler handler;
     private XAResource wrappedXAResource;
 
-    public XAResourceWrapper(ConnectionHandler connectionHandler, XAResource resource, AutoCloseableElement head) {
+    public XAResourceWrapper(ConnectionHandler connectionHandler, XAResource resource, AutoCloseableElement<XAResourceWrapper> head) {
         super( head );
         handler = connectionHandler;
         wrappedXAResource = resource;
