@@ -58,8 +58,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
         }
         priorityTasks.add( priorityFuture );
         if ( !priorityFuture.isDone() ) {
-            // Submit a task so that the beforeExecute() method gets called
-            execute( EMPTY_TASK );
+            execute( EMPTY_TASK ); // submit a dummy task so that the beforeExecute() method gets called
         }
         return priorityFuture;
     }
@@ -72,7 +71,9 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
                 priorityTask.cancel( false );
             } else {
                 try {
-                    priorityTask.run();
+                    if ( !priorityTask.isCancelled() ) {
+                        priorityTask.run();
+                    }
                     afterExecute( priorityTask, null );
                 } catch ( Throwable t ) {
                     afterExecute( priorityTask, t );

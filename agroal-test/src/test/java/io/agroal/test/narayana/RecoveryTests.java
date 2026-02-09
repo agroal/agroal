@@ -33,6 +33,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.ArgumentsProvider;
 import org.junit.jupiter.params.provider.ArgumentsSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.support.ParameterDeclarations;
 
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
@@ -94,7 +95,7 @@ public class RecoveryTests {
     private static class RecoveryTestsArgumentsSource implements ArgumentsProvider {
 
         @Override
-        public Stream<? extends Arguments> provideArguments(ExtensionContext context) throws Exception {
+        public Stream<? extends Arguments> provideArguments(ParameterDeclarations parameters, ExtensionContext context) throws Exception {
             return Stream.of( arguments( false, false ), arguments( true, false ), arguments( false, true ), arguments( true, true ) );
         }
     }

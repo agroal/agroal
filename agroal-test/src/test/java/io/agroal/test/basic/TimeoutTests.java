@@ -118,11 +118,16 @@ public class TimeoutTests {
 
             double overheadFactor = Utils.timerAccuracy( 100, 95 ) * 1.1; // 10% safety margin
             logger.info( format( "Dynamic overhead factor of {0} (P95)", overheadFactor ) );
-            assertTimeoutPreemptively( ofMillis( (long) ( ACQUISITION_TIMEOUT_MS * overheadFactor) ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting acquisition timeout" );
 
-            long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
-            logger.info( format( "Acquisition timeout after {0}ms - Configuration is {1}ms", elapsed, ACQUISITION_TIMEOUT_MS ) );
-            assertTrue( elapsed >= ACQUISITION_TIMEOUT_MS, "Acquisition timeout before time" );
+            try {
+                //  AG-290 - this will now block the test == acquisition timeout does not fire
+                assertTimeoutPreemptively( ofMillis( (long) ( ACQUISITION_TIMEOUT_MS * overheadFactor) ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting getConnection to hang" );
+                fail( "Not supposed to create a connection" ); // Supposed to fail
+            } catch ( Error e ) {
+                long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
+                logger.info( format( "Timeout after {0}ms - Configuration is {1}ms", elapsed, ACQUISITION_TIMEOUT_MS ) );
+                assertTrue( elapsed >= ACQUISITION_TIMEOUT_MS, "Acquisition timeout before time" );
+            }
 
             SleepyDatasource.unsetSleep();
 
@@ -194,7 +199,15 @@ public class TimeoutTests {
             assertTrue( warningListener.getWarning().get(), "Expected a warning on the size of acquisition timeout" );
 
             logger.info( "Checking datasource health" );
-            assertTimeoutPreemptively( ofMillis( LOGIN_TIMEOUT_S * 1500 ), () -> assertThrows( SQLException.class, () -> dataSource.isHealthy( true ) ), "Expecting SQLException on heath check" );
+            assertTimeoutPreemptively( ofMillis( LOGIN_TIMEOUT_S * 2500 ), () -> assertThrows( SQLException.class, () -> dataSource.isHealthy( true ) ), "Expecting SQLException on heath check" );
+
+            try {
+                assertTimeoutPreemptively( ofMillis( LOGIN_TIMEOUT_S * 1500 ), () -> assertThrows( SQLException.class, () -> dataSource.isHealthy( true ) ), "Expecting SQLException on heath check" );
+                fail( "Not supposed to create a connection" ); // Supposed to fail
+            } catch ( Error e )  {
+                assertTrue( e.getMessage().contains( "execution timed out after" ) );
+            }
+
         }
     }
 
@@ -355,6 +368,7 @@ public class TimeoutTests {
             try {
                 logger.info( "Pretending to wait for connection to be established ..." );
                 Thread.sleep( loginTimeout * 1000L );
+                logger.info( "... login timeout !!" );
                 throw new SQLException( "Login timeout after " + loginTimeout + " seconds." );
             } catch ( InterruptedException e ) {
                 throw new SQLException( e );

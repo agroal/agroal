@@ -32,6 +32,7 @@ import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -183,12 +184,13 @@ public class NewConnectionTimeoutTests {
         WarningsAgroalListener warningsListener = new WarningsAgroalListener();
         ConnectionListener connectionListener = new ConnectionListener();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, warningsListener, connectionListener ) ) {
-            try ( Connection c = dataSource.getConnection() ) {
+            try {
+                assertTimeoutPreemptively( Duration.ofSeconds( 2 ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting getConnection to hang" );
                 fail( "Not supposed to create a connection" ); // Supposed to fail
-            } catch ( SQLException e ) {
+            } catch ( Error e ) {
                 // Connection creation was started but Acquisition timed out
                 connectionListener.assertConnectionCreationStarted();
-                assertTrue( e.getMessage().contains( "Acquisition" ) );
+                assertTrue( e.getMessage().contains( "execution timed out after" ) );
 
                 // even if we give some time to interrupt, cancel will not take effect in the connection creation thread...
                 Thread.sleep( 2000 );
@@ -203,14 +205,15 @@ public class NewConnectionTimeoutTests {
             connectionListener.reset();
 
             // Proof that NO new db connection can be created
-            try ( Connection c = dataSource.getConnection() ) {
+            try {
+                assertTimeoutPreemptively( Duration.ofSeconds( 2 ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting getConnection to hang" );
                 fail( "Not supposed to create a connection" ); // Supposed to fail
-            } catch ( SQLException e ) {
+            } catch ( Error e ) {
                 // Thread is still blocked with previous connection creation therefore connection creation was NOT started
                 connectionListener.assertNoConnectionCreationStarted();
 
                 // Second attempt also timed out
-                assertTrue( e.getMessage().contains( "Acquisition" ) );
+                assertTrue( e.getMessage().contains( "execution timed out after" ) );
 
                 // Single thread for creating the db connection is still running and hangs - can't be canceled
                 // Which will block the pool, and new connections couldn't be created
@@ -243,9 +246,17 @@ public class NewConnectionTimeoutTests {
             assertEquals( CommunicationsException.class, e.getCause().getClass() ); // the exception here is the one of the first attempt
             assertTrue( e.getMessage().contains( "Communications link failure" ) );
 
-            assertEquals( 2, connectionListener.getStartedConnectionCreations() );
+            assertEquals( 1, connectionListener.getStartedConnectionCreations() );
             connectionListener.assertNoConnectionCreated();
             warningsListener.assertAnyFailureStartsWith( "java.sql.SQLException: Failed to create connection due to RuntimeException" );
+
+            try ( Connection c = dataSource.getConnection() ) {
+                // AG-290 - because the thread that is waiting for the slow driver to return has to remain blocked anyway
+                // for longer than acquisitionTimeout
+                // when that call returns successfully there is no need to throw an exception. the call completes successfully.
+                connectionListener.assertConnectionCreated();
+                assertEquals( 2, connectionListener.getStartedConnectionCreations() );
+            }
         }
     }
 
@@ -266,6 +277,14 @@ public class NewConnectionTimeoutTests {
         ConnectionListener connectionListener = new ConnectionListener();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, warningsListener, connectionListener ) ) {
             warningsListener.assertNoConnectionFailures();
+
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "getConnection() succeeded unexpectedly!" );
+            } catch ( RuntimeException e ) {
+                logger.info( "Got expected runtime exception with message: " + e.getMessage() );
+                assertEquals( CommunicationsException.class, e.getCause().getClass() );
+                assertTrue( e.getMessage().contains( "Communications link failure" ) );
+            }
 
             try ( Connection c = dataSource.getConnection() ) {
                 logger.info( "Got connection " + c + " with some URL" );

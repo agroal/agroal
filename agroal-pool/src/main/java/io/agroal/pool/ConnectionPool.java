@@ -20,15 +20,13 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TransferQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -95,6 +93,7 @@ public final class ConnectionPool implements Pool {
     private final AgroalDataSourceListener[] listeners;
 
     private final StampedCopyOnWriteArrayList<ConnectionHandler> allConnections;
+    private final AtomicLong createConnectionPermits = new AtomicLong(); // track allConnections.size() in the high bits and permits on low bits
     private final TransferQueue<ConnectionHandler> handlerTransferQueue = new LinkedTransferQueue<>();
 
     private final ConnectionFactory connectionFactory;
@@ -162,9 +161,7 @@ public final class ConnectionPool implements Pool {
         } else if ( configuration.initialSize() > configuration.maxSize() ) {
             fireOnInfo( listeners, "Initial size bigger than max. Connections will be destroyed as soon as they return to the pool" );
         }
-        for ( int n = configuration.initialSize(); n > 0; n-- ) {
-            housekeepingExecutor.executeNow( new CreateConnectionTask().initial() );
-        }
+        fill( configuration.initialSize() );
     }
 
     public AgroalConnectionPoolConfiguration getConfiguration() {
@@ -348,67 +345,65 @@ public final class ConnectionPool implements Pool {
     }
 
     private ConnectionHandler handlerFromSharedCache() throws SQLException {
-        long remaining = configuration.acquisitionTimeout().toNanos();
-        long deadline = remaining > 0 ? nanoTime() + remaining : MAX_VALUE;
-        Future<ConnectionHandler> task = null;
-        ExecutionException createException = null;
+        long acquisitionTimeout = configuration.acquisitionTimeout().isZero() ? MAX_VALUE : configuration.acquisitionTimeout().toNanos();
+        long deadline = acquisitionTimeout == MAX_VALUE ? MAX_VALUE : nanoTime() + acquisitionTimeout;
+        boolean collaborate = true;
+        int retries = 0;
         try {
             for ( int i = 0; ; i++ ) {
-                // If min-size increases, create a connection right away
-                if ( allConnections.size() < configuration.minSize() ) {
-                    task = housekeepingExecutor.executeNow( new CreateConnectionTask() );
-                }
                 if ( i == 0 && handlerTransferQueue.hasWaitingConsumer() ) { // On the first iteration, block right away if there are other threads already blocked
                     // There is a race condition here (if a thread was blocked but by the time poll is executed a transfer allready took place)
                     // Because of that do not block for the whole remaining duration. Do it for at most a second and then move on to perform a scan
-                    long timeout = Long.min( ONE_SECOND, remaining > 0 ? remaining * 9 / 10 : MAX_VALUE );
-                    fireBeforePoolBlock( listeners, timeout );
-                    ConnectionHandler handler = handlerTransferQueue.poll( timeout, NANOSECONDS );
+                    ConnectionHandler handler = waitAvailableHandler( Long.min( ONE_SECOND, acquisitionTimeout * 9 / 10 ), false );
                     if ( handler != null && handler.acquire() ) {
                         return handler;
                     }
                 }
-                // Try to find an available connection in the pool
-                for ( ConnectionHandler handler : allConnections ) {
+                for ( ConnectionHandler handler : allConnections ) { // Try to find an available connection in the pool
                     if ( handler.acquire() ) {
-                        return handler;
-                    }
-                }
-                // If no connections are available and there is room, create one
-                if ( task == null && allConnections.size() < configuration.maxSize() ) {
-                    task = housekeepingExecutor.executeNow( new CreateConnectionTask() );
-                }
-                if ( task == null ) {
-                    ConnectionHandler handler = waitAvailableHandler( deadline );
-                    if ( handler.acquire() ) {
-                        return handler;
-                    }
-                } else try {
-                    // Wait for the new connection instead of the transferQueue to propagate any exception on connection establishment
-                    long timeout = deadline - nanoTime();
-                    fireBeforePoolBlock( listeners, timeout );
-                    ConnectionHandler handler = task.get( timeout, NANOSECONDS );
-                    if ( handler != null && handler.acquire() ) {
-                        return handler;
-                    }
-                    task = null;
-                } catch ( ExecutionException e ) {
-                    long timeout = deadline - nanoTime();
-                    if ( createException != null || remaining == 0 || timeout < 0 ) {
-                        throw unwrapExecutionException( e );
-                    } else {
-                        // AG-274: connection failed but the acquisitionTimeout has not expired. fire message and perform a single retry
-                        fireOnInfo( listeners, "Retrying establishment of connection after " + e.getCause().getClass().getName() );
-                        createException = e;
-                        task = null;
-
-                        // wait at most a second before retrying, if that is not possible try to give 100 ms for connection establishment
-                        long backoff = Long.min( ONE_SECOND, timeout - ( ONE_SECOND / 10 ) );
-                        fireBeforePoolBlock( listeners, backoff );
-                        ConnectionHandler handler = handlerTransferQueue.poll( backoff, NANOSECONDS );
-                        if ( handler != null && handler.acquire() ) {
-                            return handler;
+                        if ( allConnections.size() < configuration.minSize() && acquireCreateConnectionPermit( configuration.minSize() ) ) {
+                            housekeepingExecutor.executeNow( () -> createAndPoolConnection() ); // Got a connection but create one (a single one) in the backgroud
                         }
+                        return handler;
+                    }
+                }
+                if ( allConnections.size() < configuration.maxSize() ) { // If no connection is available and there is room, create one
+                    try {
+                        long timeout = deadline - nanoTime();
+                        fireBeforePoolBlock( listeners, timeout );
+                        if ( acquireCreateConnectionPermit( configuration.maxSize() ) ) {
+                            ConnectionHandler handler = null;
+                            if ( collaborate ) {
+                                handler = createAndPoolConnection();
+                            } else {
+                                // Connction created in the background thread (only wait until acquisitionTimout)
+                                handler = housekeepingExecutor.executeNow( () -> createAndPoolConnection() ).get( deadline - nanoTime(), NANOSECONDS );
+                            }
+                            if ( handler != null && handler.acquire() ) {
+                                return handler;
+                            }
+                        }
+                    } catch ( RuntimeException | TimeoutException | Error e ) {
+                        throw e;
+                    } catch ( Exception e ) {
+                        long timeout = deadline - nanoTime();
+                        if ( --retries < 0 || timeout <= 0 ) {
+                            throw e instanceof SQLException sqle ? sqle : new SQLException( "Failed to create connection after " + retries + " retries", e );
+                        } else {
+                            // AG-274: connection failed but the acquisitionTimeout has not expired. fire message and perform a single retry
+                            fireOnInfo( listeners, "Retrying establishment of connection after " + e.getClass().getName() );
+
+                            // Wait at most a second before retrying, if that is not possible try to give 100 ms for connection establishment
+                            ConnectionHandler handler = waitAvailableHandler( Long.min( ONE_SECOND, timeout - ( ONE_SECOND / 10 ) ), false );
+                            if ( handler != null && handler.acquire() ) {
+                                return handler;
+                            }
+                        }
+                    }
+                } else { // Wait until a connection is released
+                    ConnectionHandler handler = waitAvailableHandler( deadline, true );
+                    if ( handler.acquire() ) {
+                        return handler;
                     }
                 }
             }
@@ -418,39 +413,26 @@ public final class ConnectionPool implements Pool {
         } catch ( RejectedExecutionException | CancellationException e ) {
             throw new SQLException( "Can't create new connection as the pool is shutting down", e );
         } catch ( TimeoutException e ) {
-            task.cancel( true );
             // AG-201: Last effort. Connections may have returned to the pool while waiting.
             for ( ConnectionHandler handler : allConnections ) {
                 if ( handler.acquire() ) {
                     return handler;
                 }
             }
-            throw createException == null ? new SQLException( "Acquisition timeout while waiting for new connection", e ) : unwrapExecutionException( createException );
+            throw new SQLException( "Sorry, acquisition timeout!" );
         }
     }
 
-    private ConnectionHandler waitAvailableHandler(long deadline) throws InterruptedException, SQLException {
+    private ConnectionHandler waitAvailableHandler(long deadline, boolean strict) throws InterruptedException, TimeoutException {
         long timeout = deadline - nanoTime();
         fireBeforePoolBlock( listeners, timeout );
         ConnectionHandler handler = handlerTransferQueue.poll( timeout, NANOSECONDS );
-        if ( handler == null ) {
-            throw new SQLException( "Sorry, acquisition timeout!" );
+        if ( strict && handler == null ) {
+            throw new TimeoutException( "Acquisition timeout while waiting for connection" );
         } else if ( handler == TRANSFER_POISON ) {
             throw new CancellationException();
         }
         return handler;
-    }
-
-    private SQLException unwrapExecutionException(ExecutionException ee) {
-        try {
-            throw ee.getCause();
-        } catch ( RuntimeException | Error re ) {
-            throw re;
-        } catch ( SQLException se ) {
-            return se;
-        } catch ( Throwable t ) {
-            return new SQLException( "Exception while creating new connection", t );
-        }
     }
 
     private boolean idleValidation(ConnectionHandler handler) {
@@ -570,11 +552,12 @@ public final class ConnectionPool implements Pool {
 
     private void removeFromPool(ConnectionHandler handler) {
         allConnections.remove( handler );
-        housekeepingExecutor.execute( new FillTask() );
         if ( configuration.flushOnClose() ) {
             // AG-276 - Avoid connection overwhelming because destruction remain due to priority reason compared to creation
             housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
-        } else {
+        }
+        releaseAndFill( configuration.minSize() );
+        if ( !configuration.flushOnClose() ) {
             housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
         }
     }
@@ -614,25 +597,13 @@ public final class ConnectionPool implements Pool {
 
     @Override
     public boolean isHealthy(boolean newConnection) throws SQLException {
-        ConnectionHandler healthHandler;
-        Future<ConnectionHandler> task = null;
+        ConnectionHandler healthHandler = null;
         if ( newConnection ) {
-            try {
-                do {
-                    task = housekeepingExecutor.executeNow( new CreateConnectionTask().initial() );
-                    healthHandler = task.get( configuration.acquisitionTimeout().isZero() ? MAX_VALUE : configuration.acquisitionTimeout().toNanos(), NANOSECONDS );
-                } while ( !healthHandler.setState( CHECKED_IN, VALIDATION ) );
-            } catch ( InterruptedException e ) {
-                currentThread().interrupt();
-                throw new SQLException( "Interrupted while acquiring" );
-            } catch ( ExecutionException ee ) {
-                throw unwrapExecutionException( ee );
-            } catch ( RejectedExecutionException | CancellationException e ) {
-                throw new SQLException( "Can't create new connection as the pool is shutting down", e );
-            } catch ( TimeoutException e ) {
-                task.cancel( true );
-                throw new SQLException( "Acquisition timeout on health check" );
-            }
+            do {
+                if ( acquireCreateConnectionPermit( Integer.MAX_VALUE ) ) {
+                    healthHandler = createAndPoolConnection();
+                }
+            } while ( healthHandler != null && !healthHandler.setState( CHECKED_IN, VALIDATION ) );
         } else {
             healthHandler = handlerFromSharedCache();
             healthHandler.setState( CHECKED_OUT, VALIDATION );
@@ -642,52 +613,98 @@ public final class ConnectionPool implements Pool {
 
     // --- create //
 
-    private final class CreateConnectionTask implements Callable<ConnectionHandler> {
+    private boolean acquireCreateConnectionPermit(int targetSize) {
+        long current;
+        do {
+            current = createConnectionPermits.get();
+            if ( (int) ( current >>> Integer.SIZE ) + (int) current >= targetSize ) {
+                return false;
+            }
+        } while ( !createConnectionPermits.compareAndSet( current, current + 1 ) ); // CAS looop increments the number of permits
+        return true;
+    }
 
-        private boolean initial;
-
-        // initial connections do not take configuration.maxSize into account
-        private CreateConnectionTask initial() {
-            initial = true;
-            return this;
+    private void releaseAndFill(int targetSize) {
+        long currrent = createConnectionPermits.addAndGet( 1L - ( 1L << Integer.SIZE ) ); // Move 1 from high bits (size) to low bits (permits)
+        if ( (int) ( currrent >>> Integer.SIZE ) + (int) currrent <= targetSize ) {
+            createAndPoolConnectionOnBackground();
+        } else {
+            createConnectionPermits.decrementAndGet();
         }
+    }
 
-        @Override
-        public ConnectionHandler call() throws SQLException {
-            if ( !initial && allConnections.size() >= configuration.maxSize() ) {
-                return null;
+    private ConnectionHandler createAndPoolConnection() throws SQLException { // Called with permit to crete connection immediately
+        boolean decrementPermits = true;
+        try {
+            if ( housekeepingExecutor.isShutdown() ) { // Avoid create connection if pool is closing
+                throw new SQLException( "This pool is closing!" );
             }
             fireBeforeConnectionCreation( listeners );
             long metricsStamp = metricsRepository.beforeConnectionCreation();
 
-            try {
-                ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
-                metricsRepository.afterConnectionCreation( metricsStamp );
+            ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
+            metricsRepository.afterConnectionCreation( metricsStamp );
 
-                if ( !configuration.maxLifetime().isZero() ) {
-                    handler.setMaxLifetimeTask( housekeepingExecutor.schedule( new FlushTask( GRACEFUL, handler ), configuration.maxLifetime().toNanos(), NANOSECONDS ) );
-                }
-
-                fireOnConnectionCreation( listeners, handler );
-                fireOnConnectionCreateInterceptor( interceptors, handler );
-
-                handler.setState( CHECKED_IN );
-                allConnections.add( handler );
-
-                if ( metricsRepository.collectPoolMetrics() ) {
-                    maxUsed.accumulate( allConnections.size() );
-                }
-                fireOnConnectionPooled( listeners, handler );
-
-                handlerTransferQueue.tryTransfer( handler );
-                return handler;
-            } catch ( SQLException e ) {
-                fireOnConnectionCreationFailure( listeners, e );
-                throw e;
-            } catch ( Throwable t ) {
-                fireOnConnectionCreationFailure( listeners, new SQLException( "Failed to create connection due to " + t.getClass().getSimpleName(), t ) );
-                throw t;
+            if ( !configuration.maxLifetime().isZero() ) {
+                handler.setMaxLifetimeTask( housekeepingExecutor.schedule( new FlushTask( GRACEFUL, handler ), configuration.maxLifetime().toNanos(), NANOSECONDS ) );
             }
+
+            fireOnConnectionCreation( listeners, handler );
+            fireOnConnectionCreateInterceptor( interceptors, handler );
+
+            handler.setState( CHECKED_IN );
+            allConnections.add( handler );
+
+            createConnectionPermits.addAndGet( ( 1L << Integer.SIZE ) - 1 ); // Move 1 from low bits (permits) to hig bits (size)
+            decrementPermits = false;
+
+            if ( metricsRepository.collectPoolMetrics() ) {
+                maxUsed.accumulate( allConnections.size() );
+            }
+            fireOnConnectionPooled( listeners, handler );
+
+            handlerTransferQueue.tryTransfer( handler );
+            return handler;
+        } catch ( SQLException e ) {
+            fireOnConnectionCreationFailure( listeners, e );
+            throw e;
+        } catch ( Throwable t ) {
+            fireOnConnectionCreationFailure( listeners, new SQLException( "Failed to create connection due to " + t.getClass().getSimpleName(), t ) );
+            throw t;
+        } finally {
+            if ( decrementPermits ) {
+                createConnectionPermits.decrementAndGet();
+            }
+        }
+    }
+
+    private void createAndPoolConnectionOnBackground() { // Called with permit to dispatch connection creation to housekeeping thread
+        try {
+            housekeepingExecutor.executeNow( () -> {
+                try {
+                    createAndPoolConnection();
+                } catch ( SQLException e ) {
+                    fireOnWarning( listeners, "Failed to create fill connection: " + e.getMessage() );
+                }
+            } );
+        } catch ( Throwable t ) { // usualy RejectedExecutionException because pool is shutting down
+            createConnectionPermits.decrementAndGet();
+            return;
+        }
+    }
+
+    private void fill(int targetSize) {
+        long current, permits;
+        do {
+            current = createConnectionPermits.get();
+            permits = targetSize - (int) ( current >>> Integer.SIZE ) - (int) current;
+            if ( permits <= 0 ) {
+                return;
+            }
+        } while ( !createConnectionPermits.compareAndSet( current, current + permits ) ); // CAS looop increases the number by permits
+
+        for ( long i = permits; i > 0; i-- ) {
+            createAndPoolConnectionOnBackground();
         }
     }
 
@@ -761,6 +778,7 @@ public final class ConnectionPool implements Pool {
 
         private void flushHandler(ConnectionHandler handler) {
             allConnections.remove( handler );
+            createConnectionPermits.addAndGet( -( 1L << Integer.SIZE ) ); // removes 1 from the high bits
             metricsRepository.afterConnectionFlush();
             fireOnConnectionFlush( listeners, handler );
             housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
@@ -773,25 +791,12 @@ public final class ConnectionPool implements Pool {
                 case INVALID:
                 case LEAK:
                 case FILL:
-                    // refill to minSize
-                    housekeepingExecutor.execute( new FillTask() );
+                    fill( configuration.minSize() );
                     break;
                 case IDLE:
                     break;
                 default:
                     fireOnWarning( listeners, "Unsupported Flush mode " + mode );
-            }
-        }
-    }
-
-    // --- fill task //
-
-    private final class FillTask implements Runnable {
-
-        @Override
-        public void run() {
-            for ( int n = configuration.minSize() - allConnections.size(); n > 0; n-- ) {
-                housekeepingExecutor.executeNow( new CreateConnectionTask() );
             }
         }
     }
