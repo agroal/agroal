@@ -157,6 +157,11 @@ public final class DefaultMetricsRepository implements MetricsRepository {
     }
 
     @Override
+    public long heldCount() {
+        return connectionPool.heldCount();
+    }
+
+    @Override
     public long maxUsedCount() {
         return connectionPool.maxUsedCount();
     }
