@@ -204,7 +204,7 @@ public class MultipleWrappersTests {
 
         @Override
         public void onWarning(String message) {
-            if ( !message.startsWith( "Closing open connection" ) ) {
+            if ( !message.contains( "open connection(s) prior to commit" ) ) {
                 fail( "Unexpected warning: " + message );
             }
         }

@@ -77,6 +77,10 @@ public class BasicNarayanaTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
             txManager.begin();
 
+            Connection firstConnection = dataSource.getConnection();
+            logger.info( format( "Got first connection {0}", firstConnection ) );
+            firstConnection.close();
+
             Connection connection = dataSource.getConnection();
             logger.info( format( "Got connection {0}", connection ) );
 

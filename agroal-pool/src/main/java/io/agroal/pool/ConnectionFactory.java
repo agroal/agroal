@@ -10,12 +10,13 @@ import io.agroal.api.transaction.TransactionIntegration.ResourceRecoveryFactory;
 import io.agroal.pool.util.PropertyInjector;
 import io.agroal.pool.util.XAConnectionAdaptor;
 
+import javax.sql.CommonDataSource;
 import javax.sql.XAConnection;
-import javax.transaction.xa.XAException;
 import java.lang.reflect.InvocationTargetException;
 import java.security.Principal;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
@@ -46,7 +47,8 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private javax.sql.XADataSource xaRecoveryDataSource;
 
     private PropertyInjector injector;
-    private Integer defaultIsolationLevel;
+    private volatile Integer defaultIsolationLevel;
+    private volatile Integer defaultHoldability; // volatile to guard initialization of defaults
 
     public ConnectionFactory(AgroalConnectionFactoryConfiguration configuration, AgroalDataSourceListener... listeners) {
         this.configuration = configuration;
@@ -75,7 +77,10 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         return defaultIsolationLevel == null ? UNDEFINED.level() : defaultIsolationLevel;
     }
 
-    @SuppressWarnings( "StringConcatenation" )
+    public int defaultHoldability() {
+        return defaultHoldability == null ? ResultSet.CLOSE_CURSORS_AT_COMMIT : defaultHoldability;
+    }
+
     private javax.sql.XADataSource newXADataSource(Properties properties) {
         javax.sql.XADataSource newDataSource;
         try {
@@ -83,21 +88,11 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.XADataSource", e );
         }
-
-        if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectUrlProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
-        }
-        try {
-            newDataSource.setLoginTimeout( (int) configuration.loginTimeout().getSeconds() );
-        } catch ( SQLException e ) {
-            fireOnWarning( listeners, "Unable to set login timeout: " + e.getMessage() );
-        }
-
+        newDataSourceSetup( newDataSource );
         injectJdbcProperties( newDataSource, properties );
         return newDataSource;
     }
 
-    @SuppressWarnings( "StringConcatenation" )
     private javax.sql.DataSource newDataSource(Properties properties) {
         javax.sql.DataSource newDataSource;
         try {
@@ -105,16 +100,7 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         } catch ( IllegalAccessException | InstantiationException | InvocationTargetException | NoSuchMethodException e ) {
             throw new RuntimeException( "Unable to instantiate javax.sql.DataSource", e );
         }
-
-        if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
-            injectUrlProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
-        }
-        try {
-            newDataSource.setLoginTimeout( (int) configuration.loginTimeout().getSeconds() );
-        } catch ( SQLException e ) {
-            fireOnWarning( listeners, "Unable to set login timeout: " + e.getMessage() );
-        }
-
+        newDataSourceSetup( newDataSource );
         injectJdbcProperties( newDataSource, properties );
         return newDataSource;
     }
@@ -144,13 +130,24 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
-    @SuppressWarnings( "StringConcatenation" )
+    @SuppressWarnings("StringConcatenation")
+    private void newDataSourceSetup(CommonDataSource newDataSource) {
+        if ( configuration.jdbcUrl() != null && !configuration.jdbcUrl().isEmpty() ) {
+            injectUrlProperty( newDataSource, URL_PROPERTY_NAME, configuration.jdbcUrl() );
+        }
+        try {
+            newDataSource.setLoginTimeout( (int) configuration.loginTimeout().getSeconds() );
+        } catch ( SQLException e ) {
+            fireOnWarning( listeners, "Unable to set login timeout: " + e.getMessage() );
+        }
+    }
+
     private void injectUrlProperty(Object target, String propertyName, String propertyValue) {
         try {
             injector.inject( target, propertyName, propertyValue );
         } catch ( IllegalArgumentException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e ) {
             // AG-134 - Some drivers have setURL() instead of setUrl(), so we retry with upper case.
-            // AG-228 - Not all (XA)DataSource's require an url to be set
+            // AG-228 - Not all (XA)DataSource's require a url to be set
             if ( propertyName.chars().anyMatch( Character::isLowerCase ) ) {
                 injectUrlProperty( target, propertyName.toUpperCase( Locale.ROOT ), propertyValue );
             }
@@ -234,21 +231,15 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
-    @SuppressWarnings( "MagicConstant" )
     private Connection connectionSetup(Connection connection) throws SQLException {
         if ( connection == null ) {
             // AG-90: Driver can return null if the URL is not supported (see java.sql.Driver#connect() documentation)
             throw new SQLException( "Driver does not support the provided URL: " + configuration.jdbcUrl() );
         }
-
+        loadDefaults( connection );
         connection.setAutoCommit( configuration.autoCommit() );
         if ( configuration.readOnly() ) {
             connection.setReadOnly( configuration.readOnly() );
-        }
-        if ( configuration.jdbcTransactionIsolation().isDefined() ) {
-            connection.setTransactionIsolation( configuration.jdbcTransactionIsolation().level() );
-        } else if ( defaultIsolationLevel == null ) {
-            defaultIsolationLevel = connection.getTransactionIsolation();
         }
         if ( configuration.initialSql() != null && !configuration.initialSql().isEmpty() ) {
             try ( Statement statement = connection.createStatement() ) {
@@ -256,6 +247,27 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
             }
         }
         return connection;
+    }
+
+    @SuppressWarnings( "MagicConstant" )
+    private void loadDefaults(Connection connection) throws SQLException {
+        if ( defaultHoldability == null ) {
+            synchronized ( jdbcProperties ) { // instead of "this", use a private final field for internal synchronization
+                if ( defaultHoldability == null ) {
+                    if ( configuration.jdbcTransactionIsolation().isDefined() ) {
+                        connection.setTransactionIsolation( configuration.jdbcTransactionIsolation().level() );
+                        defaultIsolationLevel = configuration.jdbcTransactionIsolation().level();
+                    } else {
+                        defaultIsolationLevel = connection.getTransactionIsolation();
+                    }
+                    try { // set defaultHoldability last to establish happens-before relationship
+                        defaultHoldability = connection.getHoldability();
+                    } catch ( SQLException e ) {
+                        defaultHoldability = ResultSet.CLOSE_CURSORS_AT_COMMIT;
+                    }
+                }
+            }
+        }
     }
 
     private XAConnection xaConnectionSetup(XAConnection xaConnection) throws SQLException {
