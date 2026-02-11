@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         java: [ 25, 21, 17 ]
-        os: [ ubuntu-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     name: Java ${{ matrix.java }} ${{ matrix.os }} - Test
     runs-on: ${{ matrix.os }}
     steps:
@@ -47,7 +47,7 @@ jobs:
           path: ~/.m2/repository/io/agroal
       - if: runner.os == 'Linux'
         run: mvn -Pit --projects agroal-test,agroal-integration-tests verify
-      - if: runner.os == 'Windows'
+      - if: runner.os == 'Windows' || runner.os == 'macOS'
         run: mvn --projects agroal-test verify
 
   deploy:
