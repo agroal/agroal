@@ -83,7 +83,10 @@ public class TimeoutTests {
             }
             logger.info( format( "Holding all {0} connections from the pool and requesting a new one", MAX_POOL_SIZE ) );
 
-            long start = nanoTime(), timeoutBound = (long) ( ACQUISITION_TIMEOUT_MS * 1.1 );
+            double overheadFactor = Utils.timerAccuracy( 100, 95 ) * 1.1; // 10% safety margin
+            logger.info( format( "Dynamic overhead factor of {0} (P95)", overheadFactor ) );
+
+            long start = nanoTime(), timeoutBound = (long) ( ACQUISITION_TIMEOUT_MS * overheadFactor );
             assertTimeoutPreemptively( ofMillis( timeoutBound ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting acquisition timeout" );
 
             long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
@@ -111,8 +114,11 @@ public class TimeoutTests {
 
             SleepyDatasource.setSleep();
 
-            long start = nanoTime(), timeoutBound = (long) ( ACQUISITION_TIMEOUT_MS * 1.1 );
-            assertTimeoutPreemptively( ofMillis( timeoutBound ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting acquisition timeout" );
+            long start = nanoTime();
+
+            double overheadFactor = Utils.timerAccuracy( 100, 95 ) * 1.1; // 10% safety margin
+            logger.info( format( "Dynamic overhead factor of {0} (P95)", overheadFactor ) );
+            assertTimeoutPreemptively( ofMillis( (long) ( ACQUISITION_TIMEOUT_MS * overheadFactor) ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting acquisition timeout" );
 
             long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
             logger.info( format( "Acquisition timeout after {0}ms - Configuration is {1}ms", elapsed, ACQUISITION_TIMEOUT_MS ) );

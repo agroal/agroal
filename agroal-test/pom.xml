@@ -259,6 +259,10 @@
                 <configuration>
                     <groups>functional</groups>
                     <excludedGroups>transaction</excludedGroups>
+                    <forkedProcessTimeoutInSeconds>600</forkedProcessTimeoutInSeconds>
+                    <consoleOutputReporter>
+                        <disable>false</disable>
+                    </consoleOutputReporter>
                     <systemPropertyVariables>
                         <!-- Set JUL Formatting -->
                         <java.util.logging.config.file>src/test/resources/logging.properties</java.util.logging.config.file>
@@ -267,6 +271,7 @@
                         <!-- IDEs boostrap JUnit with class names and the interceptor is used to load each test class on an isolated classloader -->
                         <!-- Maven surefire loads the classes before starting JUnit and therefore need to fork execution -->
                         <junit.platform.launcher.interceptors.enabled>true</junit.platform.launcher.interceptors.enabled>
+                        <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
                     </systemPropertyVariables>
                 </configuration>
                 <executions>
