@@ -5,9 +5,11 @@ package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
+import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -50,6 +52,8 @@ public class BasicConcurrencyTests {
 
     private static final Logger logger = getLogger( BasicConcurrencyTests.class.getName() );
 
+    private double overheadFactor = 1.0;
+
     @BeforeAll
     static void setup() {
         registerMockDriver();
@@ -63,13 +67,19 @@ public class BasicConcurrencyTests {
         deregisterMockDriver();
     }
 
+    @BeforeEach
+    void setupDynamicOverhead(){
+        overheadFactor = Utils.timerAccuracy( 100, 95 ) * 1.1; // 10% safety margin
+        logger.info( format( "Dynamic overhead factor of {0} (P95)", overheadFactor ) );
+    }
+
     // --- //
 
     @Test
     @DisplayName( "Multiple threads" )
     @SuppressWarnings( "ObjectAllocationInLoop" )
     void basicConnectionAcquireTest() throws SQLException {
-        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 32, CALLS = 50000, SLEEP_TIME = 1, OVERHEAD = 1;
+        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 32, CALLS = 50000, SLEEP_TIME = 1, OVERHEAD = 0;
 
         ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
         CountDownLatch latch = new CountDownLatch( CALLS );
@@ -99,11 +109,13 @@ public class BasicConcurrencyTests {
             }
 
             try {
-                long waitTime = ( SLEEP_TIME + OVERHEAD ) * CALLS / MAX_POOL_SIZE;
+                long start = System.nanoTime();
+                long waitTime = (long) ( (double) ( ( SLEEP_TIME + OVERHEAD ) * CALLS / MAX_POOL_SIZE ) * overheadFactor );
                 logger.info( format( "Main thread waiting for {0}ms", waitTime ) );
                 if ( !latch.await( waitTime, MILLISECONDS ) ) {
-                    fail( "Did not execute within the required amount of time" );
+                    fail( format( "Did not execute within the required amount of time {0}ms --- {1} calls made", waitTime, dataSource.getMetrics().acquireCount() ) );
                 }
+                logger.info( format( "Executed in {0}ms", ( System.nanoTime() - start ) / 1_000_000 ) );
             } catch ( InterruptedException e ) {
                 fail( "Test fail due to interrupt" );
             }
@@ -136,7 +148,7 @@ public class BasicConcurrencyTests {
                         .acquisitionTimeout( ofMillis( ACQUISITION_TIMEOUT_MS ) )
                 );
 
-        AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener );
+        AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener, new SandOnTheCogs() );
 
         executor.submit( () -> {
             for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
@@ -211,7 +223,7 @@ public class BasicConcurrencyTests {
                         .validationTimeout( ofSeconds( 2 ) )
                 );
 
-        AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener );
+        AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener, new SandOnTheCogs() );
 
         if ( !listener.getStartupLatch().await( TIMEOUT_MS, MILLISECONDS ) ) {
             fail( "Did not execute within the required amount of time" );
@@ -237,7 +249,7 @@ public class BasicConcurrencyTests {
     @Test
     @DisplayName( "FlushOnClose DataSource under pressure" )
     void flushOnClosePressureTest() throws SQLException {
-        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 5, CALLS = 5000, SLEEP_TIME = 1, OVERHEAD = 5;
+        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 5, CALLS = 5000, SLEEP_TIME = 1, OVERHEAD =  0;
 
         ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
         CountDownLatch latch = new CountDownLatch( CALLS );
@@ -254,27 +266,29 @@ public class BasicConcurrencyTests {
 
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener1, listener2 ) ) {
 
-            for (int i = 0; i < CALLS; i++) {
-                executor.submit(() -> {
+            for ( int i = 0; i < CALLS; i++ ) {
+                executor.submit( () -> {
                     try {
                         Connection connection = dataSource.getConnection();
                         // logger.info( format( "{0} got {1}", Thread.currentThread().getName(), connection ) );
-                        LockSupport.parkNanos(ofMillis(SLEEP_TIME).toNanos());
+                        LockSupport.parkNanos( ofMillis( SLEEP_TIME ).toNanos() );
                         connection.close();
-                    } catch (SQLException e) {
-                        fail("Unexpected SQLException " + e.getMessage());
+                    } catch ( SQLException e ) {
+                        fail( "Unexpected SQLException " + e.getMessage() );
                     } finally {
                         latch.countDown();
                     }
-                });
+                } );
             }
 
             try {
-                long waitTime = ( SLEEP_TIME + OVERHEAD ) * CALLS / MAX_POOL_SIZE;
+                long start = System.nanoTime();
+                long waitTime = (long) ( (double) ( ( SLEEP_TIME + OVERHEAD ) * CALLS / THREAD_POOL_SIZE ) * overheadFactor );
                 logger.info( format( "Main thread waiting for {0}ms", waitTime ) );
                 if ( !latch.await( waitTime, MILLISECONDS ) ) {
-                    fail( "Did not execute within the required amount of time" );
+                    fail( format( "Did not execute within the required amount of time {0}ms --- {1} calls made", waitTime, dataSource.getMetrics().acquireCount() ) );
                 }
+                logger.info( format( "Executed in {0}ms", ( System.nanoTime() - start ) / 1_000_000 ) );
             } catch ( InterruptedException e ) {
                 fail( "Test fail due to interrupt" );
             }
@@ -283,13 +297,153 @@ public class BasicConcurrencyTests {
         logger.info( format( "Main thread proceeding with assertions" ) );
 
         assertAll( () -> {
-            assertFalse(listener2.getLimitExceeded().get(), "Unexpected resource limit exceeded");
-            assertEquals(CALLS, listener1.getCreationCount().longValue());
-            assertEquals(CALLS, listener1.getDestroyCount().longValue());
+            assertFalse( listener2.getLimitExceeded().get(), "Unexpected resource limit exceeded" );
+            assertEquals( CALLS, listener1.getCreationCount().longValue() );
+            assertEquals( CALLS, listener1.getDestroyCount().longValue() );
         } );
     }
 
     // --- //
+
+
+    /* This listener can be used to stress out some of the concurrency points in the pool.
+     * It aims to amplify any timing issue that can be undetected otherwise.
+     */
+    public static class SandOnTheCogs implements AgroalDataSourceListener {
+
+        // there a 4 calls throughout the acquisition cycle (beforeConnectionAcquire, onConnectionAcquire, beforeConnectionReturn, onConnectionReturn)
+        private static final long NANOS = 250_000L;
+
+        public static void precisionSleep(long nanos) {
+            long start = System.nanoTime();
+            if ( nanos > 10_000 ) {
+                LockSupport.parkNanos( nanos - 10_000 );
+            }
+            while ( System.nanoTime() - start < nanos ) {
+                Thread.onSpinWait();
+            }
+        }
+
+        @Override
+        public void beforeConnectionCreation() {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionCreation(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionCreationFailure(SQLException sqlException) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionPooled(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforeConnectionAcquire() {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionAcquire(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforeConnectionReturn(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionReturn(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforeConnectionLeak(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionLeak(Connection connection, Thread thread) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforeConnectionValidation(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionValid(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionInvalid(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforeConnectionFlush(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionFlush(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforeConnectionReap(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionReap(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforeConnectionDestroy(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onConnectionDestroy(Connection connection) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onPoolInterceptor(AgroalPoolInterceptor interceptor) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void beforePoolBlock(long timeout) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onWarning(String message) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onWarning(Throwable throwable) {
+            precisionSleep( NANOS );
+        }
+
+        @Override
+        public void onInfo(String message) {
+            precisionSleep( NANOS );
+        }
+    }
 
     @SuppressWarnings( "WeakerAccess" )
     private static class BasicConcurrencyTestsListener implements AgroalDataSourceListener {
@@ -411,7 +565,7 @@ public class BasicConcurrencyTests {
 
         @Override
         public void onConnectionDestroy(Connection connection) {
-           poolSize.decrement();
+            poolSize.decrement();
         }
 
         public AtomicBoolean getLimitExceeded() {

@@ -47,7 +47,10 @@ jobs:
           path: ~/.m2/repository/io/agroal
       - if: runner.os == 'Linux'
         run: mvn -Pit --projects agroal-test,agroal-integration-tests verify
-      - if: runner.os == 'Windows'
+        env:
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: true
+      - if: runner.os == 'Windows' || runner.os == 'macOS'
         run: mvn --projects agroal-test verify
 
   deploy:
@@ -68,7 +71,7 @@ jobs:
           server-password: MAVEN_CI_PASSWORD
       - id: project
         run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
-      - if: endsWith(${{ env.PROJECT_VERSION }}, '-SNAPSHOT')
+      - if: endsWith(env.PROJECT_VERSION, '-SNAPSHOT')
         run: mvn -B deploy -DaltDeploymentRepository=jboss::https://repository.jboss.org/nexus/repository/snapshots/
         env:
           MAVEN_CI_USERNAME: ${{ secrets.MAVEN_USERNAME }}

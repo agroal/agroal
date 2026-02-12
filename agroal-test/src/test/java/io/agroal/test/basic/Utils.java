@@ -3,6 +3,9 @@
 
 package io.agroal.test.basic;
 
+import java.util.Arrays;
+import java.util.concurrent.locks.LockSupport;
+
 public abstract class Utils {
     /**
      * This method will start a daemon thread that will sleep indefinitely in order to be able to park with a higher
@@ -26,4 +29,26 @@ public abstract class Utils {
     public static boolean isWindowsOS() {
         return System.getProperty( "os.name" ).startsWith( "Windows" );
     }
+
+    /**
+     * Finds out timer accuracy by performing a numer of measured sleeps. Gives a percentile from that number of iterations.
+     */
+    public static double timerAccuracy(int iterations, int percentile) {
+        if ( iterations * percentile <= 0 || percentile >= 100 ) {
+            throw new IllegalArgumentException( "invalid percentile" );
+        }
+        double[] samples = new double[ iterations ];
+        for (int i = 0; i < iterations; i++) {
+            samples[i] = timerAccuracy();
+        }
+        Arrays.sort(samples);
+        return samples[ iterations * percentile / 100 ];
+    }
+
+    public static double timerAccuracy() {
+        long start = System.nanoTime(), requestNanos = 1_000_000L; // 1ms
+        LockSupport.parkNanos( requestNanos );
+        return Math.max( 0.5, Math.min( (double) ( System.nanoTime() - start ) / requestNanos, 20.0 ) ); // cap to avoid infinite sleeps
+    }
+
 }
