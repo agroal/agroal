@@ -107,6 +107,7 @@ public class BasicTests {
 
         assertAll( () -> {
             assertThrows( SQLException.class, dataSource::getConnection );
+            assertThrows( SQLException.class, () -> dataSource.isHealthy( true ) );
             assertTrue( leaked.isClosed(), "Expected closed connection, but it's open" );
             assertFalse( warning.get(), "Unexpected warning" );
         } );
@@ -120,6 +121,7 @@ public class BasicTests {
         Thread leakingThread = currentThread();
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
                 .connectionPoolConfiguration( cp -> cp
                         .initialSize( MAX_POOL_SIZE )
                         .maxSize( MAX_POOL_SIZE )
@@ -141,6 +143,9 @@ public class BasicTests {
                 }
                 //connection.close();
             }
+            assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().creationCount(), MAX_POOL_SIZE + " connections were not created" );
+            assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().acquireCount(), "Unexpected number of acquired connections" );
+            assertEquals( 0, dataSource.getMetrics().availableCount(), "There are available connections on the pool" );
             try {
                 logger.info( format( "Holding all {0} connections from the pool and waiting for leak notifications", MAX_POOL_SIZE ) );
                 if ( !latch.await( 2L * LEAK_DETECTION_MS, MILLISECONDS ) ) {
@@ -149,6 +154,8 @@ public class BasicTests {
             } catch ( InterruptedException e ) {
                 fail( "Test fail due to interrupt" );
             }
+        } catch ( SQLException e ) {
+            fail( "Test fail due to SQLException", e );
         }
     }
 

@@ -195,6 +195,7 @@ public class LifetimeTests {
 
         @Override
         public void onConnectionPooled(Connection connection) {
+            LockSupport.parkNanos( ofMillis( 1 ).toNanos() / 4 ); // to stress the pooling logic against some possible timing issues
             allLatch.countDown();
         }
 

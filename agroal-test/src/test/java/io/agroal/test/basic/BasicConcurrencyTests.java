@@ -7,6 +7,7 @@ import io.agroal.api.AgroalDataSource;
 import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.test.MockDriver;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,11 +17,14 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.util.Properties;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Logger;
@@ -68,7 +72,7 @@ public class BasicConcurrencyTests {
     }
 
     @BeforeEach
-    void setupDynamicOverhead(){
+    void setupDynamicOverhead() {
         overheadFactor = Utils.timerAccuracy( 100, 95 ) * 1.1; // 10% safety margin
         logger.info( format( "Dynamic overhead factor of {0} (P95)", overheadFactor ) );
     }
@@ -138,7 +142,7 @@ public class BasicConcurrencyTests {
 
         BasicConcurrencyTestsListener listener = new BasicConcurrencyTestsListener();
         ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
-        CountDownLatch latch = new CountDownLatch( 1 );
+        CountDownLatch acquireLatch = new CountDownLatch( 1 ), releaseLatch = new CountDownLatch( 1 );
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .metricsEnabled()
@@ -160,6 +164,7 @@ public class BasicConcurrencyTests {
                     fail( "SQLException", e );
                 }
             }
+            acquireLatch.countDown();
 
             try {
                 assertEquals( 0, dataSource.getMetrics().availableCount(), "Should not be any available connections" );
@@ -171,7 +176,7 @@ public class BasicConcurrencyTests {
             } catch ( SQLException e ) {
                 // SQLException should not be because of acquisition timeout
                 assertTrue( e.getCause() instanceof RejectedExecutionException || e.getCause() instanceof CancellationException, "Cause for SQLException should be either RejectedExecutionException or CancellationException" );
-                latch.countDown();
+                releaseLatch.countDown();
 
                 logger.info( "Unblocked after datasource close" );
             } catch ( Throwable t ) {
@@ -179,14 +184,16 @@ public class BasicConcurrencyTests {
             }
         } );
 
-        do {
-            Thread.sleep( ACQUISITION_TIMEOUT_MS / 10 );
-        } while ( dataSource.getMetrics().awaitingCount() == 0 );
+        if ( !acquireLatch.await( ACQUISITION_TIMEOUT_MS, MILLISECONDS ) ) {
+            fail( "Did not execute within the required amount of time" );
+        }
+
+        LockSupport.parkNanos( ofMillis( 500 ).toNanos() );
 
         logger.info( "Closing the datasource" );
         dataSource.close();
 
-        if ( !latch.await( ACQUISITION_TIMEOUT_MS, MILLISECONDS ) ) {
+        if ( !releaseLatch.await( ACQUISITION_TIMEOUT_MS, MILLISECONDS ) ) {
             fail( "Did not execute within the required amount of time" );
         }
 
@@ -249,12 +256,12 @@ public class BasicConcurrencyTests {
     @Test
     @DisplayName( "FlushOnClose DataSource under pressure" )
     void flushOnClosePressureTest() throws SQLException {
-        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 5, CALLS = 5000, SLEEP_TIME = 1, OVERHEAD =  0;
+        int MAX_POOL_SIZE = 10, THREAD_POOL_SIZE = 5, CALLS = 5000, SLEEP_TIME = 1, OVERHEAD = 0;
 
         ExecutorService executor = newFixedThreadPool( THREAD_POOL_SIZE );
         CountDownLatch latch = new CountDownLatch( CALLS );
-        BasicConcurrencyTestsListener listener1 = new BasicConcurrencyTestsListener();
-        ResourceLimitListener listener2 = new ResourceLimitListener( MAX_POOL_SIZE );
+        BasicConcurrencyTestsListener listener = new BasicConcurrencyTestsListener();
+        ResourceLimitListener limitListener = new ResourceLimitListener( MAX_POOL_SIZE );
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .metricsEnabled()
@@ -264,7 +271,7 @@ public class BasicConcurrencyTests {
                         .flushOnClose()
                 );
 
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener1, listener2 ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener, limitListener ) ) {
 
             for ( int i = 0; i < CALLS; i++ ) {
                 executor.submit( () -> {
@@ -297,14 +304,58 @@ public class BasicConcurrencyTests {
         logger.info( format( "Main thread proceeding with assertions" ) );
 
         assertAll( () -> {
-            assertFalse( listener2.getLimitExceeded().get(), "Unexpected resource limit exceeded" );
-            assertEquals( CALLS, listener1.getCreationCount().longValue() );
-            assertEquals( CALLS, listener1.getDestroyCount().longValue() );
+            assertFalse( limitListener.getLimitExceeded().get(), "Unexpected resource limit exceeded" );
+            assertEquals( CALLS, listener.getCreationCount().longValue() );
+            assertEquals( CALLS, listener.getDestroyCount().longValue() );
         } );
     }
 
-    // --- //
+    @Test
+    @DisplayName( "Collaborative connection creation" )
+    void collaborativeConnectionCreationTest() throws SQLException {
+        int MAX_POOL_SIZE = 20, TIMEOUT_MS = 1000;
 
+        ExecutorService executor = newFixedThreadPool( MAX_POOL_SIZE );
+        CountDownLatch latch = new CountDownLatch( MAX_POOL_SIZE );
+        BasicConcurrencyTestsListener listener = new BasicConcurrencyTestsListener();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( MAX_POOL_SIZE )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( SlowDriver.class )
+                        ) );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+
+            for ( int i = 0; i < MAX_POOL_SIZE; i++ ) {
+                executor.submit( () -> {
+                    try {
+                        Connection connection = dataSource.getConnection();
+                        // logger.info( format( "{0} got {1}", Thread.currentThread().getName(), connection ) );
+                        latch.countDown();
+                        LockSupport.parkNanos( ofMillis( TIMEOUT_MS ).toNanos() );
+                        connection.close();
+                    } catch ( SQLException e ) {
+                        fail( "Unexpected SQLException " + e.getMessage() );
+                    }
+                } );
+            }
+            try {
+                long waitTime = ( TIMEOUT_MS + TIMEOUT_MS / 2 );
+                logger.info( format( "Main thread waiting for {0}ms", waitTime ) );
+                if ( !latch.await( waitTime, MILLISECONDS ) ) {
+                    fail( "Did not execute within the required amount of time" );
+                }
+            } catch ( InterruptedException e ) {
+                fail( "Test fail due to interrupt" );
+            }
+            logger.info( format( "Closing DataSource" ) );
+        }
+    }
+
+    // --- //
 
     /* This listener can be used to stress out some of the concurrency points in the pool.
      * It aims to amplify any timing issue that can be undetected otherwise.
@@ -548,7 +599,7 @@ public class BasicConcurrencyTests {
 
     private static class ResourceLimitListener implements AgroalDataSourceListener {
         private final int maxPoolSize;
-        private final LongAdder poolSize = new LongAdder();
+        private final AtomicInteger poolSize = new AtomicInteger();
         private final AtomicBoolean limitExceeded = new AtomicBoolean( false );
 
         ResourceLimitListener(int maxPoolSize) {
@@ -557,19 +608,40 @@ public class BasicConcurrencyTests {
 
         @Override
         public void onConnectionCreation(Connection connection) {
-            poolSize.increment();
-            if ( poolSize.sum() > maxPoolSize ) {
+            if ( poolSize.incrementAndGet() > maxPoolSize ) {
                 limitExceeded.set( true );
             }
         }
 
         @Override
-        public void onConnectionDestroy(Connection connection) {
-            poolSize.decrement();
+        public void onConnectionReap(Connection connection) {
+            poolSize.decrementAndGet();
         }
 
         public AtomicBoolean getLimitExceeded() {
             return limitExceeded;
+        }
+    }
+
+    // --- //
+
+    public static class SlowDriver extends MockDriver.Empty {
+
+        private final Duration wait;
+
+        public SlowDriver() {
+            this( ofMillis( 1000 ) );
+        }
+
+        public SlowDriver(Duration sleepDuration) {
+            wait = sleepDuration;
+        }
+
+        @Override
+        public Connection connect(String url, Properties info) throws SQLException {
+            LockSupport.parkNanos( wait.toNanos() );
+            logger.info( format( "Created connection after waiting for {0}ms", wait.toMillis() ) );
+            return super.connect( url, info );
         }
     }
 }
