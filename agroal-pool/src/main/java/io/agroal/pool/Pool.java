@@ -43,14 +43,14 @@ public interface Pool extends MetricsEnabledListener, AutoCloseable, ResourceRec
 
     boolean isHealthy(boolean newConnection) throws SQLException;
 
-    int defaultJdbcIsolationLevel();
-
     @Override
     void close();
 
     // --- exposed statistics //
 
     long activeCount();
+
+    long heldCount();
 
     long maxUsedCount();
 
