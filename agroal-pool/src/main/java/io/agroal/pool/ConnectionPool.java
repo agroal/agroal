@@ -79,7 +79,7 @@ public final class ConnectionPool implements Pool {
 
     static {
         try {
-            TRANSFER_POISON = new ConnectionHandler( new XAConnectionAdaptor( null ), null );
+            TRANSFER_POISON = new ConnectionHandler( new XAConnectionAdaptor( null ), null, 0 , 0 );
         } catch ( SQLException e ) {
             throw new RuntimeException( e );
         }
@@ -577,6 +577,16 @@ public final class ConnectionPool implements Pool {
         return activeCount.sum();
     }
 
+    public long heldCount() {
+        int held = 0;
+        for ( ConnectionHandler handler : allConnections ) {
+            if ( handler.isHeldOverCommit() ) {
+                held++;
+            }
+        }
+        return held;
+    }
+
     public long availableCount() {
         return allConnections.size() - activeCount.sum();
     }
@@ -642,7 +652,8 @@ public final class ConnectionPool implements Pool {
             fireBeforeConnectionCreation( listeners );
             long metricsStamp = metricsRepository.beforeConnectionCreation();
 
-            ConnectionHandler handler = new ConnectionHandler( connectionFactory.createConnection(), ConnectionPool.this );
+            XAConnection xaConnection = connectionFactory.createConnection();
+            ConnectionHandler handler = new ConnectionHandler( xaConnection, this, connectionFactory.defaultJdbcIsolationLevel(), connectionFactory.defaultHoldability() );
             metricsRepository.afterConnectionCreation( metricsStamp );
 
             if ( !configuration.maxLifetime().isZero() ) {

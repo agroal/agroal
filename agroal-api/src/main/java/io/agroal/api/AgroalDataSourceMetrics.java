@@ -78,9 +78,16 @@ public interface AgroalDataSourceMetrics {
     // --- //
 
     /**
-     * Number of active connections. This connections are in use and not available to be acquired.
+     * Number of active connections. These connections are in use and not available to be acquired.
      */
     default long activeCount() {
+        return 0;
+    }
+
+    /**
+     * Number of active connections that have been held over commit.
+     */
+    default long heldCount() {
         return 0;
     }
 

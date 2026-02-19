@@ -205,6 +205,9 @@ public class ReapTests {
 
         @Override
         public void cancel() throws SQLException {
+            if ( closed ) {
+                throw new SQLException( "Statement canceled AFTER close" );
+            }
             canceled = true;
         }
 
