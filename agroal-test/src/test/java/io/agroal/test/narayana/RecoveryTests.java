@@ -419,6 +419,39 @@ public class RecoveryTests {
         }
     }
 
+    @Test
+    @DisplayName( "Exception thrown while recovery" )
+    void exceptionWhileRecovery() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        com.arjuna.ats.arjuna.common.recoveryPropertyManager.getRecoveryEnvironmentBean().setRecoveryBackoffPeriod( 1 );
+        RecoveryManager recoveryManager = RecoveryManager.manager( DIRECT_MANAGEMENT );
+
+        RecoveryManagerService recoveryService = new RecoveryManagerService();
+        recoveryService.create();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry, "", false, recoveryService ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( UnrecoverableDataSource.class ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, new WarningsAgroalDatasourceListener() ) ) {
+            logger.info( "Starting recovery on DataSource " + dataSource );
+            recoveryManager.scan();
+            logger.info( "Performed first scan. Performing a second scan" );
+            recoveryManager.scan();
+            logger.info( "Two recovery scans completed" );
+
+            assertTrue( dataSource.isHealthy( false ), "Expected healthy not exhausted pool" );
+        } finally {
+            recoveryManager.terminate( true );
+        }
+    }
+
     // --- //
 
     private static class DriverAgroalDataSourceListener implements AgroalDataSourceListener {
@@ -696,6 +729,30 @@ public class RecoveryTests {
         @Override
         public void rollback(Xid xid) throws XAException {
             rollbackCount++;
+        }
+    }
+
+    // --- //
+
+    public static class UnrecoverableDataSource implements MockXADataSource {
+        @Override
+        public XAConnection getXAConnection() throws SQLException {
+            logger.info( "Creating new XAConnection" );
+            return new MyMockXAConnection();
+        }
+
+        private static class MyMockXAConnection implements MockXAConnection {
+            @Override
+            public XAResource getXAResource() throws SQLException {
+                return new MyMockXAResource();
+            }
+
+            private static class MyMockXAResource implements MockXAResource {
+                @Override
+                public Xid[] recover(int i) throws XAException {
+                    throw new XAException();
+                }
+            }
         }
     }
 
