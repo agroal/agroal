@@ -358,7 +358,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     @Override
     public void setLoginTimeout(int seconds) throws SQLException {
-        delegate.setLoginTimeout( seconds );
+        connectionFactoryConfiguration.loginTimeout( Duration.ofSeconds( seconds ) );
     }
 
     @Override
