@@ -156,6 +156,7 @@ public class TimeoutTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
+                        .establishmentRetryAttempts( 0 )
                         .connectionFactoryConfiguration( cf -> cf
                                 .connectionProviderClass( LoginTimeoutDatasource.class )
                                 .loginTimeout( ofSeconds( LOGIN_TIMEOUT_S ) )

@@ -101,12 +101,18 @@ public interface AgroalConnectionPoolConfiguration {
      * transaction branches that are currently in a prepared or heuristically completed state. However, it can
      * happen that multiple XA connections connect to the same database which would all return the same set of branches
      * and for performance reasons only one should be used for recover() calls.
-     * <p>
-     * @return true if enabled
      */
-    default boolean recoveryEnable() {
-        return true;
-    }
+    boolean recoveryEnable();
+
+    /**
+     * The number of additional attempts to establish a connection if the first fails.
+     */
+    int establishmentRetryAttempts();
+
+    /**
+     * The amount of time between attempts to establish a new connection.
+     */
+    Duration establishmentRetryInterval();
 
     /**
      * Behaviour when a thread tries to acquire multiple connections.

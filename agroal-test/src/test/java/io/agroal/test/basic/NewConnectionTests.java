@@ -4,7 +4,11 @@
 package io.agroal.test.basic;
 
 import io.agroal.api.AgroalDataSource;
+import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
+import io.agroal.api.configuration.AgroalDataSourceConfiguration;
+import io.agroal.api.configuration.supplier.AgroalConnectionPoolConfigurationSupplier;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.test.MockConnection;
@@ -16,10 +20,15 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Logger;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.NONE;
@@ -30,6 +39,7 @@ import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.T
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
+import static java.lang.System.nanoTime;
 import static java.text.MessageFormat.format;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -191,7 +201,106 @@ public class NewConnectionTests {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    @DisplayName( "New connection retries" )
+    void newConnectionRetries(boolean poolless) throws SQLException {
+        int RETRIES = 4, INTERVAL_MS = 500;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .dataSourceImplementation( poolless ? AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS : AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL )
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )  .establishmentRetryAttempts( RETRIES )
+                        .establishmentRetryInterval( Duration.ofMillis( INTERVAL_MS ) )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( BrokenDataSource.class ) ) );
+
+        CreationAttemptsListener attemptsListener = new CreationAttemptsListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, attemptsListener ) ) {
+            long start = nanoTime();
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "Not expecting to get a connection but got: " + c );
+            } catch ( SQLException e ) {
+                long elapsed = ( nanoTime() - start ) / 1_000_000;
+                assertEquals( 1 + RETRIES, attemptsListener.creationCount.get(), "Did not attempt to establish a connection the expected number of times" );
+                assertTrue( elapsed >= RETRIES * INTERVAL_MS, "Elapsed time of " + elapsed + " is too short" );
+                assertTrue( elapsed <= ( RETRIES + 1 ) * INTERVAL_MS, "Elapsed time of " + elapsed + " is too long" );
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    @DisplayName( "AcquisitionTimeout with connection retries" )
+    void acquisitionTimeoutWithConnectionRetries(boolean poolless) throws SQLException {
+        int RETRIES = 10, INTERVAL_MS = 500, TIMEOUT = 2000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .dataSourceImplementation( poolless ? AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS : AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL )
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .establishmentRetryAttempts( RETRIES )
+                        .establishmentRetryInterval( Duration.ofMillis( INTERVAL_MS ) )
+                        .acquisitionTimeout( Duration.ofSeconds( 2 ) )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( BrokenDataSource.class ).jdbcProperty( "waitTime", "200" ) ) );
+
+        CreationAttemptsListener attemptsListener = new CreationAttemptsListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, attemptsListener ) ) {
+            long start = nanoTime();
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "Not expecting to get a connection but got: " + c );
+            } catch ( SQLException e ) {
+                long elapsed = ( nanoTime() - start ) / 1_000_000;
+                assertEquals( TIMEOUT / INTERVAL_MS, attemptsListener.creationCount.get(), "Did not attempt to establish a connection the expected number of times" );
+                assertTrue( elapsed >= TIMEOUT, "Elapsed time of " + elapsed + " is too short" );
+                assertTrue( elapsed <= TIMEOUT + INTERVAL_MS, "Elapsed time of " + elapsed + " is too long" );
+            }
+        }
+    }
+
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    @DisplayName( "New connection retries default values" )
+    void defaultConnectionRetries(boolean poolless) throws SQLException {
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .dataSourceImplementation( poolless ? AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL_POOLLESS : AgroalDataSourceConfiguration.DataSourceImplementation.AGROAL )
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( BrokenDataSource.class ) ) );
+
+        CreationAttemptsListener defaultAttemptsListener = new CreationAttemptsListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, defaultAttemptsListener ) ) {
+            long start = nanoTime();
+            try ( Connection c = dataSource.getConnection() ) {
+                fail( "Not expecting to get a connection but got: " + c );
+            } catch ( SQLException e ) {
+                long elapsed = nanoTime() - start;
+                assertEquals( 2, defaultAttemptsListener.creationCount.get(), "Did not attempt to establish a connection the expected number of times" );
+                assertTrue( elapsed >= Duration.ofSeconds( 1 ).toNanos(), "Elapsed time of " + elapsed + " is too short" );
+                assertTrue( elapsed <= Duration.ofSeconds( 2 ).toNanos(), "Elapsed time of " + elapsed + " is too long" );
+            }
+        }
+    }
+
     // --- //
+
+        public static class BrokenDataSource implements MockDataSource {
+
+        private long waitTime = 0;
+
+        public void setWaitTime(long time) {
+            waitTime = time;
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            LockSupport.parkNanos( waitTime * 1_000_000 );
+            throw new SQLException( "This datasource is completely borken !!" );
+        }
+    }
 
     public static class FaultyUrlDataSource implements MockDataSource {
 
@@ -287,6 +396,21 @@ public class NewConnectionTests {
         @Override
         public void setAutoCommit(boolean autoCommit) {
             this.autoCommit = autoCommit;
+        }
+    }
+
+    public static class CreationAttemptsListener implements AgroalDataSourceListener {
+
+        private final AtomicInteger creationCount = new AtomicInteger();
+
+        @Override
+        public void beforeConnectionCreation() {
+            creationCount.incrementAndGet();
+        }
+
+        @Override
+        public void onInfo(String message) {
+            logger.info( message );
         }
     }
 }

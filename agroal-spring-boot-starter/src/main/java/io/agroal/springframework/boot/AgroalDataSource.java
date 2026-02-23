@@ -179,6 +179,14 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.multipleAcquisition( acquisition );
     }
 
+    public void setEstablishmentRetryAttempts(int attempts) {
+        connectionPoolConfiguration.establishmentRetryAttempts( attempts );
+    }
+
+    public void setEstablishmentRetryInterval(int interval) {
+        connectionPoolConfiguration.establishmentRetryInterval( Duration.ofSeconds( interval ) );
+    }
+
     // --- //
 
     // AG-234 - Allows access to the used jdbcUrl. DataSource derivation in spring boot's LiquibaseAutoConfiguration may need this.

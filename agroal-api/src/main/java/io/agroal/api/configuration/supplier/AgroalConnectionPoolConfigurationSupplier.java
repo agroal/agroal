@@ -20,6 +20,7 @@ import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.Exce
 import static io.agroal.api.transaction.TransactionIntegration.none;
 import static java.lang.Integer.MAX_VALUE;
 import static java.time.Duration.ZERO;
+import static java.time.Duration.ofSeconds;
 
 /**
  * Builder of AgroalConnectionPoolConfiguration.
@@ -42,6 +43,8 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     volatile int minSize;
     volatile int maxSize = MAX_VALUE;
     boolean validateOnBorrow;
+    int establishmentRetryAttempts = 1;
+    Duration establishmentRetryInterval = ofSeconds( 1 );
     AgroalConnectionPoolConfiguration.ConnectionValidator connectionValidator = emptyValidator();
     AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = emptyExceptionSorter();
     Duration idleValidationTimeout = ZERO;
@@ -76,6 +79,8 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         minSize = existingConfiguration.minSize();
         maxSize = existingConfiguration.maxSize();
         validateOnBorrow = existingConfiguration.validateOnBorrow();
+        establishmentRetryAttempts = existingConfiguration.establishmentRetryAttempts();
+        establishmentRetryInterval = existingConfiguration.establishmentRetryInterval();
         connectionValidator = existingConfiguration.connectionValidator();
         exceptionSorter = existingConfiguration.exceptionSorter();
         idleValidationTimeout = existingConfiguration.idleValidationTimeout();
@@ -229,6 +234,24 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     /**
+     * Sets the number of retry attempts for connection establishment. Default is 1.
+     */
+    public AgroalConnectionPoolConfigurationSupplier establishmentRetryAttempts(int attempts) {
+        checkLock();
+        establishmentRetryAttempts = attempts;
+        return this;
+    }
+
+    /**
+     * Sets the amount of time between attempts to establish a new connection. Default is 1 second between attempts.
+     */
+    public AgroalConnectionPoolConfigurationSupplier establishmentRetryInterval(Duration interval) {
+        checkLock();
+        establishmentRetryInterval = interval;
+        return this;
+    }
+
+    /**
      * Enables validation on borrow. Default is false.
      */
     public AgroalConnectionPoolConfigurationSupplier validateOnBorrow(boolean validate) {
@@ -330,6 +353,12 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( initialSize < 0 ) {
             throw new IllegalArgumentException( "Invalid value for initial size. Must not be negative, and ideally between min size and max size" );
         }
+        if ( establishmentRetryAttempts < 0 ) {
+            throw new IllegalArgumentException( "Number of establishment retry attempts must not be negative" );
+        }
+        if ( establishmentRetryInterval.isNegative() ) {
+            throw new IllegalArgumentException( "Establishment retry interval must not be negative" );
+        }
         if ( acquisitionTimeout.isNegative() ) {
             throw new IllegalArgumentException( "Acquisition timeout must not be negative" );
         }
@@ -395,6 +424,16 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public boolean recoveryEnable() {
                 return recoveryEnable;
+            }
+
+            @Override
+            public int establishmentRetryAttempts() {
+                return establishmentRetryAttempts;
+            }
+
+            @Override
+            public Duration establishmentRetryInterval() {
+                return establishmentRetryInterval;
             }
 
             @Override
