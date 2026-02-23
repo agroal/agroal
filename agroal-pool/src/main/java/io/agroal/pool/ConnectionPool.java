@@ -348,7 +348,7 @@ public final class ConnectionPool implements Pool {
         long acquisitionTimeout = configuration.acquisitionTimeout().isZero() ? MAX_VALUE : configuration.acquisitionTimeout().toNanos();
         long deadline = acquisitionTimeout == MAX_VALUE ? MAX_VALUE : nanoTime() + acquisitionTimeout;
         boolean collaborate = true;
-        int retries = 0;
+        int retries = configuration.establishmentRetryAttempts();
         try {
             for ( int i = 0; ; i++ ) {
                 if ( i == 0 && handlerTransferQueue.hasWaitingConsumer() ) { // On the first iteration, block right away if there are other threads already blocked
@@ -390,18 +390,18 @@ public final class ConnectionPool implements Pool {
                         if ( --retries < 0 || timeout <= 0 ) {
                             throw e instanceof SQLException sqle ? sqle : new SQLException( "Failed to create connection after " + retries + " retries", e );
                         } else {
-                            // AG-274: connection failed but the acquisitionTimeout has not expired. fire message and perform a single retry
+                            // AG-274: connection failed but the acquisitionTimeout has not expired. fire message and retry
                             fireOnInfo( listeners, "Retrying establishment of connection after " + e.getClass().getName() );
 
-                            // Wait at most a second before retrying, if that is not possible try to give 100 ms for connection establishment
-                            ConnectionHandler handler = waitAvailableHandler( Long.min( ONE_SECOND, timeout - ( ONE_SECOND / 10 ) ), false );
+                            // if is not possible to wait the full retry interval, give 100 ms for connection establishment
+                            ConnectionHandler handler = waitAvailableHandler( Long.min( configuration.establishmentRetryInterval().toNanos(), timeout - ONE_SECOND / 10 ), false );
                             if ( handler != null && handler.acquire() ) {
                                 return handler;
                             }
                         }
                     }
                 } else { // Wait until a connection is released
-                    ConnectionHandler handler = waitAvailableHandler( deadline, true );
+                    ConnectionHandler handler = waitAvailableHandler( deadline - nanoTime(), true );
                     if ( handler.acquire() ) {
                         return handler;
                     }
@@ -423,8 +423,7 @@ public final class ConnectionPool implements Pool {
         }
     }
 
-    private ConnectionHandler waitAvailableHandler(long deadline, boolean strict) throws InterruptedException, TimeoutException {
-        long timeout = deadline - nanoTime();
+    private ConnectionHandler waitAvailableHandler(long timeout, boolean strict) throws InterruptedException, TimeoutException {
         fireBeforePoolBlock( listeners, timeout );
         ConnectionHandler handler = handlerTransferQueue.poll( timeout, NANOSECONDS );
         if ( strict && handler == null ) {

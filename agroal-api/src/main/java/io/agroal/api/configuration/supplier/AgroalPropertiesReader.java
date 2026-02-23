@@ -70,6 +70,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String MULTIPLE_ACQUISITION = "multipleAcquisition";
     public static final String TRANSACTION_REQUIREMENT = "transactionRequirement";
     public static final String VALIDATE_ON_BORROW = "validateOnBorrow";
+    public static final String ESTABLISHMENT_RETRY_ATTEMPTS = "establishmentRetryAttempts";
 
     public static final String ACQUISITION_TIMEOUT = "acquisitionTimeout";
     public static final String ACQUISITION_TIMEOUT_MS = "acquisitionTimeout_ms";
@@ -100,6 +101,11 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String MAX_LIFETIME_MS = "maxLifetime_ms";
     public static final String MAX_LIFETIME_S = "maxLifetime_s";
     public static final String MAX_LIFETIME_M = "maxLifetime_m";
+
+    public static final String ESTABLISHMENT_RETRY_INTERVAL = "establishmentRetryInterval";
+    public static final String ESTABLISHMENT_RETRY_INTERVAL_MS = "establishmentRetryInterval_ms";
+    public static final String ESTABLISHMENT_RETRY_INTERVAL_S = "establishmentRetryInterval_s";
+    public static final String ESTABLISHMENT_RETRY_INTERVAL_M = "establishmentRetryInterval_m";
 
     // --- //
 
@@ -187,6 +193,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::multipleAcquisition, MultipleAcquisitionAction::valueOf, properties, MULTIPLE_ACQUISITION );
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
         apply( connectionPoolSupplier::validateOnBorrow, Boolean::parseBoolean, properties, VALIDATE_ON_BORROW );
+        apply( connectionPoolSupplier::establishmentRetryAttempts, Integer::parseInt, properties, ESTABLISHMENT_RETRY_ATTEMPTS );
 
         apply( connectionPoolSupplier::acquisitionTimeout, Duration::parse, properties, ACQUISITION_TIMEOUT );
         apply( connectionPoolSupplier::acquisitionTimeout, AgroalPropertiesReader::parseDurationMs, properties, ACQUISITION_TIMEOUT_MS );
@@ -217,6 +224,11 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::maxLifetime, AgroalPropertiesReader::parseDurationMs, properties, MAX_LIFETIME_MS );
         apply( connectionPoolSupplier::maxLifetime, AgroalPropertiesReader::parseDurationS, properties, MAX_LIFETIME_S );
         apply( connectionPoolSupplier::maxLifetime, AgroalPropertiesReader::parseDurationM, properties, MAX_LIFETIME_M );
+
+        apply( connectionPoolSupplier::establishmentRetryInterval, Duration::parse, properties, ESTABLISHMENT_RETRY_INTERVAL );
+        apply( connectionPoolSupplier::establishmentRetryInterval, AgroalPropertiesReader::parseDurationMs, properties, ESTABLISHMENT_RETRY_INTERVAL_MS );
+        apply( connectionPoolSupplier::establishmentRetryInterval, AgroalPropertiesReader::parseDurationS, properties, ESTABLISHMENT_RETRY_INTERVAL_S );
+        apply( connectionPoolSupplier::establishmentRetryInterval, AgroalPropertiesReader::parseDurationM, properties, ESTABLISHMENT_RETRY_INTERVAL_M );
 
         apply( connectionFactorySupplier::jdbcUrl, identity(), properties, JDBC_URL );
         apply( connectionFactorySupplier::autoCommit, Boolean::parseBoolean, properties, AUTO_COMMIT );

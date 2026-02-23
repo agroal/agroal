@@ -65,7 +65,7 @@ public class NewConnectionTimeoutTests {
         registerMockDriver( new MySQLConnectMockDriver( new ServerNotListening() ), new MockDriver.Empty() );
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
-                .connectionPoolConfiguration( cp -> cp.maxSize( 1 ) );
+                .connectionPoolConfiguration( cp -> cp.maxSize( 1 ).establishmentRetryAttempts( 0 ) );
 
         WarningsAgroalListener warningsListener = new WarningsAgroalListener();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, warningsListener ) ) {
@@ -89,6 +89,7 @@ public class NewConnectionTimeoutTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
+                        .establishmentRetryAttempts( 0 )
                         .connectionFactoryConfiguration( cf -> cf
                                 .loginTimeout( Duration.ofSeconds( 1 ) ) // .jdbcProperty( "socketTimeout", "1000" )
                         )
@@ -114,7 +115,7 @@ public class NewConnectionTimeoutTests {
         registerMockDriver( new MySQLConnectMockDriver( new AcceptConnectionAndClose() ), new MockDriver.Empty() );
 
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
-                .connectionPoolConfiguration( cp -> cp.maxSize( 1 ) );
+                .connectionPoolConfiguration( cp -> cp.maxSize( 1 ).establishmentRetryAttempts( 0 ) );
 
         WarningsAgroalListener warningsListener = new WarningsAgroalListener();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, warningsListener ) ) {
@@ -138,6 +139,7 @@ public class NewConnectionTimeoutTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
+                        .establishmentRetryAttempts( 0 )
                         .connectionFactoryConfiguration( cf -> cf
                                 .loginTimeout( Duration.ofSeconds( 1 ) ) // .jdbcProperty( "socketTimeout", "1000" )
                         )
@@ -178,6 +180,7 @@ public class NewConnectionTimeoutTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
+                        .establishmentRetryAttempts( 0 )
                         .acquisitionTimeout( Duration.ofSeconds( 1 ) )
                 );
 
@@ -230,6 +233,7 @@ public class NewConnectionTimeoutTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
+                        .establishmentRetryAttempts( 0 )
                         .acquisitionTimeout( Duration.ofMillis( 1500 ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .loginTimeout( Duration.ofSeconds( 1 ) )
@@ -267,6 +271,7 @@ public class NewConnectionTimeoutTests {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
                         .maxSize( 1 )
+                        .establishmentRetryAttempts( 0 )
                         .acquisitionTimeout( Duration.ofSeconds( 3 ) )
                         .connectionFactoryConfiguration( cf -> cf
                                 .loginTimeout( Duration.ofSeconds( 1 ) )

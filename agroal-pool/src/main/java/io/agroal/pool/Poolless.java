@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TransferQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAccumulator;
@@ -75,6 +76,7 @@ public final class Poolless implements Pool {
     }
 
     private static final ConnectionHandler TRANSFER_POISON; // Dummy object to unblock waiting threads, for example on close()
+    private static final long ONE_SECOND = TimeUnit.SECONDS.toNanos( 1 );
 
     private final AgroalConnectionPoolConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
@@ -274,6 +276,7 @@ public final class Poolless implements Pool {
     private ConnectionHandler handlerFromSharedCache() throws SQLException {
         long remaining = configuration.acquisitionTimeout().toNanos();
         long deadline = remaining > 0 ? nanoTime() + remaining : Long.MAX_VALUE;
+        int retries = configuration.establishmentRetryAttempts();
         try {
             for ( ; ; ) {
                 // Try to get a "token" to create a new connection
@@ -282,12 +285,19 @@ public final class Poolless implements Pool {
                         return createConnection();
                     } catch ( SQLException e ) {
                         activeCount.decrementAndGet();
-                        throw e;
+                        long timeout = deadline - nanoTime();
+                        if ( --retries < 0 || timeout <= 0 ) {
+                            throw e;
+                        } else {
+                            fireOnInfo( listeners, "Retrying establishment of connection after " + e.getClass().getName() );
+                            waitAvailableHandler( Long.min( configuration.establishmentRetryInterval().toNanos(), timeout - ONE_SECOND / 10 ), false );
+                            continue;
+                        }
                     }
                 } else {
                     activeCount.decrementAndGet();
                 }
-                waitAvailableHandler( deadline ); // Wait for a connection to be returned
+                waitAvailableHandler( deadline - nanoTime(), true ); // Wait for a connection to be returned
             }
         } catch ( InterruptedException e ) {
             currentThread().interrupt();
@@ -295,14 +305,13 @@ public final class Poolless implements Pool {
         }
     }
 
-    private void waitAvailableHandler(long deadline) throws InterruptedException, SQLException {
-        long timeout = deadline - nanoTime();
+    private void waitAvailableHandler(long timeout, boolean strict) throws InterruptedException, SQLException {
         fireBeforePoolBlock( listeners, timeout );
-        ConnectionHandler handler = handlerTransferQueue.poll( deadline - nanoTime(), NANOSECONDS );
-        if ( handler == null ) {
+        ConnectionHandler handler = handlerTransferQueue.poll( timeout, NANOSECONDS );
+        if ( strict && handler == null ) {
             throw new SQLException( "Sorry, acquisition timeout!" );
         } else if ( handler == TRANSFER_POISON ) {
-            throw new CancellationException( "" );
+            throw new CancellationException();
         }
     }
 
