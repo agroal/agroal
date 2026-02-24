@@ -3,6 +3,8 @@
 
 package io.agroal.pool.util;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -36,33 +38,31 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
             throw new NoSuchElementException();
         }
     };
-    
-    private final StampedLock lock;
-    private long optimisticStamp;
+
+    private static final VarHandle DATA_HANDLE;
+
+    static {
+        try {
+            DATA_HANDLE = MethodHandles.lookup().findVarHandle( StampedCopyOnWriteArrayList.class, "data", Object[].class );
+        } catch ( ReflectiveOperationException e ) {
+            throw new ExceptionInInitializerError( e );
+        }
+    }
+
     private T[] data;
+
+    private final StampedLock lock = new StampedLock();
 
     // -- //
 
-    @SuppressWarnings( "unchecked" )
+    @SuppressWarnings( "ThisEscapedInObjectConstruction" )
     public StampedCopyOnWriteArrayList(Class<? extends T> clazz) {
-        data = (T[]) newInstance( clazz, 0 );
-        lock = new StampedLock();
-        optimisticStamp = lock.tryOptimisticRead();
+        DATA_HANDLE.setRelease( this, newInstance( clazz, 0 ) );
     }
 
+    @SuppressWarnings( "unchecked" )
     private T[] getUnderlyingArray() {
-        T[] array = data;
-        if ( lock.validate( optimisticStamp ) ) {
-            return array;
-        }
-
-        // Acquiring a read lock does not increment the optimistic stamp
-        long stamp = lock.readLock();
-        try {
-            return data;
-        } finally {
-            lock.unlockRead( stamp );
-        }
+        return (T[]) DATA_HANDLE.getAcquire( this );
     }
 
     @Override
@@ -83,37 +83,31 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     @Override
-    public T set(int index, T element) {
-        long stamp = lock.writeLock();
-        try {
-            T old = data[index];
-            data[index] = element;
-            return old;
-        } finally {
-            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
-        }
-    }
-
-    @Override
     public boolean add(T element) {
         long stamp = lock.writeLock();
         try {
-            data = Arrays.copyOf( data, data.length + 1 );
-            data[data.length - 1] = element;
+            T[] current = getUnderlyingArray();
+            T[] array = Arrays.copyOf( current, current.length + 1 );
+            array[array.length - 1] = element;
+            DATA_HANDLE.setRelease( this, array );
             return true;
         } finally {
-            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+            lock.unlockWrite( stamp );
         }
     }
 
     public T removeLast() {
         long stamp = lock.writeLock();
         try {
-            T element = data[data.length - 1];
-            data = Arrays.copyOf( data, data.length - 1 );
+            T[] current = getUnderlyingArray();
+            if ( current.length == 0 ) {
+                throw new NoSuchElementException();
+            }
+            T element = current[current.length - 1];
+            DATA_HANDLE.setRelease( this, Arrays.copyOf( current, current.length - 1 ) );
             return element;
         } finally {
-            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+            lock.unlockWrite( stamp );
         }
     }
 
@@ -125,26 +119,27 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
         }
         long stamp = lock.writeLock();
         try {
-            if ( index >= data.length || element != data[index] ) {
+            T[] current = getUnderlyingArray();
+            if ( index >= current.length || element != current[index] ) {
                 // contents changed, need to recheck the position of the element in the array
-                int length = data.length;
+                int length = current.length;
                 for ( index = 0; index < length; index++ ) {
-                    if ( element == data[index] ) {
+                    if ( element == current[index] ) {
                         break;
                     }
                 }
-                if ( index == data.length ) {  // not found!
+                if ( index == current.length ) {  // not found!
                     return false;
                 }
             }
-            T[] newData = Arrays.copyOf( data, data.length - 1 );
-            if ( data.length - index - 1 != 0 ) {
-                arraycopy( data, index + 1, newData, index, data.length - index - 1 );
+            T[] newData = Arrays.copyOf( current, current.length - 1 );
+            if ( current.length - index - 1 != 0 ) {
+                arraycopy( current, index + 1, newData, index, current.length - index - 1 );
             }
-            data = newData;
+            DATA_HANDLE.setRelease( this, newData );
             return true;
         } finally {
-            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+            lock.unlockWrite( stamp );
         }
     }
 
@@ -152,15 +147,16 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     public T remove(int index) {
         long stamp = lock.writeLock();
         try {
-            T old = data[index];
-            T[] array = Arrays.copyOf( data, data.length - 1 );
-            if ( data.length - index - 1 != 0 ) {
-                arraycopy( data, index + 1, array, index, data.length - index - 1 );
+            T[] current = getUnderlyingArray();
+            T old = current[index];
+            T[] array = Arrays.copyOf( current, current.length - 1 );
+            if ( current.length - index - 1 != 0 ) {
+                arraycopy( current, index + 1, array, index, current.length - index - 1 );
             }
-            data = array;
+            DATA_HANDLE.setRelease( this, array );
             return old;
         } finally {
-            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+            lock.unlockWrite( stamp );
         }
     }
 
@@ -168,9 +164,10 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     public void clear() {
         long stamp = lock.writeLock();
         try {
-            data = Arrays.copyOf( data, 0 );
+            T[] array = getUnderlyingArray();
+            DATA_HANDLE.setRelease( this, Arrays.copyOf( array, 0 ) );
         } finally {
-            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+            lock.unlockWrite( stamp );
         }
     }
 
@@ -184,14 +181,16 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     public boolean addAll(Collection<? extends T> c) {
         long stamp = lock.writeLock();
         try {
-            int oldSize = data.length;
-            data = Arrays.copyOf( data, oldSize + c.size() );
+            T[] current = getUnderlyingArray();
+            int oldSize = current.length;
+            T[] array = Arrays.copyOf( current, oldSize + c.size() );
             for ( T element : c ) {
-                data[oldSize++] = element;
+                array[oldSize++] = element;
             }
+            DATA_HANDLE.setRelease( this, array );
             return true;
         } finally {
-            optimisticStamp = lock.tryConvertToOptimisticRead( stamp );
+            lock.unlockWrite( stamp );
         }
     }
 
@@ -220,6 +219,11 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
     }
 
     // --- //
+
+    @Override
+    public T set(int index, T element) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public Object[] toArray() {
@@ -308,32 +312,26 @@ public final class StampedCopyOnWriteArrayList<T> implements List<T> {
 
     // --- //
 
+    // the iterator starts from the end since elements are added to the end of the array
     private static final class UncheckedIterator<T> implements Iterator<T> {
 
-        private final int size;
-
-        private final T[] data;
-
-        private int index;
+        private final T[] snapshot;
+        private int iteratorIndex;
 
         @SuppressWarnings( "WeakerAccess" )
         UncheckedIterator(T[] array) {
-            data = array;
-            size = data.length;
+            snapshot = array;
+            iteratorIndex = snapshot.length;
         }
 
         @Override
         public boolean hasNext() {
-            return index < size;
+            return iteratorIndex > 0;
         }
 
         @Override
         public T next() {
-            if ( index < size ) {
-                return data[index++];
-            }
-            throw new NoSuchElementException( "No more elements in this list" );
+            return snapshot[--iteratorIndex];
         }
     }
-
 }
