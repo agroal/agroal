@@ -173,7 +173,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                 AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
                 while ( warning != null ) {
                     if ( exceptionSorter != null && exceptionSorter.isFatal( warning ) ) {
-                        setState( State.FLUSH );
+                        stateUpdater.set( this, State.FLUSH );
                     }
                     warning = warning.getNextWarning();
                 }
@@ -200,13 +200,23 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
             try {
                 xaConnection.close();
             } finally {
-                stateUpdater.set( this, State.DESTROYED );
+                stateUpdater.lazySet( this, State.DESTROYED );
             }
         }
     }
 
+    // --- //
+
+    public void markAvailable() {
+        stateUpdater.lazySet( this, State.CHECKED_IN );
+    }
+
+    public boolean release() {
+        return changeState( State.CHECKED_OUT, State.CHECKED_IN );
+    }
+
     public boolean acquire() {
-        return setState( State.CHECKED_IN, State.CHECKED_OUT );
+        return changeState( State.CHECKED_IN, State.CHECKED_OUT );
     }
 
     public boolean isAcquirable() {
@@ -214,7 +224,40 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         return observedState != State.FLUSH && observedState != State.DESTROYED;
     }
 
-    public boolean setState(State expected, State newState) {
+    private boolean isActive() {
+        State observedState = stateUpdater.get( this );
+        return observedState == State.CHECKED_OUT || observedState == State.FLUSH;
+    }
+
+    public boolean tryFlushFromIdle() {
+        return changeState( State.CHECKED_IN, State.FLUSH );
+    }
+
+    public boolean tryFlushFromActive() {
+        return changeState( State.CHECKED_OUT, State.FLUSH );
+    }
+
+    public boolean tryValidationFromIdle() {
+        return changeState( State.CHECKED_IN, State.VALIDATION );
+    }
+
+    public boolean tryValidationFromActive() {
+        return changeState( State.CHECKED_OUT, State.VALIDATION );
+    }
+
+    public boolean passValidationToIdle() {
+        return changeState( State.VALIDATION, State.CHECKED_IN );
+    }
+
+    public boolean passValidationToActive() {
+        return changeState( State.VALIDATION, State.CHECKED_OUT );
+    }
+
+    public void failValidation() {
+        changeState( State.VALIDATION, State.FLUSH );
+    }
+
+    private boolean changeState(State expected, State newState) {
         if ( expected == State.DESTROYED ) {
             throw new IllegalArgumentException( "Trying to move out of state DESTROYED" );
         }
@@ -233,15 +276,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         }
     }
 
-    public void setState(State newState) {
-        // Maybe could use lazySet here, but there doesn't seem to be any performance advantage
-        stateUpdater.set( this, newState );
-    }
-
-    private boolean isActive() {
-        State observedState = stateUpdater.get( this );
-        return observedState == State.CHECKED_OUT || observedState == State.FLUSH;
-    }
+    // --- //
 
     public void touch() {
         lastAccess = nanoTime();
@@ -452,20 +487,20 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     @Override
     public void setFlushOnly() {
         // Assumed currentState == State.CHECKED_OUT (or eventually in FLUSH already)
-        setState( State.FLUSH );
+        stateUpdater.set( this, State.FLUSH );
     }
 
     public void setFlushOnly(SQLException se) {
         // Assumed currentState == State.CHECKED_OUT (or eventually in FLUSH already)
         AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
         if ( exceptionSorter != null && exceptionSorter.isFatal( se ) ) {
-            setState( State.FLUSH );
+            stateUpdater.set( this, State.FLUSH );
         }
     }
 
     // --- //
 
-    public enum State {
+    private enum State {
         NEW, CHECKED_IN, CHECKED_OUT, VALIDATION, FLUSH, DESTROYED
     }
 

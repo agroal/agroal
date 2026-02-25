@@ -27,9 +27,6 @@ import java.util.concurrent.atomic.LongAccumulator;
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
-import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
-import static io.agroal.pool.ConnectionHandler.State.FLUSH;
-import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionCreateInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionDestroyInterceptor;
@@ -189,7 +186,7 @@ public final class Poolless implements Pool {
         shutdown = true;
 
         for ( ConnectionHandler handler : allConnections ) {
-            handler.setState( FLUSH );
+            handler.setFlushOnly();
             destroyConnection( handler );
         }
         allConnections.clear();
@@ -414,7 +411,7 @@ public final class Poolless implements Pool {
 
         try {
             fireBeforeConnectionValidation( listeners, healthHandler );
-            if ( healthHandler.setState( CHECKED_OUT, VALIDATION ) && healthHandler.isValid() && healthHandler.setState( VALIDATION, CHECKED_OUT ) ) {
+            if ( healthHandler.tryValidationFromActive() && healthHandler.isValid() && healthHandler.passValidationToActive() ) {
                 fireOnConnectionValid( listeners, healthHandler );
                 return true;
             } else {
@@ -441,7 +438,8 @@ public final class Poolless implements Pool {
             fireOnConnectionCreation( listeners, handler );
             fireOnConnectionCreateInterceptor( interceptors, handler );
 
-            handler.setState( CHECKED_OUT );
+            handler.markAvailable();
+            handler.acquire();
             allConnections.add( handler );
 
             maxUsed.accumulate( allConnections.size() );
@@ -473,7 +471,7 @@ public final class Poolless implements Pool {
     }
 
     private void flushHandler(ConnectionHandler handler) {
-        handler.setState( FLUSH );
+        handler.setFlushOnly();
         allConnections.remove( handler );
         activeCount.decrementAndGet();
         handlerTransferQueue.tryTransfer( handler );

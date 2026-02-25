@@ -33,10 +33,6 @@ import java.util.concurrent.atomic.LongAdder;
 import static io.agroal.api.AgroalDataSource.FlushMode.GRACEFUL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
 import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
-import static io.agroal.pool.ConnectionHandler.State.CHECKED_IN;
-import static io.agroal.pool.ConnectionHandler.State.CHECKED_OUT;
-import static io.agroal.pool.ConnectionHandler.State.FLUSH;
-import static io.agroal.pool.ConnectionHandler.State.VALIDATION;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionCreateInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionDestroyInterceptor;
@@ -212,7 +208,7 @@ public final class ConnectionPool implements Pool {
         }
 
         for ( ConnectionHandler handler : allConnections ) {
-            handler.setState( FLUSH );
+            handler.setFlushOnly();
             new DestroyConnectionTask( handler ).run();
         }
         allConnections.clear();
@@ -251,7 +247,7 @@ public final class ConnectionPool implements Pool {
             return checkedOutHandler.xaConnectionWrapper();
         } catch ( Throwable t ) {
             if ( checkedOutHandler != null ) {
-                checkedOutHandler.setState( CHECKED_OUT, CHECKED_IN );
+                checkedOutHandler.release();
             }
             throw t;
         }
@@ -334,7 +330,7 @@ public final class ConnectionPool implements Pool {
         } catch ( Throwable t ) {
             if ( checkedOutHandler != null ) {
                 // AG-140 - Return the connection to the pool to prevent leak
-                checkedOutHandler.setState( CHECKED_OUT, CHECKED_IN );
+                checkedOutHandler.release();
             }
             throw t;
         }
@@ -442,18 +438,20 @@ public final class ConnectionPool implements Pool {
     }
 
     private boolean borrowValidation(ConnectionHandler handler) {
-        if ( handler.setState( CHECKED_OUT, VALIDATION ) ) {
-            return performValidation( handler, CHECKED_OUT );
+        if ( handler.tryValidationFromActive() ) {
+            return performValidation( handler, false );
         }
         return false;
     }
 
     // handler must be in VALIDATION state
-    private boolean performValidation(ConnectionHandler handler, ConnectionHandler.State targetState) {
+    private boolean performValidation(ConnectionHandler handler, boolean idle) {
         fireBeforeConnectionValidation( listeners, handler );
-        if ( handler.isValid() && handler.setState( VALIDATION, targetState ) ) {
+        if ( handler.isValid() && idle ? handler.passValidationToIdle() : handler.passValidationToActive() ) {
             fireOnConnectionValid( listeners, handler );
-            handlerTransferQueue.tryTransfer( handler );
+            if ( idle ) {
+                handlerTransferQueue.tryTransfer( handler );
+            }
             return true;
         } else {
             removeFromPool( handler );
@@ -521,7 +519,7 @@ public final class ConnectionPool implements Pool {
         // resize on change of max-size, or flush on close
         int currentSize = allConnections.size();
         if ( ( currentSize > configuration.maxSize() && currentSize > configuration.minSize() ) || configuration.flushOnClose() ) {
-            handler.setState( FLUSH );
+            handler.setFlushOnly();
             removeFromPool( handler );
             metricsRepository.afterConnectionReap();
             fireOnConnectionReap( listeners, handler );
@@ -536,13 +534,13 @@ public final class ConnectionPool implements Pool {
         localCache.put( handler );
         fireOnConnectionReturnInterceptor( interceptors, handler );
 
-        if ( handler.setState( CHECKED_OUT, CHECKED_IN ) ) {
+        if ( handler.release() ) {
             // here the handler is already up for grabs
             handlerTransferQueue.tryTransfer( handler );
             metricsRepository.afterConnectionReturn();
             fireOnConnectionReturn( listeners, handler );
         } else {
-            // handler not in CHECKED_OUT implies FLUSH
+            // handler failed to release implies that it is on FLUSH state
             removeFromPool( handler );
             metricsRepository.afterConnectionFlush();
             fireOnConnectionFlush( listeners, handler );
@@ -612,12 +610,12 @@ public final class ConnectionPool implements Pool {
                 if ( acquireCreateConnectionPermit( Integer.MAX_VALUE ) ) {
                     healthHandler = createAndPoolConnection();
                 }
-            } while ( healthHandler != null && !healthHandler.setState( CHECKED_IN, VALIDATION ) );
+            } while ( healthHandler != null && !healthHandler.tryValidationFromIdle() );
         } else {
             healthHandler = handlerFromSharedCache();
-            healthHandler.setState( CHECKED_OUT, VALIDATION );
+            healthHandler.tryValidationFromActive();
         }
-        return performValidation( healthHandler, CHECKED_IN );
+        return performValidation( healthHandler, true );
     }
 
     // --- create //
@@ -662,7 +660,7 @@ public final class ConnectionPool implements Pool {
             fireOnConnectionCreation( listeners, handler );
             fireOnConnectionCreateInterceptor( interceptors, handler );
 
-            handler.setState( CHECKED_IN );
+            handler.markAvailable();
             allConnections.add( handler );
 
             createConnectionPermits.addAndGet( ( 1L << Integer.SIZE ) - 1 ); // Move 1 from low bits (permits) to hig bits (size)
@@ -749,34 +747,34 @@ public final class ConnectionPool implements Pool {
         private void flush(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
             switch ( mode ) {
                 case ALL:
-                    handler.setState( FLUSH );
+                    handler.setFlushOnly();
                     flushHandler( handler );
                     break;
                 case GRACEFUL:
-                    if ( handler.setState( CHECKED_IN, FLUSH ) ) {
+                    if ( handler.tryFlushFromIdle() ) {
                         flushHandler( handler );
-                    } else if ( !handler.setState( CHECKED_OUT, FLUSH ) && handler.isAcquirable() ) {
+                    } else if ( !handler.tryFlushFromActive() && handler.isAcquirable() ) {
                         // concurrency caused both transitions fail but handler is still acquirable. re-schedule this task.
                         housekeepingExecutor.execute( this );
                     }
                     break;
                 case LEAK:
-                    if ( handler.isLeak( configuration.leakTimeout() ) && handler.setState( CHECKED_OUT, FLUSH ) ) {
+                    if ( handler.isLeak( configuration.leakTimeout() ) && handler.tryFlushFromActive() ) {
                         flushHandler( handler );
                     }
                     break;
                 case IDLE:
-                    if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
+                    if ( allConnections.size() > configuration.minSize() && handler.tryFlushFromIdle() ) {
                         flushHandler( handler );
                     }
                     break;
                 case INVALID:
                     fireBeforeConnectionValidation( listeners, handler );
-                    if ( handler.setState( CHECKED_IN, VALIDATION ) ) {
-                        if ( handler.isValid() && handler.setState( VALIDATION, CHECKED_IN ) ) {
+                    if ( handler.tryValidationFromIdle() ) {
+                        if ( handler.isValid() && handler.passValidationToIdle() ) {
                             fireOnConnectionValid( listeners, handler );
                         } else {
-                            handler.setState( VALIDATION, FLUSH );
+                            handler.failValidation();
                             fireOnConnectionInvalid( listeners, handler );
                             flushHandler( handler );
                         }
@@ -866,8 +864,8 @@ public final class ConnectionPool implements Pool {
 
             @Override
             public void run() {
-                if ( handler.setState( CHECKED_IN, VALIDATION ) ) {
-                    performValidation( handler, CHECKED_IN );
+                if ( handler.tryValidationFromIdle() ) {
+                    performValidation( handler, true );
                 }
             }
         }
@@ -900,13 +898,13 @@ public final class ConnectionPool implements Pool {
             @Override
             public void run() {
                 fireBeforeConnectionReap( listeners, handler );
-                if ( allConnections.size() > configuration.minSize() && handler.setState( CHECKED_IN, FLUSH ) ) {
+                if ( allConnections.size() > configuration.minSize() && handler.tryFlushFromIdle() ) {
                     if ( handler.isIdle( configuration.reapTimeout() ) ) {
                         removeFromPool( handler );
                         metricsRepository.afterConnectionReap();
                         fireOnConnectionReap( listeners, handler );
                     } else {
-                        handler.setState( CHECKED_IN );
+                        handler.markAvailable();
                         // for debug, something like: fireOnWarning( listeners,  "Connection " + handler.getConnection() + " used recently. Do not reap!" );
                     }
                 }
