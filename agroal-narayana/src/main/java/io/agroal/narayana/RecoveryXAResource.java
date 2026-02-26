@@ -38,7 +38,8 @@ public class RecoveryXAResource implements AutoCloseable, XAResourceWrapper {
         try {
             reconnect = connect();
             return f.apply( wrappedResource );
-        } catch ( SQLException e ) {
+        } catch ( SQLException | XAException e ) {
+            close();
             throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, e );
         } finally {
             if ( reconnect ) {
