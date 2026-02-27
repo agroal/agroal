@@ -122,7 +122,7 @@ public final class DataSource implements AgroalDataSource {
 
     @Override
     public int getLoginTimeout() throws SQLException {
-        return 0;
+        return (int) getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().loginTimeout().toSeconds();
     }
 
     @Override
