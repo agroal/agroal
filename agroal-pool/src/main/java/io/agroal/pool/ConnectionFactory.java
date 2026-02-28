@@ -22,6 +22,7 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.concurrent.Executor;
 
 import static io.agroal.api.configuration.AgroalConnectionFactoryConfiguration.TransactionIsolation.UNDEFINED;
 import static io.agroal.pool.util.ListenerHelper.fireOnWarning;
@@ -34,6 +35,9 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
     private static final String URL_PROPERTY_NAME = "url";
 
     private static final Properties EMPTY_PROPERTIES = new Properties();
+
+    // have a dummy Executor for use in setNetworkTimeout(), even though most (if not all) drivers completely ignore the executor parameter
+    public static final Executor DUMMY_EXECUTOR = Runnable::run;
 
     private final AgroalConnectionFactoryConfiguration configuration;
     private final AgroalDataSourceListener[] listeners;
@@ -240,6 +244,9 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         connection.setAutoCommit( configuration.autoCommit() );
         if ( configuration.readOnly() ) {
             connection.setReadOnly( configuration.readOnly() );
+        }
+        if ( !configuration.networkTimeout().isZero() ) {
+            connection.setNetworkTimeout( DUMMY_EXECUTOR, (int) configuration.networkTimeout().toMillis() );
         }
         if ( configuration.initialSql() != null && !configuration.initialSql().isEmpty() ) {
             try ( Statement statement = connection.createStatement() ) {

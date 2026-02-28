@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.HOLDABILITY;
+import static io.agroal.pool.ConnectionHandler.DirtyAttribute.NETWORK_TIMEOUT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.READ_ONLY;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION;
 import static io.agroal.pool.util.ListenerHelper.fireOnInfo;
@@ -157,6 +158,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                 }
                 if ( dirtyAttributes.contains( HOLDABILITY ) ) {
                     connection.setHoldability( defaultHoldability );
+                }
+                if ( dirtyAttributes.contains( NETWORK_TIMEOUT ) ) {
+                    connection.setNetworkTimeout( ConnectionFactory.DUMMY_EXECUTOR, (int) connectionPool.getConfiguration().connectionFactoryConfiguration().networkTimeout().toMillis() );
                 }
                 // other attributes do not have default values in connectionFactoryConfiguration
             } catch ( SQLException se ) {
