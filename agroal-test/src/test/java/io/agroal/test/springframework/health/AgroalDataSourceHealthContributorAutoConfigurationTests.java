@@ -157,4 +157,62 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                     }
                 });
     }
+
+    @DisplayName("Health indicator caches database product name - only queries once")
+    @Test
+    void testHealthCheckDatabaseNameCaching() throws Exception {
+        AgroalDataSource ds = new AgroalDataSource();
+        ds.setDriverClass(JdbcDataSource.class);
+        ds.setUrl("jdbc:h2:mem:cachingtest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false");
+        ds.setUsername("sa");
+        ds.afterPropertiesSet();
+
+        AgroalDataSourceHealthIndicator healthIndicator = new AgroalDataSourceHealthIndicator(ds);
+
+        Health health1 = healthIndicator.health(true);
+        Health health2 = healthIndicator.health(true);
+        Health health3 = healthIndicator.health(true);
+
+        assertThat(health1.getDetails().get("database")).isEqualTo(health2.getDetails().get("database"));
+        assertThat(health2.getDetails().get("database")).isEqualTo(health3.getDetails().get("database"));
+        assertThat(health1.getDetails().get("database").toString()).isEqualTo("H2");
+
+        assertThat(health1.getStatus()).isEqualTo(Status.UP);
+        assertThat(health2.getStatus()).isEqualTo(Status.UP);
+        assertThat(health3.getStatus()).isEqualTo(Status.UP);
+
+        ds.close();
+    }
+
+    @DisplayName("Health indicator works with datasource configured WITHOUT jdbc-url (DB2-style with properties)")
+    @Test
+    void testHealthCheckWithoutJdbcUrl() throws Exception {
+        AgroalDataSource ds = new AgroalDataSource();
+
+        ds.setDriverClass(JdbcDataSource.class);
+        ds.setUsername("sa");
+        ds.setJdbcProperties(Map.of("url", "jdbc:h2:mem:nojdbcurl;DB_CLOSE_DELAY=-1"));
+
+        ds.afterPropertiesSet();
+
+        AgroalDataSourceHealthIndicator healthIndicator = new AgroalDataSourceHealthIndicator(ds);
+        Health health = healthIndicator.health(true);
+
+        assertThat(health.getStatus()).isEqualTo(Status.UP);
+        assertThat(health.getDetails().get("database")).isNotNull();
+
+        Object database = health.getDetails().get("database");
+        assertThat(database.toString()).isNotEqualTo("UNKNOWN");
+        assertThat(database.toString()).contains("H2");
+
+        try (Connection c = ds.getConnection()) {
+            String productName = c.getMetaData().getDatabaseProductName();
+            assertThat(productName).contains("H2");
+        }
+
+        String jdbcUrl = ds.getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().jdbcUrl();
+        assertThat(jdbcUrl == null || jdbcUrl.isEmpty()).isTrue();
+
+        ds.close();
+    }
 }
