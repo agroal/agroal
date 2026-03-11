@@ -123,7 +123,7 @@ public class AgroalDataSourceAutoConfiguration {
         credentials.forEach( dataSource::addCredential );
         recoveryCredentials.forEach( dataSource::addRecoveryCredential );
 
-        poolInterceptor.stream().forEach( dataSource::addPoolInterceptor );
+        poolInterceptor.forEach( dataSource::addPoolInterceptor );
 
         return dataSource;
     }
