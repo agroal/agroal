@@ -34,6 +34,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     boolean readOnly;
     boolean trackJdbcResources = true;
     Duration loginTimeout = Duration.ZERO;
+    Duration networkTimeout = Duration.ZERO;
     String jdbcUrl = "";
     String initialSql = "";
     Class<?> connectionProviderClass;
@@ -63,6 +64,7 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
         autoCommit = existingConfiguration.autoCommit();
         readOnly = existingConfiguration.readOnly();
         loginTimeout = existingConfiguration.loginTimeout();
+        networkTimeout = existingConfiguration.networkTimeout();
         jdbcUrl = existingConfiguration.jdbcUrl();
         initialSql = existingConfiguration.initialSql();
         connectionProviderClass = existingConfiguration.connectionProviderClass();
@@ -126,6 +128,15 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
     public AgroalConnectionFactoryConfigurationSupplier loginTimeout(Duration timeout) {
         checkLock();
         loginTimeout = timeout;
+        return this;
+    }
+
+    /**
+     * Sets the network timeout (in milliseconds). Default is 0 (waits indefinitely)
+     */
+    public AgroalConnectionFactoryConfigurationSupplier networkTimeout(Duration timeout) {
+        checkLock();
+        networkTimeout = timeout;
         return this;
     }
 
@@ -309,6 +320,11 @@ public class AgroalConnectionFactoryConfigurationSupplier implements Supplier<Ag
             @Override
             public Duration loginTimeout() {
                 return loginTimeout;
+            }
+
+            @Override
+            public Duration networkTimeout() {
+                return networkTimeout;
             }
 
             @Override

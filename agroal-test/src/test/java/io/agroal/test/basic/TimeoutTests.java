@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
@@ -121,7 +122,7 @@ public class TimeoutTests {
 
             try {
                 //  AG-290 - this will now block the test == acquisition timeout does not fire
-                assertTimeoutPreemptively( ofMillis( (long) ( ACQUISITION_TIMEOUT_MS * overheadFactor) ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting getConnection to hang" );
+                assertTimeoutPreemptively( ofMillis( (long) ( ACQUISITION_TIMEOUT_MS * overheadFactor ) ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting getConnection to hang" );
                 fail( "Not supposed to create a connection" ); // Supposed to fail
             } catch ( Error e ) {
                 long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
@@ -205,10 +206,9 @@ public class TimeoutTests {
             try {
                 assertTimeoutPreemptively( ofMillis( LOGIN_TIMEOUT_S * 1500 ), () -> assertThrows( SQLException.class, () -> dataSource.isHealthy( true ) ), "Expecting SQLException on heath check" );
                 fail( "Not supposed to create a connection" ); // Supposed to fail
-            } catch ( Error e )  {
+            } catch ( Error e ) {
                 assertTrue( e.getMessage().contains( "execution timed out after" ) );
             }
-
         }
     }
 
@@ -238,7 +238,7 @@ public class TimeoutTests {
             long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
             logger.info( format( "Acquisition timeout after {0}ms - Configuration is {1}ms", elapsed, LOGIN_TIMEOUT_S * 2000 ) );
             assertTrue( elapsed >= LOGIN_TIMEOUT_S * 2000, "Acquisition timeout before time" );
-            
+
             assertEquals( 0, dataSource.getMetrics().creationCount(), "Expected no created connection" );
         }
     }
@@ -263,12 +263,12 @@ public class TimeoutTests {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
             LoginTimeoutDatasource.unsetTimeout();
 
-            new Thread(() -> {
-                try (Connection c = dataSource.getConnection() ) {
+            new Thread( () -> {
+                try ( Connection c = dataSource.getConnection() ) {
                     latch.countDown();
                     assertFalse( c.isClosed(), "Expected good connection" );
                     logger.info( "Holding connection and sleeping for a duration slightly smaller then acquisition timeout" );
-                    Thread.sleep( (long) (ACQUISITION_TIMEOUT_MS * 0.8) );
+                    Thread.sleep( (long) ( ACQUISITION_TIMEOUT_MS * 0.8 ) );
                 } catch ( SQLException e ) {
                     fail( "Unexpected exception", e );
                 } catch ( InterruptedException e ) {
@@ -286,6 +286,34 @@ public class TimeoutTests {
             long elapsed = NANOSECONDS.toMillis( nanoTime() - start );
             logger.info( format( "Login timeout after {0}ms - Configuration is {1}ms + {2}s", elapsed, ACQUISITION_TIMEOUT_MS, LOGIN_TIMEOUT_S ) );
             assertTrue( elapsed >= ACQUISITION_TIMEOUT_MS * 0.8 + LOGIN_TIMEOUT_S * 1000, "Login timeout before time" );
+        }
+    }
+
+    @Test
+    @DisplayName( "Network timeout" )
+    void networkTimeoutTest() throws SQLException {
+        int NETWORK_TIMEOUT = 1000;
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( NetworkTimeoutDatasource.class )
+                                .networkTimeout( ofMillis( NETWORK_TIMEOUT ) )
+                        )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertEquals( NETWORK_TIMEOUT, connection.getNetworkTimeout(), "Network timeout not set correctly" );
+
+                connection.setNetworkTimeout( null, 2 * NETWORK_TIMEOUT );
+                assertEquals( 2 * NETWORK_TIMEOUT, connection.getNetworkTimeout(), "Network timeout not set correctly" );
+            }
+            try ( Connection connection = dataSource.getConnection() ) {
+                assertEquals( NETWORK_TIMEOUT, connection.getNetworkTimeout(), "Network timeout not reset correctly" );
+            }
         }
     }
 
@@ -383,6 +411,29 @@ public class TimeoutTests {
 
         private static class LoginTimeoutConnection implements MockConnection {
             LoginTimeoutConnection() {
+            }
+        }
+    }
+
+    public static class NetworkTimeoutDatasource implements MockDataSource {
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return new NetworkTimeoutConnection();
+        }
+
+        private static class NetworkTimeoutConnection implements MockConnection {
+
+            private int networkTimeout;
+
+            @Override
+            public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
+                networkTimeout = milliseconds;
+            }
+
+            @Override
+            public int getNetworkTimeout() throws SQLException {
+                return networkTimeout;
             }
         }
     }

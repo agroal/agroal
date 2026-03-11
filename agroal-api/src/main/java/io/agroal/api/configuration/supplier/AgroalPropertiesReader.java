@@ -114,6 +114,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String READ_ONLY = "readOnly";
     public static final String TRACK_JDBC_RESOURCES = "trackJdbcResources";
     public static final String LOGIN_TIMEOUT = "loginTimeout";
+    public static final String NETWORK_TIMEOUT = "networkTimeout";
     public static final String INITIAL_SQL = "initialSQL";
     public static final String PROVIDER_CLASS_NAME = "providerClassName";
     public static final String TRANSACTION_ISOLATION = "jdbcTransactionIsolation";
@@ -127,6 +128,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
 
     // --- //
 
+    @SuppressWarnings( "RegExpRedundantEscape" )
     private static final Pattern SQL_VALIDATOR_PATTERN = Pattern.compile( "^sql\\[(.+?)\\](\\d*)$" );
 
     // --- //
@@ -235,6 +237,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionFactorySupplier::readOnly, Boolean::parseBoolean, properties, READ_ONLY );
         apply( connectionFactorySupplier::trackJdbcResources, Boolean::parseBoolean, properties, TRACK_JDBC_RESOURCES );
         apply( connectionFactorySupplier::loginTimeout, Duration::parse, properties, LOGIN_TIMEOUT );
+        apply( connectionFactorySupplier::networkTimeout, Duration::parse, properties, NETWORK_TIMEOUT );
         apply( connectionFactorySupplier::initialSql, identity(), properties, INITIAL_SQL );
         apply( connectionFactorySupplier::connectionProviderClassName, identity(), properties, PROVIDER_CLASS_NAME );
         apply( connectionFactorySupplier::jdbcTransactionIsolation, TransactionIsolation::valueOf, properties, TRANSACTION_ISOLATION );
@@ -281,6 +284,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
      * <li>the name of a class that implements {@link ConnectionValidator}</li>
      * </ul>
      */
+    @SuppressWarnings( "CallToSuspiciousStringMethod" )
     public static ConnectionValidator parseConnectionValidator(String connectionValidatorName) {
         if ( "empty".equalsIgnoreCase( connectionValidatorName ) ) {
             return emptyValidator();
@@ -293,7 +297,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
             if ( matcher.matches() ) {
                 String query = matcher.group( 1 );
                 String timeout = matcher.group( 2 );
-                return sqlValidator( query, !timeout.isEmpty() ? (int) parseDurationS( timeout ).toSeconds() : 0 );
+                return sqlValidator( query, timeout.isEmpty() ? 0 : (int) parseDurationS( timeout ).toSeconds() );
             }
             throw new IllegalArgumentException( "Unparsable sql connection validator " + connectionValidatorName );
         }
@@ -327,6 +331,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
      * <li>the name of a class that implements {@link ExceptionSorter}</li>
      * </ul>
      */
+    @SuppressWarnings( "CallToSuspiciousStringMethod" )
     public static ExceptionSorter parseExceptionSorter(String exceptionSorterName) {
         if ( "empty".equalsIgnoreCase( exceptionSorterName ) ) {
             return emptyExceptionSorter();
