@@ -25,7 +25,6 @@ import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
 import static java.util.Arrays.asList;
-import static java.util.List.of;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -74,12 +73,13 @@ public class InterceptorTests {
     void basicInterceptorTest() throws SQLException {
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
-                        .maxSize( 1 ) );
+                        .maxSize( 1 )
+                        .addInterceptor( new LowPriorityInterceptor() )
+                        .addInterceptor( new MainInterceptor() )
+                );
 
         InterceptorListener listener = new InterceptorListener();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
-            dataSource.setPoolInterceptors( asList( new LowPriorityInterceptor(), new MainInterceptor() ) );
-
             try ( Connection c = dataSource.getConnection() ) {
                 assertSchema( "during", c );
             }
@@ -106,14 +106,14 @@ public class InterceptorTests {
     @Test
     @DisplayName( "Pool interceptor test" )
     void poolInterceptorTest() throws SQLException {
+        InvocationCountInterceptor countInterceptor = new InvocationCountInterceptor();
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .connectionPoolConfiguration( cp -> cp
-                        .maxSize( 1 ) );
+                        .maxSize( 1 )
+                        .addInterceptor( countInterceptor )
+                );
 
-        InvocationCountInterceptor countInterceptor = new InvocationCountInterceptor();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
-            dataSource.setPoolInterceptors( of( countInterceptor ) );
-
             assertEquals( 0, countInterceptor.created, "Expected connection not created" );
             assertEquals( 0, countInterceptor.acquired, "Expected connection not acquired" );
 
@@ -135,15 +135,15 @@ public class InterceptorTests {
     @Test
     @DisplayName( "Poolless interceptor test" )
     void poollessInterceptorTest() throws SQLException {
+        InvocationCountInterceptor countInterceptor = new InvocationCountInterceptor();
         AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
                 .dataSourceImplementation( AGROAL_POOLLESS )
                 .connectionPoolConfiguration( cp -> cp
-                        .maxSize( 1 ) );
+                        .maxSize( 1 )
+                        .addInterceptor( countInterceptor )
+                );
 
-        InvocationCountInterceptor countInterceptor = new InvocationCountInterceptor();
         try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
-            dataSource.setPoolInterceptors( of( countInterceptor ) );
-
             assertEquals( 0, countInterceptor.created, "Expected connection not created" );
             assertEquals( 0, countInterceptor.acquired, "Expected connection not acquired" );
 
