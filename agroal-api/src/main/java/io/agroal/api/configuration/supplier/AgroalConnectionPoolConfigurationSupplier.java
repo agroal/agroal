@@ -3,6 +3,7 @@
 
 package io.agroal.api.configuration.supplier;
 
+import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.cache.ConnectionCache;
 import io.agroal.api.cache.LocalConnectionCache;
 import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
@@ -12,6 +13,8 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.Transaction
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -53,6 +56,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     Duration reapTimeout = ZERO;
     Duration maxLifetime = ZERO;
     volatile Duration acquisitionTimeout = ZERO;
+    Collection<AgroalPoolInterceptor> interceptors = new ArrayList<>();
 
     private volatile boolean lock;
 
@@ -89,6 +93,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         reapTimeout = existingConfiguration.reapTimeout();
         maxLifetime = existingConfiguration.maxLifetime();
         acquisitionTimeout = existingConfiguration.acquisitionTimeout();
+        interceptors = existingConfiguration.interceptors();
     }
 
     private void checkLock() {
@@ -332,6 +337,12 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         return this;
     }
 
+    public AgroalConnectionPoolConfigurationSupplier addInterceptor(AgroalPoolInterceptor poolInterceptor) {
+        checkLock();
+        interceptors.add(poolInterceptor);
+        return this;
+    }
+
     // --- //
 
     private void validate() {
@@ -529,6 +540,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public Duration maxLifetime() {
                 return maxLifetime;
+            }
+
+            @Override
+            public Collection<AgroalPoolInterceptor> interceptors() {
+                return interceptors;
             }
         };
     }

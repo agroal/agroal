@@ -4,6 +4,7 @@
 package io.agroal.test.springframework;
 
 import dev.snowdrop.boot.narayana.autoconfigure.NarayanaAutoConfiguration;
+import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.api.security.NamePrincipal;
@@ -277,6 +278,22 @@ class AgroalDataSourceConfigurationTests {
                 .hasMessageContaining("AutoConfigure cycle detected");
     }
 
+    @DisplayName("Any beans of type AgroalPoolInterceptor will be added to the DataSource in order")
+    @Test
+    void testAgroalPoolInterceptors() {
+        AgroalPoolInterceptor lowPriorityInterceptor = new LowPriorityAgroalPoolInterceptor();
+        AgroalPoolInterceptor mediumPriorityInterceptor = new MediumPriorityAgroalPoolInterceptor();
+        AgroalPoolInterceptor highPriorityInterceptor = new HighPriorityAgroalPoolInterceptor();
+        runner
+                .withBean("lowPriorityInterceptor", AgroalPoolInterceptor.class, () -> lowPriorityInterceptor)
+                .withBean("highPriorityInterceptor", AgroalPoolInterceptor.class, () -> highPriorityInterceptor)
+                .withBean("mediumPriorityInterceptor", AgroalPoolInterceptor.class, () -> mediumPriorityInterceptor)
+                .run(context -> {
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+                    assertThat(dataSource.getPoolInterceptors()).containsExactly(highPriorityInterceptor, mediumPriorityInterceptor, lowPriorityInterceptor);
+                });
+    }
+
     @AutoConfiguration(after = DataSourceAutoConfiguration.class, before = AgroalDataSourceAutoConfiguration.class)
     private static class WrongOrderForcingAutoConfiguration {
 
@@ -317,6 +334,27 @@ class AgroalDataSourceConfigurationTests {
         }
 
         public void setPoison(boolean ignore) {
+        }
+    }
+
+    private static class HighPriorityAgroalPoolInterceptor implements AgroalPoolInterceptor {
+        @Override
+        public int getPriority() {
+            return 0;
+        }
+    }
+
+    private static class MediumPriorityAgroalPoolInterceptor implements AgroalPoolInterceptor {
+        @Override
+        public int getPriority() {
+            return Integer.MAX_VALUE / 2;
+        }
+    }
+
+    private static class LowPriorityAgroalPoolInterceptor implements AgroalPoolInterceptor {
+        @Override
+        public int getPriority() {
+            return Integer.MAX_VALUE;
         }
     }
 }
