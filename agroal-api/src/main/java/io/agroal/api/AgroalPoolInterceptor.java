@@ -16,7 +16,7 @@ import java.util.Comparator;
  *
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
-public interface AgroalPoolInterceptor {
+public interface  AgroalPoolInterceptor {
 
     /**
      * Uses interceptor priority, followed by {@link Class#getName()} to ensure a consistent ordering.

@@ -98,6 +98,8 @@ public final class Poolless implements Pool {
         allConnections = new StampedCopyOnWriteArrayList<>( ConnectionHandler.class );
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
         transactionIntegration = configuration.transactionIntegration();
+
+        setPoolInterceptors(configuration.interceptors());
     }
 
     private TransactionIntegration.ResourceRecoveryFactory getResourceRecoveryFactory() {
