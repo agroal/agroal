@@ -24,7 +24,7 @@ public interface AgroalConnectionFactoryConfiguration {
     boolean autoCommit();
 
     /**
-     * If pooled connections are kept in read-only state, according to {@link java.sql.Connection#setReadOnly(boolean)}}. The JDBC driver is responsible for enforcing.
+     * If pooled connections are kept in read-only state, according to {@link java.sql.Connection#setReadOnly(boolean)}. The JDBC driver is responsible for enforcing.
      */
     boolean readOnly();
 
@@ -37,6 +37,11 @@ public interface AgroalConnectionFactoryConfiguration {
      * Maximum time to wait while attempting to connect to a database. Resolution in seconds.
      */
     Duration loginTimeout();
+
+    /**
+     * Maximum time to wait while performing database calls, according to {@link java.sql.Connection#setNetworkTimeout(java.util.concurrent.Executor, int)}. Resolution in milliseconds.
+     */
+    Duration networkTimeout();
 
     /**
      * The database URL to connect to.

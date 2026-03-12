@@ -235,6 +235,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionFactoryConfiguration.credential( new SimplePassword( password ) );
     }
 
+    public void setNetworkTimeout(int networkTimeout) {
+        connectionFactoryConfiguration.networkTimeout( Duration.ofSeconds( networkTimeout ) );
+    }
+
     public void setInitialSql(String initialSql) {
         connectionFactoryConfiguration.initialSql( initialSql );
     }
