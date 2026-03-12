@@ -30,6 +30,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.agroal.test.AgroalTestGroup.SPRING;
@@ -232,6 +233,50 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
 				});
 	}
 
+	@DisplayName("Health indicator does not query metadata when datasource is unhealthy")
+	@Test
+	void testHealthCheckWithoutJdbcUrlWhenUnhealthy() {
+		final AgroalDataSource ds = createAgroalDataSourceWithoutJdbcUrl();
+		final HealthStatusAndCountingDataSource countingDataSource = new HealthStatusAndCountingDataSource(ds, false);
+
+		final AgroalDataSourceHealthIndicator healthIndicator = new AgroalDataSourceHealthIndicator(
+				countingDataSource.getDataSource());
+
+		final Health health = healthIndicator.health(true);
+
+		assertThat(health.getStatus()).isEqualTo(Status.DOWN);
+		assertThat(countingDataSource.getDatabaseProductNameLookups()).isZero();
+
+		ds.close();
+	}
+
+	@DisplayName("Health indicator retries metadata lookup after recovery and caches database product name")
+	@Test
+	void testHealthCheckWithoutJdbcUrlRecoversAndCachesDatabaseName() {
+		final AgroalDataSource ds = createAgroalDataSourceWithoutJdbcUrl();
+		final HealthStatusAndCountingDataSource countingDataSource = new HealthStatusAndCountingDataSource(ds, false);
+		final AgroalDataSourceHealthIndicator healthIndicator = new AgroalDataSourceHealthIndicator(
+				countingDataSource.getDataSource());
+
+		final Health firstHealth = healthIndicator.health(true);
+		assertThat(firstHealth.getStatus()).isEqualTo(Status.DOWN);
+		assertThat(countingDataSource.getDatabaseProductNameLookups()).isZero();
+
+		countingDataSource.setHealthStatus(true);
+
+		final Health secondHealth = healthIndicator.health(true);
+		assertThat(secondHealth.getStatus()).isEqualTo(Status.UP);
+		assertThat(secondHealth.getDetails().get("database").toString()).isEqualTo("H2");
+		assertThat(countingDataSource.getDatabaseProductNameLookups()).isEqualTo(1);
+
+		final Health thirdHealth = healthIndicator.health(true);
+		assertThat(thirdHealth.getStatus()).isEqualTo(Status.UP);
+		assertThat(thirdHealth.getDetails().get("database").toString()).isEqualTo("H2");
+		assertThat(countingDataSource.getDatabaseProductNameLookups()).isEqualTo(1);
+
+		ds.close();
+	}
+
 	private static AgroalDataSource createAgroalDataSourceWithoutJdbcUrl() {
 		final AgroalDataSource dataSource = createAgroalDataSourceBeanWithoutJdbcUrl();
 		try {
@@ -307,6 +352,62 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
 
 		private int getMetadataCalls() {
 			return this.metadataCalls.get();
+		}
+	}
+
+	private static final class HealthStatusAndCountingDataSource {
+		private final AtomicInteger databaseProductNameLookups = new AtomicInteger();
+		private final AtomicBoolean healthStatus;
+		private final io.agroal.api.AgroalDataSource dataSource;
+
+		private HealthStatusAndCountingDataSource(io.agroal.api.AgroalDataSource targetDataSource, boolean healthStatus) {
+			this.healthStatus = new AtomicBoolean(healthStatus);
+			this.dataSource = (io.agroal.api.AgroalDataSource) Proxy.newProxyInstance(
+					io.agroal.api.AgroalDataSource.class.getClassLoader(),
+					new Class[]{io.agroal.api.AgroalDataSource.class}, (proxy, method, args) -> {
+						if ("getConnection".equals(method.getName())) {
+							final Connection connection = (Connection) ReflectionUtils.invokeMethod(method,
+									targetDataSource, args);
+							return this.wrap(connection);
+						}
+						if ("isHealthy".equals(method.getName())) {
+							return this.healthStatus.get();
+						}
+						return ReflectionUtils.invokeMethod(method, targetDataSource, args);
+					});
+		}
+
+		private void setHealthStatus(boolean healthy) {
+			this.healthStatus.set(healthy);
+		}
+
+		private io.agroal.api.AgroalDataSource getDataSource() {
+			return this.dataSource;
+		}
+
+		private Connection wrap(Connection delegate) {
+			return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class[]{Connection.class},
+					(proxy, method, args) -> {
+						if ("getMetaData".equals(method.getName()) && method.getParameterCount() == 0) {
+							final DatabaseMetaData metadata = delegate.getMetaData();
+							return this.wrap(metadata);
+						}
+						return ReflectionUtils.invokeMethod(method, delegate, args);
+					});
+		}
+
+		private DatabaseMetaData wrap(DatabaseMetaData delegate) {
+			return (DatabaseMetaData) Proxy.newProxyInstance(DatabaseMetaData.class.getClassLoader(),
+					new Class[]{DatabaseMetaData.class}, (proxy, method, args) -> {
+						if ("getDatabaseProductName".equals(method.getName()) && method.getParameterCount() == 0) {
+							this.databaseProductNameLookups.incrementAndGet();
+						}
+						return ReflectionUtils.invokeMethod(method, delegate, args);
+					});
+		}
+
+		private int getDatabaseProductNameLookups() {
+			return this.databaseProductNameLookups.get();
 		}
 	}
 }
