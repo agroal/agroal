@@ -164,8 +164,7 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
 	@DisplayName("Health indicator caches database product name - only queries once")
 	@Test
 	void testHealthCheckDatabaseNameCaching() throws Exception {
-		final AgroalDataSource ds = createAgroalDataSourceWithoutJdbcUrl(
-				"jdbc:h2:mem:cachingtest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false");
+		final AgroalDataSource ds = createAgroalDataSourceWithoutJdbcUrl();
 		final CountingDatabaseProductNameDataSource countingDataSource = new CountingDatabaseProductNameDataSource(ds);
 
 		final AgroalDataSourceHealthIndicator healthIndicator = new AgroalDataSourceHealthIndicator(
@@ -215,8 +214,7 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
 	@DisplayName("Health indicator works with datasource configured WITHOUT jdbc-url (DB2-style with properties)")
 	@Test
 	void testHealthCheckWithoutJdbcUrl() {
-		this.runner.withBean("dataSource", AgroalDataSource.class, () -> createAgroalDataSourceBeanWithoutJdbcUrl(
-				"jdbc:h2:mem:nojdbcurl;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false")).run(context -> {
+		this.runner.withBean("dataSource", AgroalDataSource.class, AgroalDataSourceHealthContributorAutoConfigurationTests::createAgroalDataSourceBeanWithoutJdbcUrl).run(context -> {
 					assertThat(context).hasSingleBean(AgroalDataSourceHealthIndicator.class);
 
 					final AgroalDataSourceHealthIndicator healthIndicator = context
@@ -234,8 +232,8 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
 				});
 	}
 
-	private static AgroalDataSource createAgroalDataSourceWithoutJdbcUrl(String jdbcUrl) {
-		final AgroalDataSource dataSource = createAgroalDataSourceBeanWithoutJdbcUrl(jdbcUrl);
+	private static AgroalDataSource createAgroalDataSourceWithoutJdbcUrl() {
+		final AgroalDataSource dataSource = createAgroalDataSourceBeanWithoutJdbcUrl();
 		try {
 			dataSource.afterPropertiesSet();
 			return dataSource;
@@ -244,11 +242,11 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
 		}
 	}
 
-	private static AgroalDataSource createAgroalDataSourceBeanWithoutJdbcUrl(String jdbcUrl) {
+	private static AgroalDataSource createAgroalDataSourceBeanWithoutJdbcUrl() {
 		final AgroalDataSource dataSource = new AgroalDataSource();
 		dataSource.setDriverClass(JdbcDataSource.class);
 		dataSource.setUsername("sa");
-		dataSource.setJdbcProperties(Map.of("url", jdbcUrl));
+		dataSource.setJdbcProperties(Map.of("URL", "jdbc:h2:mem:withoutjdbcurl;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false"));
 		return dataSource;
 	}
 
