@@ -18,6 +18,8 @@ public class AgroalDataSourceHealthIndicator extends AbstractHealthIndicator {
 
     private final AgroalDataSource dataSource;
 
+    private final Object databaseProductNameLock = new Object();
+
     private volatile String cachedDatabaseProductName;
 
     public AgroalDataSourceHealthIndicator( AgroalDataSource dataSource ) {
@@ -62,18 +64,22 @@ public class AgroalDataSourceHealthIndicator extends AbstractHealthIndicator {
      * @return the database product name, or null if it cannot be determined or pool is unhealthy
      */
     private String getDatabaseProductName( final boolean isHealthy ) {
-        // Only attempt metadata lookup if we haven't succeeded yet AND health is UP
-        if ( this.cachedDatabaseProductName == null && isHealthy ) {
-            synchronized ( this ) {
-                if ( this.cachedDatabaseProductName == null && isHealthy ) {
-                    try ( final Connection connection = this.dataSource.getConnection() ) {
-                        this.cachedDatabaseProductName = connection.getMetaData().getDatabaseProductName();
-                    } catch ( final Exception e ) {
-                        // Do not cache failure state; retry will occur naturally on next UP health check
-                    }
+        String productName = this.cachedDatabaseProductName;
+        if ( productName != null || !isHealthy ) {
+            return productName;
+        }
+
+        synchronized ( this.databaseProductNameLock ) {
+            productName = this.cachedDatabaseProductName;
+            if ( productName == null ) {
+                try ( final Connection connection = this.dataSource.getConnection() ) {
+                    productName = connection.getMetaData().getDatabaseProductName();
+                    this.cachedDatabaseProductName = productName;
+                } catch ( final Exception e ) {
+                    // Do not cache failure state; retry will occur naturally on next UP health check
                 }
             }
         }
-        return this.cachedDatabaseProductName;
+        return productName;
     }
 }
