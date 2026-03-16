@@ -24,6 +24,7 @@ import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase
 import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_COMPLETING;
 import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_NONE;
 import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_ROLLED_BACK;
+import static io.agroal.narayana.NarayanaTransactionIntegration.TransactionPhase.TRANSACTION_ROLLING_BACK;
 import static jakarta.transaction.Status.*;
 
 /**
@@ -81,13 +82,30 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         this.recoveryRegistry = recoveryRegistry;
     }
 
+    /**
+     * Returns the {@link TransactionAware} resource associated with the current transaction, if any.
+     * <ul>
+     *     <li>If the transaction is {@code TRANSACTION_ACTIVE}, returns the previously associated {@link TransactionAware}
+     *         (may be {@code null} if no resource has been associated yet).</li>
+     *     <li>If the transaction is {@code TRANSACTION_ROLLING_BACK} or {@code TRANSACTION_ROLLED_BACK}, throws {@link SQLException}
+     *         to prevent handing out a non-enlisted connection during or after rollback.</li>
+     *     <li>For all other states ({@code TRANSACTION_COMMITED}, {@code TRANSACTION_NONE}, {@code TRANSACTION_COMPLETING}), returns {@code null}
+     *         so that the pool can provide a fresh connection outside the scope of a transaction.
+     *         In particular, {@code TRANSACTION_COMMITED} must not throw because {@code JDBCStore} acquires connections
+     *         in that state.</li>
+     * </ul>
+     *
+     * @return the {@link TransactionAware} enlisted in the active transaction, or {@code null} if there is
+     *         no active transaction or no resource has been associated yet
+     * @throws SQLException if the transaction has rolled back or is currently rolling back
+     */
     @Override
     public TransactionAware getTransactionAware() throws SQLException {
         TransactionPhase phase = getTransactionPhase();
         if ( phase == TRANSACTION_ACTIVE ) {
             return (TransactionAware) transactionSynchronizationRegistry.getResource( key );
-        } else if ( phase == TRANSACTION_ROLLED_BACK ) {
-            throw new SQLException( "The transaction has rolled back" );
+        } else if ( phase == TRANSACTION_ROLLED_BACK || phase == TRANSACTION_ROLLING_BACK ) {
+            throw new SQLException( "Failing fast as the transaction has rolled back" );
         }
         // Don't throw on TRANSACTION_COMMITED because if JDBCStore is used it will try to acquire a connection in that state
         return null;
@@ -97,7 +115,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     public enum TransactionPhase {
         // these states are a coarser version of the transaction states
-        TRANSACTION_NONE, TRANSACTION_ACTIVE, TRANSACTION_COMPLETING, TRANSACTION_COMMITED, TRANSACTION_ROLLED_BACK
+        TRANSACTION_NONE, TRANSACTION_ACTIVE, TRANSACTION_COMPLETING, TRANSACTION_COMMITED, TRANSACTION_ROLLED_BACK, TRANSACTION_ROLLING_BACK
     }
 
     private XAResource createXaResource(TransactionAware transactionAware, XAResource xaResource) {
@@ -118,6 +136,9 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     public void associate(TransactionAware transactionAware, XAResource xaResource) throws SQLException {
         try {
             TransactionPhase phase = getTransactionPhase();
+            if ( phase == TRANSACTION_ROLLED_BACK || phase == TRANSACTION_ROLLING_BACK ) {
+                throw new SQLException( "The transaction has been rolled back" );
+            }
             if ( phase == TRANSACTION_ACTIVE ) {
                 if ( transactionSynchronizationRegistry.getResource( key ) == null ) {
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
@@ -146,7 +167,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     private boolean transactionRunning() throws SQLException {
         TransactionPhase phase = getTransactionPhase();
-        return phase == TRANSACTION_ACTIVE || phase == TRANSACTION_COMPLETING;
+        return phase == TRANSACTION_ACTIVE || phase == TRANSACTION_COMPLETING || phase == TRANSACTION_ROLLING_BACK;
     }
 
     private TransactionPhase getTransactionPhase() throws SQLException {
@@ -154,7 +175,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
             Transaction transaction = transactionManager.getTransaction();
             if ( transaction == null ) {
                 // AG-183 - Report running transaction when reaper thread attempts rollback
-                return TxUtils.isTransactionManagerTimeoutThread() ? TRANSACTION_COMPLETING : TRANSACTION_NONE;
+                return TxUtils.isTransactionManagerTimeoutThread() ? TRANSACTION_ROLLING_BACK : TRANSACTION_NONE;
             }
             switch ( transaction.getStatus() ) {
                 case STATUS_ACTIVE:
@@ -163,14 +184,13 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                 case STATUS_PREPARING:
                 case STATUS_PREPARED:
                 case STATUS_COMMITTING:
-                case STATUS_ROLLING_BACK:
                     return TRANSACTION_COMPLETING;
                 case STATUS_COMMITTED:
                     return TRANSACTION_COMMITED;
+                case STATUS_ROLLING_BACK:
+                    return TRANSACTION_ROLLING_BACK;
                 case STATUS_ROLLEDBACK:
                     return TRANSACTION_ROLLED_BACK;
-                case STATUS_UNKNOWN:
-                case STATUS_NO_TRANSACTION:
                 default:
                     return TRANSACTION_NONE;
             }
