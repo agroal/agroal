@@ -136,6 +136,9 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
     public void associate(TransactionAware transactionAware, XAResource xaResource) throws SQLException {
         try {
             TransactionPhase phase = getTransactionPhase();
+            if ( phase == TRANSACTION_ROLLED_BACK || phase == TRANSACTION_ROLLING_BACK ) {
+                throw new SQLException( "The transaction has been rolled back" );
+            }
             if ( phase == TRANSACTION_ACTIVE ) {
                 if ( transactionSynchronizationRegistry.getResource( key ) == null ) {
                     transactionSynchronizationRegistry.registerInterposedSynchronization( new InterposedSynchronization( transactionAware ) );
@@ -148,7 +151,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
                 }
             }
             // AG-209 - if a transaction is completing, ensure that the transaction state does not change
-            transactionAware.transactionCheckCallback( phase == TRANSACTION_COMPLETING || phase == TRANSACTION_ROLLING_BACK ? getChangeStateCallback() : this::transactionRunning );
+            transactionAware.transactionCheckCallback( phase == TRANSACTION_COMPLETING ? getChangeStateCallback() : this::transactionRunning );
         } catch ( Exception e ) {
             throw new SQLException( "Exception in association of connection to existing transaction", e );
         }
