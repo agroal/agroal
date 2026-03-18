@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.HOLDABILITY;
@@ -80,7 +81,10 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     private long lastAccess;
 
     // flag to indicate that this the connection is enlisted to a transaction
-    private boolean enlisted;
+    private volatile boolean enlisted;
+
+    // lock to prevent XA state transitions (start/end) from racing with in-flight SQL statement execution
+    private final ReentrantReadWriteLock xaStatementLock = new ReentrantReadWriteLock( true );
 
     // the default value for isolation level and connection holdability
     private final int defaultIsolationLevel;
@@ -382,6 +386,31 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     public boolean isEnlisted() {
         return enlisted;
+    }
+
+    /**
+     * Acquire shared lock for the duration of a statement execution.
+     * This prevents xa_end() from racing with in-flight SQL statements.
+     */
+    public void lockForStatement() {
+        xaStatementLock.readLock().lock();
+    }
+
+    /**
+     * Release shared lock after a statement execution completes.
+     */
+    public void unlockFromStatement() {
+        xaStatementLock.readLock().unlock();
+    }
+
+    @Override
+    public void lockForXATransition() {
+        xaStatementLock.writeLock().lock();
+    }
+
+    @Override
+    public void unlockFromXATransition() {
+        xaStatementLock.writeLock().unlock();
     }
 
     // --- TransactionAware //

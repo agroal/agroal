@@ -56,6 +56,19 @@ public interface TransactionAware {
      */
     void setFlushOnly();
 
+    /**
+     * Acquire an exclusive lock before XA state transitions (start/end).
+     * This prevents SQL statement execution from racing with xa_start/xa_end on the wire.
+     */
+    default void lockForXATransition() {
+    }
+
+    /**
+     * Release the exclusive lock after XA state transitions.
+     */
+    default void unlockFromXATransition() {
+    }
+
     // --- //
 
     /**

@@ -82,6 +82,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -93,6 +95,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -104,6 +108,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -115,6 +121,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -126,6 +134,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -137,6 +147,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -148,6 +160,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -159,6 +173,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -170,6 +186,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -181,6 +199,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -192,6 +212,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -203,6 +225,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -214,6 +238,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -225,6 +251,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -236,6 +264,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -247,6 +277,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -258,6 +290,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -270,6 +304,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -281,6 +317,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -292,6 +330,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -303,6 +343,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -314,6 +356,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -325,6 +369,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -336,6 +382,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -347,6 +395,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -358,6 +408,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -369,6 +421,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -380,6 +434,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -391,6 +447,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -402,6 +460,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -413,6 +473,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -424,6 +486,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -435,6 +499,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -446,6 +512,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -457,6 +525,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -468,6 +538,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -479,6 +551,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -490,6 +564,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -501,6 +577,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -512,6 +590,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -523,6 +603,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -534,6 +616,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -545,6 +629,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -556,6 +642,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -567,6 +655,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -578,6 +668,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -589,6 +681,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -600,6 +694,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -611,6 +707,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -622,6 +720,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -633,6 +733,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -644,6 +746,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -655,6 +759,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -666,6 +772,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -677,6 +785,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -690,6 +800,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -701,6 +813,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -712,6 +826,8 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 }

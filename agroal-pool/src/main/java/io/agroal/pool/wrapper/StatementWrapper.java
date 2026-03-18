@@ -68,9 +68,14 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
     // --- //
 
     protected void verifyEnlistment() throws SQLException {
+        connection.getHandler().lockForStatement();
         if ( holdState ) {
             connection.verifyEnlistment();
         }
+    }
+
+    protected void releaseStatementLock() {
+        connection.getHandler().unlockFromStatement();
     }
 
     protected ResultSet trackResultSet(ResultSet resultSet) {
@@ -113,6 +118,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -124,6 +131,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -135,6 +144,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -146,6 +157,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -157,6 +170,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -168,6 +183,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -179,6 +196,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -190,6 +209,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -201,6 +222,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -212,6 +235,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -223,6 +248,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -234,6 +261,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -245,6 +274,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -256,6 +287,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -267,6 +300,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -278,6 +313,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -289,6 +326,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -300,6 +339,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -311,6 +352,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -322,6 +365,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -333,6 +378,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -344,6 +391,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -355,6 +404,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -366,6 +417,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -377,6 +430,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -394,6 +449,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -405,6 +462,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -416,6 +475,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -427,6 +488,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -438,6 +501,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -449,6 +514,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -460,6 +527,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -471,6 +540,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -482,6 +553,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -493,6 +566,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -504,6 +579,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -516,6 +593,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -527,6 +606,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -538,6 +619,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -561,6 +644,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -572,6 +657,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -583,6 +670,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -594,6 +683,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -605,6 +696,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -616,6 +709,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -627,6 +722,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 
@@ -638,6 +735,8 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            releaseStatementLock();
         }
     }
 

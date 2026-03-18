@@ -73,7 +73,12 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
     @Override
     public void end(Xid xid, int flags) throws XAException {
         handler.traceConnectionOperation( "xaResource.end()" );
-        wrappedXAResource.end( xid, flags );
+        handler.lockForXATransition();
+        try {
+            wrappedXAResource.end( xid, flags );
+        } finally {
+            handler.unlockFromXATransition();
+        }
     }
 
     @Override
@@ -121,6 +126,11 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
     @Override
     public void start(Xid xid, int flags) throws XAException {
         handler.traceConnectionOperation( "xaResource.start()" );
-        wrappedXAResource.start( xid, flags );
+        handler.lockForXATransition();
+        try {
+            wrappedXAResource.start( xid, flags );
+        } finally {
+            handler.unlockFromXATransition();
+        }
     }
 }

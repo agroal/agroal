@@ -44,11 +44,14 @@ public class LocalXAResource implements XAResourceWrapper, LastResource {
             if ( flags != TMNOFLAGS ) {
                 throw XAExceptionUtils.xaException( XAER_INVAL, "Starting resource with wrong flags" );
             }
+            transactionAware.lockForXATransition();
             try {
                 transactionAware.transactionStart();
             } catch ( Exception t ) {
                 transactionAware.setFlushOnly();
                 throw XAExceptionUtils.xaException( XAER_RMERR, "Error trying to start local transaction: ", t );
+            } finally {
+                transactionAware.unlockFromXATransition();
             }
             currentXid = xid;
         } else {
@@ -92,9 +95,14 @@ public class LocalXAResource implements XAResourceWrapper, LastResource {
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
-        if ( xid == null || !xid.equals( currentXid ) ) {
-            transactionAware.setFlushOnly();
-            throw XAExceptionUtils.xaException( XAER_NOTA, "Invalid xid to transactionEnd" );
+        transactionAware.lockForXATransition();
+        try {
+            if ( xid == null || !xid.equals( currentXid ) ) {
+                transactionAware.setFlushOnly();
+                throw XAExceptionUtils.xaException( XAER_NOTA, "Invalid xid to transactionEnd" );
+            }
+        } finally {
+            transactionAware.unlockFromXATransition();
         }
     }
 
