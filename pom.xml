@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.jboss</groupId>
         <artifactId>jboss-parent</artifactId>
-        <version>49</version>
+        <version>50</version>
     </parent>
     <groupId>io.agroal</groupId>
     <artifactId>agroal-parent</artifactId>
@@ -51,6 +51,8 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.parameters>true</maven.compiler.parameters>
+        <nexus.repository.release>agroal</nexus.repository.release>
+        <nexus.staging.tag>agroal-${project.version}</nexus.staging.tag>
         <!-- Dependency versions. Please keep alphabetical. Each version property should be of the form "version.<groupId>" -->
         <!-- In cases where multiple artifacts use the same groupId but have different versions, add the artifactId or other qualifier to the property name -->
         <version.com.github.h-thurow>0.25.0</version.com.github.h-thurow>
