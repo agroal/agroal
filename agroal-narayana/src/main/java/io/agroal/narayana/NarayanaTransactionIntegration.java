@@ -105,7 +105,7 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
         if ( phase == TRANSACTION_ACTIVE ) {
             return (TransactionAware) transactionSynchronizationRegistry.getResource( key );
         } else if ( phase == TRANSACTION_ROLLED_BACK || phase == TRANSACTION_ROLLING_BACK ) {
-            throw new SQLException( "The transaction has rolled back" );
+            throw new SQLException( "Failing fast as the transaction has rolled back" );
         }
         // Don't throw on TRANSACTION_COMMITED because if JDBCStore is used it will try to acquire a connection in that state
         return null;
