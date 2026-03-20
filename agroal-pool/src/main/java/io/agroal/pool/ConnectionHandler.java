@@ -477,11 +477,16 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     public void transactionEnd() throws SQLException {
         enlisted = false;
         if ( !isHeldOverCommit ) {
-            if ( enlistedOpenWrappers.closeAllAutocloseableElements() != 0 ) {
-                // should never happen, but it's here as a safeguard to prevent double returns in all cases.
-                fireOnWarning( connectionPool.getListeners(), "Closing open connection(s) on after completion" );
+            xaEndLock.writeLock().lock();
+            try {
+                if ( enlistedOpenWrappers.closeAllAutocloseableElements() != 0 ) {
+                    // should never happen, but it's here as a safeguard to prevent double returns in all cases.
+                    fireOnWarning( connectionPool.getListeners(), "Closing open connection(s) on after completion" );
+                }
+                connectionPool.returnConnectionHandler( this );
+            } finally {
+                xaEndLock.writeLock().unlock();
             }
-            connectionPool.returnConnectionHandler( this );
         }
     }
 
