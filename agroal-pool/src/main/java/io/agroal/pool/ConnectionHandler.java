@@ -543,11 +543,13 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
         @Override
         public void end(Xid xid, int flags) throws XAException {
-            xaEndLock.writeLock().lock();
+            boolean locked = xaEndLock.writeLock().tryLock();
             try {
                 delegate.end( xid, flags );
             } finally {
-                xaEndLock.writeLock().unlock();
+                if ( locked ) {
+                    xaEndLock.writeLock().unlock();
+                }
             }
         }
 
