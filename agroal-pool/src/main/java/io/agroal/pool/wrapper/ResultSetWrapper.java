@@ -62,6 +62,9 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
 
     private final StatementWrapper statement;
 
+    // tracks whether the connection was enlisted when the current operation began
+    private boolean wasEnlisted;
+
     private ResultSet wrappedResultSet;
 
     public ResultSetWrapper(StatementWrapper statementWrapper, ResultSet resultSet, AutoCloseableElement<ResultSetWrapper> head, boolean defaultHold) {
@@ -76,14 +79,20 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
      */
     private void beginOperation() throws SQLException {
         statement.getConnectionWrapper().getHandler().readLock();
+        wasEnlisted = statement.connection.getHandler().isEnlisted();
         statement.verifyEnlistment();
     }
 
     /**
      * Releases the read lock after a result set operation completes.
+     * If the connection was enlisted when the operation began but is no longer enlisted,
+     * the transaction was completed during the operation and the result is unreliable.
      */
-    private void endOperation() {
+    private void endOperation() throws SQLException {
         statement.connection.getHandler().readUnlock();
+        if ( wasEnlisted && !statement.connection.getHandler().isEnlisted() ) {
+            throw new SQLException( "Connection operation on a transaction that has been completed" );
+        }
     }
     
     @Override
@@ -1212,6 +1221,32 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
     }
 
     @Override
+    public void updateObject(String columnLabel, Object x, int scaleOrLength) throws SQLException {
+        try {
+            beginOperation();
+            wrappedResultSet.updateObject( columnLabel, x, scaleOrLength );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        } finally {
+            endOperation();
+        }
+    }
+
+    @Override
+    public void updateObject(String columnLabel, Object x) throws SQLException {
+        try {
+            beginOperation();
+            wrappedResultSet.updateObject( columnLabel, x );
+        } catch ( SQLException se ) {
+            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            throw se;
+        } finally {
+            endOperation();
+        }
+    }
+
+    @Override
     public void updateNull(String columnLabel) throws SQLException {
         try {
             beginOperation();
@@ -1424,32 +1459,6 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
         try {
             beginOperation();
             wrappedResultSet.updateCharacterStream( columnLabel, reader, length );
-        } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
-            throw se;
-        } finally {
-            endOperation();
-        }
-    }
-
-    @Override
-    public void updateObject(String columnLabel, Object x, int scaleOrLength) throws SQLException {
-        try {
-            beginOperation();
-            wrappedResultSet.updateObject( columnLabel, x, scaleOrLength );
-        } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
-            throw se;
-        } finally {
-            endOperation();
-        }
-    }
-
-    @Override
-    public void updateObject(String columnLabel, Object x) throws SQLException {
-        try {
-            beginOperation();
-            wrappedResultSet.updateObject( columnLabel, x );
         } catch ( SQLException se ) {
             statement.getConnectionWrapper().getHandler().setFlushOnly( se );
             throw se;

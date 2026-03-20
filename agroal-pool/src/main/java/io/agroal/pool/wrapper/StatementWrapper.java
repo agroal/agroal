@@ -55,6 +55,9 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
     // tracks the state of closeOnCompletion
     private boolean closeOnCompletionState;
 
+    // tracks whether the connection was enlisted when the current operation began
+    private boolean wasEnlisted;
+
     private Statement wrappedStatement;
 
     public StatementWrapper(ConnectionWrapper connectionWrapper, Statement statement, boolean trackResources, AutoCloseableElement<StatementWrapper> head, boolean defaultHold) {
@@ -79,6 +82,7 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
      */
     protected void beginOperation() throws SQLException {
         connection.getHandler().readLock();
+        wasEnlisted = connection.getHandler().isEnlisted();
         if ( holdState ) {
             connection.verifyEnlistment();
         }
@@ -86,9 +90,14 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
 
     /**
      * Releases the read lock after a statement operation completes.
+     * If the connection was enlisted when the operation began but is no longer enlisted,
+     * the transaction was completed during the operation and the result is unreliable.
      */
-    protected void endOperation() {
+    protected void endOperation() throws SQLException {
         connection.getHandler().readUnlock();
+        if ( wasEnlisted && !connection.getHandler().isEnlisted() ) {
+            throw new SQLException( "Connection operation on a transaction that has been completed" );
+        }
     }
 
     protected ResultSet trackResultSet(ResultSet resultSet) {
