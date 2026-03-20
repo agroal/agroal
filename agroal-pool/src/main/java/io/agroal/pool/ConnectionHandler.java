@@ -12,7 +12,9 @@ import io.agroal.pool.wrapper.ConnectionWrapper;
 import io.agroal.pool.wrapper.XAConnectionWrapper;
 
 import javax.sql.XAConnection;
+import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.HOLDABILITY;
@@ -54,6 +57,12 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     // Single XAResource reference from xaConnection.getXAResource(). Can be null for no XA datasources.
     private final XAResource xaResource;
+
+    // XAResource wrapper that acquires write lock on end() to synchronize with in-flight statement operations
+    private final XAResource lockingXaResource;
+
+    // Lock to synchronize statement operations (read) with xaResource.end() (write)
+    private final ReentrantReadWriteLock xaEndLock = new ReentrantReadWriteLock();
 
     private final Pool connectionPool;
 
@@ -101,6 +110,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         xaConnection = xa;
         connection = xaConnection.getConnection();
         xaResource = xaConnection.getXAResource();
+        lockingXaResource = xaResource != null ? new LockingXAResource( xaResource ) : null;
 
         connectionPool = pool;
         defaultIsolationLevel = isolationLevel;
@@ -139,7 +149,21 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     public XAResource getXaResource() {
-        return xaResource;
+        return lockingXaResource != null ? lockingXaResource : xaResource;
+    }
+
+    /**
+     * Acquires the read lock to prevent xaResource.end() from executing while a statement operation is in-flight.
+     */
+    public void readLock() {
+        xaEndLock.readLock().lock();
+    }
+
+    /**
+     * Releases the read lock after a statement operation completes.
+     */
+    public void readUnlock() {
+        xaEndLock.readLock().unlock();
     }
 
     @SuppressWarnings( "MagicConstant" )
@@ -471,7 +495,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
             if ( !enlisted ) {
                 if ( isHeldOverCommit ) {
                     // AG-279 Hack: if was held over commit re-attach to a new tx
-                    connectionPool.getConfiguration().transactionIntegration().associate( this, xaResource );
+                    connectionPool.getConfiguration().transactionIntegration().associate( this, getXaResource() );
                     isHeldOverCommit = false;
                     touch();
                 } else {
@@ -503,6 +527,76 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     // --- //
+
+    /**
+     * XAResource wrapper that acquires the write lock on end(), preventing it from executing
+     * while any statement operation holds the read lock. This ensures that xaResource.end()
+     * waits for in-flight statement operations to complete before dissociating the XA branch.
+     */
+    private class LockingXAResource implements XAResource {
+
+        private final XAResource delegate;
+
+        LockingXAResource(XAResource delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void end(Xid xid, int flags) throws XAException {
+            xaEndLock.writeLock().lock();
+            try {
+                delegate.end( xid, flags );
+            } finally {
+                xaEndLock.writeLock().unlock();
+            }
+        }
+
+        @Override
+        public void start(Xid xid, int flags) throws XAException {
+            delegate.start( xid, flags );
+        }
+
+        @Override
+        public void commit(Xid xid, boolean onePhase) throws XAException {
+            delegate.commit( xid, onePhase );
+        }
+
+        @Override
+        public void rollback(Xid xid) throws XAException {
+            delegate.rollback( xid );
+        }
+
+        @Override
+        public int prepare(Xid xid) throws XAException {
+            return delegate.prepare( xid );
+        }
+
+        @Override
+        public void forget(Xid xid) throws XAException {
+            delegate.forget( xid );
+        }
+
+        @Override
+        public Xid[] recover(int flag) throws XAException {
+            return delegate.recover( flag );
+        }
+
+        @Override
+        public boolean isSameRM(XAResource xaRes) throws XAException {
+            XAResource other = xaRes instanceof LockingXAResource lr ? lr.delegate : xaRes;
+            return delegate.isSameRM( other );
+        }
+
+        @Override
+        public int getTransactionTimeout() throws XAException {
+            return delegate.getTransactionTimeout();
+        }
+
+        @Override
+        public boolean setTransactionTimeout(int seconds) throws XAException {
+            return delegate.setTransactionTimeout( seconds );
+        }
+    }
 
     private enum State {
         NEW, CHECKED_IN, CHECKED_OUT, VALIDATION, FLUSH, DESTROYED
