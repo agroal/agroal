@@ -55,11 +55,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     // Single Connection reference from xaConnection.getConnection()
     private final Connection connection;
 
-    // Single XAResource reference from xaConnection.getXAResource(). Can be null for no XA datasources.
+    // XAResource wrapper that synchronizes end() with in-flight statement operations. Null for non-XA datasources.
     private final XAResource xaResource;
 
-    // XAResource wrapper that acquires write lock on end() to synchronize with in-flight statement operations
-    private final XAResource lockingXaResource;
 
     // Lock to synchronize statement operations (read) with xaResource.end() (write)
     private final ReentrantReadWriteLock xaEndLock = new ReentrantReadWriteLock();
@@ -109,8 +107,8 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     public ConnectionHandler(XAConnection xa, Pool pool, int isolationLevel, int holdability) throws SQLException {
         xaConnection = xa;
         connection = xaConnection.getConnection();
-        xaResource = xaConnection.getXAResource();
-        lockingXaResource = xaResource != null ? new LockingXAResource( xaResource ) : null;
+        XAResource rawXaResource = xaConnection.getXAResource();
+        xaResource = rawXaResource != null ? new LockingXAResource( rawXaResource ) : null;
 
         connectionPool = pool;
         defaultIsolationLevel = isolationLevel;
@@ -149,7 +147,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     public XAResource getXaResource() {
-        return lockingXaResource != null ? lockingXaResource : xaResource;
+        return xaResource;
     }
 
     /**
