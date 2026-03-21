@@ -154,16 +154,22 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     /**
      * Acquires the read lock to prevent xaResource.end() from executing while a statement operation is in-flight.
+     * No-op for non-XA datasources where there is no XA branch to synchronize with.
      */
     public void readLock() {
-        xaEndLock.readLock().lock();
+        if ( xaResource != null ) {
+            xaEndLock.readLock().lock();
+        }
     }
 
     /**
      * Releases the read lock after a statement operation completes.
+     * No-op for non-XA datasources where there is no XA branch to synchronize with.
      */
     public void readUnlock() {
-        xaEndLock.readLock().unlock();
+        if ( xaResource != null ) {
+            xaEndLock.readLock().unlock();
+        }
     }
 
     @SuppressWarnings( "MagicConstant" )
