@@ -77,187 +77,221 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
     @Override
     public ResultSet executeQuery() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             return trackResultSet( wrappedStatement.executeQuery() );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public int executeUpdate() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             return wrappedStatement.executeUpdate();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNull( parameterIndex, sqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBoolean(int parameterIndex, boolean x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBoolean( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setByte(int parameterIndex, byte x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setByte( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setShort(int parameterIndex, short x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setShort( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setInt(int parameterIndex, int x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setInt( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setLong(int parameterIndex, long x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setLong( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setFloat(int parameterIndex, float x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setFloat( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setDouble(int parameterIndex, double x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setDouble( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBigDecimal( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setString(int parameterIndex, String x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setString( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBytes(int parameterIndex, byte[] x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBytes( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setDate(int parameterIndex, Date x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setDate( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setTime(int parameterIndex, Time x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setTime( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setTimestamp( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setAsciiStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
@@ -265,418 +299,494 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
     @SuppressWarnings( "deprecation" )
     public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setUnicodeStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBinaryStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void clearParameters() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.clearParameters();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setObject( parameterIndex, x, targetSqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setObject(int parameterIndex, Object x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setObject( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public boolean execute() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             return wrappedStatement.execute();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void addBatch() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.addBatch();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setCharacterStream( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setRef(int parameterIndex, Ref x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setRef( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBlob(int parameterIndex, Blob x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBlob( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setClob(int parameterIndex, Clob x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setClob( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setArray(int parameterIndex, Array x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setArray( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             return wrappedStatement.getMetaData();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setDate( parameterIndex, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setTime( parameterIndex, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setTimestamp( parameterIndex, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNull( parameterIndex, sqlType, typeName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setURL(int parameterIndex, URL x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setURL( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public ParameterMetaData getParameterMetaData() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             return wrappedStatement.getParameterMetaData();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setRowId(int parameterIndex, RowId x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setRowId( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNString(int parameterIndex, String value) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNString( parameterIndex, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNCharacterStream( parameterIndex, value, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNClob(int parameterIndex, NClob value) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNClob( parameterIndex, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setClob( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBlob( parameterIndex, inputStream, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNClob( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setSQLXML( parameterIndex, xmlObject );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setObject( parameterIndex, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setAsciiStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBinaryStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setCharacterStream( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setAsciiStream( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBinaryStream( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setCharacterStream( parameterIndex, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNCharacterStream( parameterIndex, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setClob(int parameterIndex, Reader reader) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setClob( parameterIndex, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setBlob( parameterIndex, inputStream );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setNClob(int parameterIndex, Reader reader) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setNClob( parameterIndex, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
@@ -685,33 +795,39 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
     @Override
     public void setObject(int parameterIndex, Object x, SQLType targetSqlType, int scaleOrLength) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setObject( parameterIndex, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public void setObject(int parameterIndex, Object x, SQLType targetSqlType) throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             wrappedStatement.setObject( parameterIndex, x, targetSqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 
     @Override
     public long executeLargeUpdate() throws SQLException {
         try {
-            verifyEnlistment();
+            beginOperation();
             return wrappedStatement.executeLargeUpdate();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            endOperation();
         }
     }
 }

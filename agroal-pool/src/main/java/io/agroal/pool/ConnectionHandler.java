@@ -12,7 +12,9 @@ import io.agroal.pool.wrapper.ConnectionWrapper;
 import io.agroal.pool.wrapper.XAConnectionWrapper;
 
 import javax.sql.XAConnection;
+import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.HOLDABILITY;
@@ -52,8 +55,12 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     // Single Connection reference from xaConnection.getConnection()
     private final Connection connection;
 
-    // Single XAResource reference from xaConnection.getXAResource(). Can be null for no XA datasources.
+    // XAResource wrapper that synchronizes end() with in-flight statement operations. Null for non-XA datasources.
     private final XAResource xaResource;
+
+
+    // Lock to synchronize statement operations (read) with xaResource.end() (write)
+    private final ReentrantReadWriteLock xaEndLock = new ReentrantReadWriteLock();
 
     private final Pool connectionPool;
 
@@ -100,7 +107,8 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     public ConnectionHandler(XAConnection xa, Pool pool, int isolationLevel, int holdability) throws SQLException {
         xaConnection = xa;
         connection = xaConnection.getConnection();
-        xaResource = xaConnection.getXAResource();
+        XAResource rawXaResource = xaConnection.getXAResource();
+        xaResource = rawXaResource != null ? new LockingXAResource( rawXaResource ) : null;
 
         connectionPool = pool;
         defaultIsolationLevel = isolationLevel;
@@ -140,6 +148,26 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     public XAResource getXaResource() {
         return xaResource;
+    }
+
+    /**
+     * Acquires the read lock to prevent xaResource.end() from executing while a statement operation is in-flight.
+     * No-op for non-XA datasources where there is no XA branch to synchronize with.
+     */
+    public void readLock() {
+        if ( xaResource != null ) {
+            xaEndLock.readLock().lock();
+        }
+    }
+
+    /**
+     * Releases the read lock after a statement operation completes.
+     * No-op for non-XA datasources where there is no XA branch to synchronize with.
+     */
+    public void readUnlock() {
+        if ( xaResource != null ) {
+            xaEndLock.readLock().unlock();
+        }
     }
 
     @SuppressWarnings( "MagicConstant" )
@@ -408,22 +436,27 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     @Override
     @SuppressWarnings( "StringConcatenation" )
     public void transactionBeforeCompletion(boolean successful) {
-        int closedResources;
-        if ( successful ) {
-            closedResources = enlistedOpenWrappers.closeNotHeldAutocloseableElements();
-            isHeldOverCommit = !enlistedOpenWrappers.isElementListEmpty();
-            if ( isHeldOverCommit && !connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() ) {
-                fireOnInfo( connectionPool.getListeners(), "Holding cursors over commit without tracking JDBC resources!" );
+        xaEndLock.writeLock().lock();
+        try {
+            int closedResources;
+            if ( successful ) {
+                closedResources = enlistedOpenWrappers.closeNotHeldAutocloseableElements();
+                isHeldOverCommit = !enlistedOpenWrappers.isElementListEmpty();
+                if ( isHeldOverCommit && !connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() ) {
+                    fireOnInfo( connectionPool.getListeners(), "Holding cursors over commit without tracking JDBC resources!" );
+                }
+            } else {
+                closedResources = enlistedOpenWrappers.closeAllAutocloseableElements();
+                isHeldOverCommit = false;
             }
-        } else {
-            closedResources = enlistedOpenWrappers.closeAllAutocloseableElements();
-            isHeldOverCommit = false;
-        }
-        if ( successful && closedResources > 0 ) {
-            fireOnWarning( connectionPool.getListeners(), "Closing " + closedResources + " open connection(s) prior to commit" );
-        } else {
-            // AG-168 - Close without warning as Synchronization.beforeCompletion is only invoked on success. See issue for more details.
-            // fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
+            if ( successful && closedResources > 0 ) {
+                fireOnWarning( connectionPool.getListeners(), "Closing " + closedResources + " open connection(s) prior to commit" );
+            } else {
+                // AG-168 - Close without warning as Synchronization.beforeCompletion is only invoked on success. See issue for more details.
+                // fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
+            }
+        } finally {
+            xaEndLock.writeLock().unlock();
         }
     }
 
@@ -453,11 +486,16 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     public void transactionEnd() throws SQLException {
         enlisted = false;
         if ( !isHeldOverCommit ) {
-            if ( enlistedOpenWrappers.closeAllAutocloseableElements() != 0 ) {
-                // should never happen, but it's here as a safeguard to prevent double returns in all cases.
-                fireOnWarning( connectionPool.getListeners(), "Closing open connection(s) on after completion" );
+            xaEndLock.writeLock().lock();
+            try {
+                if ( enlistedOpenWrappers.closeAllAutocloseableElements() != 0 ) {
+                    // should never happen, but it's here as a safeguard to prevent double returns in all cases.
+                    fireOnWarning( connectionPool.getListeners(), "Closing open connection(s) on after completion" );
+                }
+                connectionPool.returnConnectionHandler( this );
+            } finally {
+                xaEndLock.writeLock().unlock();
             }
-            connectionPool.returnConnectionHandler( this );
         }
     }
 
@@ -471,7 +509,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
             if ( !enlisted ) {
                 if ( isHeldOverCommit ) {
                     // AG-279 Hack: if was held over commit re-attach to a new tx
-                    connectionPool.getConfiguration().transactionIntegration().associate( this, xaResource );
+                    connectionPool.getConfiguration().transactionIntegration().associate( this, getXaResource() );
                     isHeldOverCommit = false;
                     touch();
                 } else {
@@ -503,6 +541,106 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     // --- //
+
+    /**
+     * XAResource wrapper that synchronizes end() and start() with in-flight statement operations
+     * via the read-write lock on the enclosing ConnectionHandler.
+     * <p>
+     * For {@code end(TMSUSPEND)}: acquires the write lock and holds it until {@code start(TMRESUME)}.
+     * This blocks statement operations for the duration of the suspend, preventing them from executing
+     * on a connection whose XA branch is temporarily dissociated ("back in 5 minutes" rather than closed).
+     * <p>
+     * For {@code end(TMSUCCESS|TMFAIL)}: uses {@code tryLock()} so the reaper is never blocked
+     * by a long-running query. If the lock cannot be acquired, end() proceeds without it.
+     */
+    private class LockingXAResource implements XAResource {
+
+        private final XAResource delegate;
+
+        LockingXAResource(XAResource delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void end(Xid xid, int flags) throws XAException {
+            if ( ( flags & TMSUSPEND ) != 0 ) {
+                // Suspend: hold write lock until start(TMRESUME) to prevent statement operations
+                // from executing on a connection with a suspended XA branch.
+                xaEndLock.writeLock().lock();
+                boolean success = false;
+                try {
+                    delegate.end( xid, flags );
+                    success = true;
+                } finally {
+                    if ( !success ) {
+                        xaEndLock.writeLock().unlock();
+                    }
+                    // On success the lock is intentionally kept — released by start(TMRESUME)
+                }
+            } else {
+                boolean locked = xaEndLock.writeLock().tryLock();
+                try {
+                    delegate.end( xid, flags );
+                } finally {
+                    if ( locked ) {
+                        xaEndLock.writeLock().unlock();
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void start(Xid xid, int flags) throws XAException {
+            try {
+                delegate.start( xid, flags );
+            } finally {
+                if ( ( flags & TMRESUME ) != 0 && xaEndLock.writeLock().isHeldByCurrentThread() ) {
+                    xaEndLock.writeLock().unlock();
+                }
+            }
+        }
+
+        @Override
+        public void commit(Xid xid, boolean onePhase) throws XAException {
+            delegate.commit( xid, onePhase );
+        }
+
+        @Override
+        public void rollback(Xid xid) throws XAException {
+            delegate.rollback( xid );
+        }
+
+        @Override
+        public int prepare(Xid xid) throws XAException {
+            return delegate.prepare( xid );
+        }
+
+        @Override
+        public void forget(Xid xid) throws XAException {
+            delegate.forget( xid );
+        }
+
+        @Override
+        public Xid[] recover(int flag) throws XAException {
+            return delegate.recover( flag );
+        }
+
+        @Override
+        public boolean isSameRM(XAResource xaRes) throws XAException {
+            XAResource other = xaRes instanceof LockingXAResource lr ? lr.delegate : xaRes;
+            return delegate.isSameRM( other );
+        }
+
+        @Override
+        public int getTransactionTimeout() throws XAException {
+            return delegate.getTransactionTimeout();
+        }
+
+        @Override
+        public boolean setTransactionTimeout(int seconds) throws XAException {
+            return delegate.setTransactionTimeout( seconds );
+        }
+    }
 
     private enum State {
         NEW, CHECKED_IN, CHECKED_OUT, VALIDATION, FLUSH, DESTROYED
