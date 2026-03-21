@@ -432,22 +432,27 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     @Override
     @SuppressWarnings( "StringConcatenation" )
     public void transactionBeforeCompletion(boolean successful) {
-        int closedResources;
-        if ( successful ) {
-            closedResources = enlistedOpenWrappers.closeNotHeldAutocloseableElements();
-            isHeldOverCommit = !enlistedOpenWrappers.isElementListEmpty();
-            if ( isHeldOverCommit && !connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() ) {
-                fireOnInfo( connectionPool.getListeners(), "Holding cursors over commit without tracking JDBC resources!" );
+        xaEndLock.writeLock().lock();
+        try {
+            int closedResources;
+            if ( successful ) {
+                closedResources = enlistedOpenWrappers.closeNotHeldAutocloseableElements();
+                isHeldOverCommit = !enlistedOpenWrappers.isElementListEmpty();
+                if ( isHeldOverCommit && !connectionPool.getConfiguration().connectionFactoryConfiguration().trackJdbcResources() ) {
+                    fireOnInfo( connectionPool.getListeners(), "Holding cursors over commit without tracking JDBC resources!" );
+                }
+            } else {
+                closedResources = enlistedOpenWrappers.closeAllAutocloseableElements();
+                isHeldOverCommit = false;
             }
-        } else {
-            closedResources = enlistedOpenWrappers.closeAllAutocloseableElements();
-            isHeldOverCommit = false;
-        }
-        if ( successful && closedResources > 0 ) {
-            fireOnWarning( connectionPool.getListeners(), "Closing " + closedResources + " open connection(s) prior to commit" );
-        } else {
-            // AG-168 - Close without warning as Synchronization.beforeCompletion is only invoked on success. See issue for more details.
-            // fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
+            if ( successful && closedResources > 0 ) {
+                fireOnWarning( connectionPool.getListeners(), "Closing " + closedResources + " open connection(s) prior to commit" );
+            } else {
+                // AG-168 - Close without warning as Synchronization.beforeCompletion is only invoked on success. See issue for more details.
+                // fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
+            }
+        } finally {
+            xaEndLock.writeLock().unlock();
         }
     }
 
@@ -534,9 +539,15 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     // --- //
 
     /**
-     * XAResource wrapper that acquires the write lock on end(), preventing it from executing
-     * while any statement operation holds the read lock. This ensures that xaResource.end()
-     * waits for in-flight statement operations to complete before dissociating the XA branch.
+     * XAResource wrapper that synchronizes end() and start() with in-flight statement operations
+     * via the read-write lock on the enclosing ConnectionHandler.
+     * <p>
+     * For {@code end(TMSUSPEND)}: acquires the write lock and holds it until {@code start(TMRESUME)}.
+     * This blocks statement operations for the duration of the suspend, preventing them from executing
+     * on a connection whose XA branch is temporarily dissociated ("back in 5 minutes" rather than closed).
+     * <p>
+     * For {@code end(TMSUCCESS|TMFAIL)}: uses {@code tryLock()} so the reaper is never blocked
+     * by a long-running query. If the lock cannot be acquired, end() proceeds without it.
      */
     private class LockingXAResource implements XAResource {
 
@@ -548,19 +559,41 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
         @Override
         public void end(Xid xid, int flags) throws XAException {
-            boolean locked = xaEndLock.writeLock().tryLock();
-            try {
-                delegate.end( xid, flags );
-            } finally {
-                if ( locked ) {
-                    xaEndLock.writeLock().unlock();
+            if ( ( flags & TMSUSPEND ) != 0 ) {
+                // Suspend: hold write lock until start(TMRESUME) to prevent statement operations
+                // from executing on a connection with a suspended XA branch.
+                xaEndLock.writeLock().lock();
+                boolean success = false;
+                try {
+                    delegate.end( xid, flags );
+                    success = true;
+                } finally {
+                    if ( !success ) {
+                        xaEndLock.writeLock().unlock();
+                    }
+                    // On success the lock is intentionally kept — released by start(TMRESUME)
+                }
+            } else {
+                boolean locked = xaEndLock.writeLock().tryLock();
+                try {
+                    delegate.end( xid, flags );
+                } finally {
+                    if ( locked ) {
+                        xaEndLock.writeLock().unlock();
+                    }
                 }
             }
         }
 
         @Override
         public void start(Xid xid, int flags) throws XAException {
-            delegate.start( xid, flags );
+            try {
+                delegate.start( xid, flags );
+            } finally {
+                if ( ( flags & TMRESUME ) != 0 && xaEndLock.writeLock().isHeldByCurrentThread() ) {
+                    xaEndLock.writeLock().unlock();
+                }
+            }
         }
 
         @Override
