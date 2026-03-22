@@ -22,6 +22,7 @@ import java.sql.SQLWarning;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -62,6 +63,12 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     // Lock to synchronize statement operations (read) with xaResource.end() (write)
     private final ReentrantReadWriteLock xaEndLock = new ReentrantReadWriteLock();
+
+    // Gate used to block statement operations while the XA branch is suspended (TMSUSPEND → TMRESUME).
+    // Non-null while suspended. Uses CountDownLatch instead of holding the write lock across calls,
+    // because ReentrantReadWriteLock write locks must be unlocked by the same thread that locked them,
+    // and a transaction manager may suspend and resume on different threads.
+    private volatile CountDownLatch suspendLatch;
 
     private final Pool connectionPool;
 
@@ -154,21 +161,46 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     /**
      * Acquires the read lock to prevent xaResource.end() from executing while a statement operation is in-flight.
      * No-op for non-XA datasources where there is no XA branch to synchronize with.
-     * Uses the pool's acquisition timeout to avoid blocking indefinitely (e.g. during a suspended XA branch).
+     * If the XA branch is suspended, blocks until it is resumed (or the acquisition timeout expires).
      */
     public void readLock() throws SQLException {
         if ( xaResource != null ) {
             Duration timeout = connectionPool.getConfiguration().acquisitionTimeout();
-            try {
-                if ( timeout.isZero() ) {
-                    xaEndLock.readLock().lockInterruptibly();
-                } else if ( !xaEndLock.readLock().tryLock( timeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
-                    throw new SQLException( "Failed to acquire read lock within acquisition timeout" );
-                }
-            } catch ( InterruptedException e ) {
-                Thread.currentThread().interrupt();
-                throw new SQLException( "Interrupted while acquiring read lock", e );
+            acquireReadLock( timeout );
+            // Check if the XA branch was suspended between our decision to acquire and the actual acquisition.
+            // If so, release the read lock, wait for resume, then re-acquire.
+            CountDownLatch latch = suspendLatch;
+            if ( latch != null ) {
+                xaEndLock.readLock().unlock();
+                awaitResume( latch, timeout );
+                acquireReadLock( timeout );
             }
+        }
+    }
+
+    private void acquireReadLock(Duration timeout) throws SQLException {
+        try {
+            if ( timeout.isZero() ) {
+                xaEndLock.readLock().lockInterruptibly();
+            } else if ( !xaEndLock.readLock().tryLock( timeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                throw new SQLException( "Failed to acquire read lock within acquisition timeout" );
+            }
+        } catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            throw new SQLException( "Interrupted while acquiring read lock", e );
+        }
+    }
+
+    private void awaitResume(CountDownLatch latch, Duration timeout) throws SQLException {
+        try {
+            if ( timeout.isZero() ) {
+                latch.await();
+            } else if ( !latch.await( timeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                throw new SQLException( "Timed out waiting for suspended XA branch to resume" );
+            }
+        } catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            throw new SQLException( "Interrupted while waiting for suspended XA branch to resume", e );
         }
     }
 
@@ -567,9 +599,11 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
      * XAResource wrapper that synchronizes end() and start() with in-flight statement operations
      * via the read-write lock on the enclosing ConnectionHandler.
      * <p>
-     * For {@code end(TMSUSPEND)}: acquires the write lock and holds it until {@code start(TMRESUME)}.
-     * This blocks statement operations for the duration of the suspend, preventing them from executing
-     * on a connection whose XA branch is temporarily dissociated ("back in 5 minutes" rather than closed).
+     * For {@code end(TMSUSPEND)}: sets a {@link CountDownLatch} gate, then acquires the write lock to
+     * drain in-flight statement operations before calling the delegate. The write lock is released
+     * immediately after — the latch keeps new operations blocked until {@code start(TMRESUME)}.
+     * This avoids holding a write lock across calls, which would deadlock if the transaction manager
+     * performs suspend and resume on different threads.
      * <p>
      * For {@code end(TMSUCCESS|TMFAIL)}: uses {@code tryLock(timeout)} with a short grace period so
      * in-flight operations have a chance to complete, while the reaper is never blocked for long.
@@ -588,18 +622,22 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         @Override
         public void end(Xid xid, int flags) throws XAException {
             if ( ( flags & TMSUSPEND ) != 0 ) {
-                // Suspend: hold write lock until start(TMRESUME) to prevent statement operations
-                // from executing on a connection with a suspended XA branch.
+                // Set the gate before acquiring the write lock so that any readLock() caller
+                // that sneaks in after the write lock is released will see it and block.
+                suspendLatch = new CountDownLatch( 1 );
                 xaEndLock.writeLock().lock();
-                boolean success = false;
                 try {
                     delegate.end( xid, flags );
-                    success = true;
-                } finally {
-                    if ( !success ) {
-                        xaEndLock.writeLock().unlock();
+                } catch ( XAException xe ) {
+                    // Suspend failed — open the gate so operations aren't blocked permanently
+                    CountDownLatch latch = suspendLatch;
+                    suspendLatch = null;
+                    if ( latch != null ) {
+                        latch.countDown();
                     }
-                    // On success the lock is intentionally kept — released by start(TMRESUME)
+                    throw xe;
+                } finally {
+                    xaEndLock.writeLock().unlock();
                 }
             } else {
                 boolean locked;
@@ -624,8 +662,12 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
             try {
                 delegate.start( xid, flags );
             } finally {
-                if ( ( flags & TMRESUME ) != 0 && xaEndLock.writeLock().isHeldByCurrentThread() ) {
-                    xaEndLock.writeLock().unlock();
+                if ( ( flags & TMRESUME ) != 0 ) {
+                    CountDownLatch latch = suspendLatch;
+                    suspendLatch = null;
+                    if ( latch != null ) {
+                        latch.countDown();
+                    }
                 }
             }
         }
