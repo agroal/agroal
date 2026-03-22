@@ -32,6 +32,7 @@ import static io.agroal.test.AgroalTestGroup.SPRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.springframework.boot.jdbc.DatabaseDriver.H2;
 
 @Tag( SPRING )
 class AgroalDataSourceHealthContributorAutoConfigurationTests {
@@ -57,12 +58,38 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                   Health health = agroalDataSourceHealthIndicator.health(true);
                   LOG.info("Got health {}", health);
                   assertThat(health.getStatus()).isEqualTo(Status.UP);
+                  assertThat(health.getDetails().get("database")).isEqualTo(H2);
 
                   AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
                   try (Connection c = dataSource.getConnection()) {
                      LOG.info("Got connection {}", c);
                   }
               });
+    }
+
+    @DisplayName("AutoConfiguration will create AgroalDataSourceHealthIndicator from JdbcProperties")
+    @Test
+    void testHealthCheckEnabledWithoutJdbcUrl() throws SQLException {
+        AgroalDataSource ds = new AgroalDataSource();
+        ds.setDriverClass(JdbcDataSource.class);
+        ds.setJdbcProperties(Map.of("URL", "jdbc:h2:mem:ds;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false"));
+        ds.setUsername("sa");
+
+        runner.withBean("dataSource", DataSource.class, () -> ds)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(AgroalDataSourceHealthIndicator.class);
+
+                    AgroalDataSourceHealthIndicator agroalDataSourceHealthIndicator = context.getBean(AgroalDataSourceHealthIndicator.class);
+                    Health health = agroalDataSourceHealthIndicator.health(true);
+                    LOG.info("Got health {}", health);
+                    assertThat(health.getStatus()).isEqualTo(Status.UP);
+                    assertThat(health.getDetails().get("database")).isEqualTo("H2");
+
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+                    try (Connection c = dataSource.getConnection()) {
+                        LOG.info("Got connection {}", c);
+                    }
+        });
     }
 
     @DisplayName("AutoConfiguration will create AgroalDataSourceHealthIndicator for AgroalDataSource with strict transactionRequirement")
@@ -76,6 +103,7 @@ class AgroalDataSourceHealthContributorAutoConfigurationTests {
                     Health health = agroalDataSourceHealthIndicator.health(true);
                     LOG.info("Got health {}", health);
                     assertThat(health.getStatus()).isEqualTo(Status.UP);
+                    assertThat(health.getDetails().get("database")).isEqualTo(H2);
 
                     AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
                     try (Connection connection = dataSource.getConnection()) {
