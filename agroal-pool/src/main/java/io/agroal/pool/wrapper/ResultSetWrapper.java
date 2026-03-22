@@ -3,6 +3,7 @@
 
 package io.agroal.pool.wrapper;
 
+import io.agroal.pool.ConnectionHandler;
 import io.agroal.pool.util.AutoCloseableElement;
 
 import java.io.InputStream;
@@ -62,25 +63,31 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
 
     private final StatementWrapper statement;
 
-    // tracks whether the connection was enlisted when the current operation began
-    private boolean wasEnlisted;
+    private final ConnectionHandler handler;
 
     private ResultSet wrappedResultSet;
 
     public ResultSetWrapper(StatementWrapper statementWrapper, ResultSet resultSet, AutoCloseableElement<ResultSetWrapper> head, boolean defaultHold) {
         super( head );
         statement = statementWrapper;
+        handler = statementWrapper.getConnectionWrapper().getHandler();
         wrappedResultSet = resultSet;
     }
 
     /**
-     * Acquires the read lock and verifies enlistment. Must be paired with {@link #endOperation()} in a finally block.
-     * This prevents xaResource.end() from executing while a result set operation is in-flight.
+     * Acquires the read lock and verifies enlistment. Must be called before the try block so that
+     * endOperation is only reached when the lock was successfully acquired.
      */
-    private void beginOperation() throws SQLException {
-        statement.getConnectionWrapper().getHandler().readLock();
-        wasEnlisted = statement.connection.getHandler().isEnlisted();
-        statement.verifyEnlistment();
+    private boolean beginOperation() throws SQLException {
+        handler.readLock();
+        boolean wasEnlisted = handler.isEnlisted();
+        try {
+            statement.getConnectionWrapper().verifyEnlistment();
+        } catch ( SQLException se ) {
+            handler.readUnlock();
+            throw se;
+        }
+        return wasEnlisted;
     }
 
     /**
@@ -88,9 +95,9 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
      * If the connection was enlisted when the operation began but is no longer enlisted,
      * the transaction was completed during the operation and the result is unreliable.
      */
-    private void endOperation() throws SQLException {
-        statement.connection.getHandler().readUnlock();
-        if ( wasEnlisted && !statement.connection.getHandler().isEnlisted() ) {
+    private void endOperation(boolean wasEnlisted) throws SQLException {
+        handler.readUnlock();
+        if ( wasEnlisted && !handler.isEnlisted() ) {
             throw new SQLException( "Connection operation on a transaction that has been completed" );
         }
     }
@@ -100,7 +107,7 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
         try {
             wrappedResultSet.close();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
             wrappedResultSet = CLOSED_RESULT_SET;
@@ -113,1448 +120,1448 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
 
     @Override
     public boolean next() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.next();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean wasNull() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.wasNull();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public String getString(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getString( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean getBoolean(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBoolean( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public byte getByte(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getByte( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public short getShort(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getShort( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getInt(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getInt( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public long getLong(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getLong( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public float getFloat(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getFloat( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public double getDouble(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getDouble( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBigDecimal( columnIndex, scale );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public byte[] getBytes(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBytes( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Date getDate(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getDate( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Time getTime(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTime( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTimestamp( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public InputStream getAsciiStream(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getAsciiStream( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public InputStream getUnicodeStream(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getUnicodeStream( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public InputStream getBinaryStream(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBinaryStream( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public String getString(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getString( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean getBoolean(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBoolean( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public byte getByte(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getByte( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public short getShort(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getShort( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getInt(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getInt( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public long getLong(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getLong( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public float getFloat(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getFloat( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public double getDouble(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getDouble( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBigDecimal( columnLabel, scale );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public byte[] getBytes(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBytes( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Date getDate(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getDate( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Time getTime(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTime( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Timestamp getTimestamp(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTimestamp( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public InputStream getAsciiStream(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getAsciiStream( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     @SuppressWarnings( "deprecation" )
     public InputStream getUnicodeStream(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getUnicodeStream( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public InputStream getBinaryStream(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBinaryStream( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getWarnings();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void clearWarnings() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.clearWarnings();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public String getCursorName() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getCursorName();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getMetaData();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getObject( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Object getObject(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getObject( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int findColumn(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.findColumn( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Reader getCharacterStream(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getCharacterStream( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Reader getCharacterStream(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getCharacterStream( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBigDecimal( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBigDecimal( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean isBeforeFirst() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.isBeforeFirst();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean isAfterLast() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.isAfterLast();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean isFirst() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.isFirst();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean isLast() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.isLast();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void beforeFirst() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.beforeFirst();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void afterLast() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.afterLast();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean first() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.first();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean last() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.last();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getRow() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getRow();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean absolute(int row) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.absolute( row );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean relative(int rows) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.relative( rows );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean previous() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.previous();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getFetchDirection() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getFetchDirection();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void setFetchDirection(int direction) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.setFetchDirection( direction );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getFetchSize() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getFetchSize();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.setFetchSize( rows );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getType() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getType();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getConcurrency() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getConcurrency();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean rowUpdated() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.rowUpdated();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean rowInserted() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.rowInserted();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public boolean rowDeleted() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.rowDeleted();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNull(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNull( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBoolean(int columnIndex, boolean x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBoolean( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateByte(int columnIndex, byte x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateByte( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateShort(int columnIndex, short x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateShort( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateInt(int columnIndex, int x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateInt( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateLong(int columnIndex, long x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateLong( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateFloat(int columnIndex, float x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateFloat( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateDouble(int columnIndex, double x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateDouble( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBigDecimal(int columnIndex, BigDecimal x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBigDecimal( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateString(int columnIndex, String x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateString( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBytes(int columnIndex, byte[] x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBytes( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateDate(int columnIndex, Date x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateDate( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateTime(int columnIndex, Time x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateTime( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateTimestamp(int columnIndex, Timestamp x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateTimestamp( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, int length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateAsciiStream( columnIndex, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, int length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBinaryStream( columnIndex, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, int length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateCharacterStream( columnIndex, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateObject(int columnIndex, Object x, int scaleOrLength) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnIndex, x, scaleOrLength );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateObject(int columnIndex, Object x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateObject(String columnLabel, Object x, int scaleOrLength) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnLabel, x, scaleOrLength );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateObject(String columnLabel, Object x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNull(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNull( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBoolean(String columnLabel, boolean x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBoolean( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateByte(String columnLabel, byte x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateByte( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateShort(String columnLabel, short x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateShort( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateInt(String columnLabel, int x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateInt( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateLong(String columnLabel, long x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateLong( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateFloat(String columnLabel, float x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateFloat( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateDouble(String columnLabel, double x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateDouble( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBigDecimal(String columnLabel, BigDecimal x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBigDecimal( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateString(String columnLabel, String x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateString( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBytes(String columnLabel, byte[] x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBytes( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateDate(String columnLabel, Date x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateDate( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateTime(String columnLabel, Time x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateTime( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateTimestamp(String columnLabel, Timestamp x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateTimestamp( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, int length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateAsciiStream( columnLabel, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, int length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBinaryStream( columnLabel, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, int length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateCharacterStream( columnLabel, reader, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void insertRow() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.insertRow();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateRow() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateRow();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void deleteRow() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.deleteRow();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void refreshRow() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.refreshRow();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void cancelRowUpdates() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.cancelRowUpdates();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void moveToInsertRow() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.moveToInsertRow();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void moveToCurrentRow() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.moveToCurrentRow();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
@@ -1565,404 +1572,404 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
 
     @Override
     public Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getObject( columnIndex, map );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Ref getRef(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getRef( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Blob getBlob(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBlob( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Clob getClob(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getClob( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Array getArray(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getArray( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getObject( columnLabel, map );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Ref getRef(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getRef( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Blob getBlob(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getBlob( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Clob getClob(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getClob( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Array getArray(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getArray( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Date getDate(int columnIndex, Calendar cal) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getDate( columnIndex, cal );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Date getDate(String columnLabel, Calendar cal) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getDate( columnLabel, cal );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Time getTime(int columnIndex, Calendar cal) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTime( columnIndex, cal );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Time getTime(String columnLabel, Calendar cal) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTime( columnLabel, cal );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTimestamp( columnIndex, cal );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Timestamp getTimestamp(String columnLabel, Calendar cal) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getTimestamp( columnLabel, cal );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public URL getURL(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getURL( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public URL getURL(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getURL( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateRef(int columnIndex, Ref x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateRef( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateRef(String columnLabel, Ref x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateRef( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBlob(int columnIndex, Blob x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBlob( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBlob(String columnLabel, Blob x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBlob( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateClob(int columnIndex, Clob x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateClob( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateClob(String columnLabel, Clob x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateClob( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateArray(int columnIndex, Array x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateArray( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateArray(String columnLabel, Array x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateArray( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public RowId getRowId(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getRowId( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public RowId getRowId(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getRowId( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateRowId(int columnIndex, RowId x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateRowId( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateRowId(String columnLabel, RowId x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateRowId( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public int getHoldability() throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getHoldability();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
@@ -1971,580 +1978,580 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
         try {
             return wrappedResultSet.isClosed();
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         }            
     }
 
     @Override
     public void updateNString(int columnIndex, String nString) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNString( columnIndex, nString );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNString(String columnLabel, String nString) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNString( columnLabel, nString );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNClob(int columnIndex, NClob nClob) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNClob( columnIndex, nClob );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNClob(String columnLabel, NClob nClob) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNClob( columnLabel, nClob );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public NClob getNClob(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getNClob( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public NClob getNClob(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getNClob( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public SQLXML getSQLXML(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getSQLXML( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public SQLXML getSQLXML(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getSQLXML( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateSQLXML(int columnIndex, SQLXML xmlObject) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateSQLXML( columnIndex, xmlObject );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateSQLXML(String columnLabel, SQLXML xmlObject) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateSQLXML( columnLabel, xmlObject );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public String getNString(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getNString( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public String getNString(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getNString( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Reader getNCharacterStream(int columnIndex) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getNCharacterStream( columnIndex );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public Reader getNCharacterStream(String columnLabel) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getNCharacterStream( columnLabel );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNCharacterStream( columnIndex, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNCharacterStream( columnLabel, reader, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateAsciiStream( columnIndex, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBinaryStream( columnIndex, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateCharacterStream( columnIndex, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateAsciiStream( columnLabel, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBinaryStream( columnLabel, x, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateCharacterStream( columnLabel, reader, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBlob( columnIndex, inputStream, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBlob( columnLabel, inputStream, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateClob( columnIndex, reader, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateClob( columnLabel, reader, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNClob( columnIndex, reader, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader, long length) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateClob( columnLabel, reader, length );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNCharacterStream( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNCharacterStream( columnLabel, reader );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateAsciiStream( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBinaryStream( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateCharacterStream( columnIndex, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateAsciiStream( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBinaryStream( columnLabel, x );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateCharacterStream( columnLabel, reader );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBlob( columnIndex, inputStream );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateBlob( columnLabel, inputStream );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateClob( columnIndex, reader );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateClob( columnLabel, reader );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNClob( columnIndex, reader );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateNClob( columnLabel, reader );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getObject( columnIndex, type );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public <T> T getObject(String columnLabel, Class<T> type) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             return wrappedResultSet.getObject( columnLabel, type );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
@@ -2552,53 +2559,53 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
 
     @Override
     public void updateObject(int columnIndex, Object x, SQLType targetSqlType, int scaleOrLength)  throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnIndex, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateObject(String columnLabel, Object x, SQLType targetSqlType, int scaleOrLength) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnLabel, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateObject(int columnIndex, Object x, SQLType targetSqlType) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnIndex, x, targetSqlType );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
     @Override
     public void updateObject(String columnLabel, Object x, SQLType targetSqlType) throws SQLException {
+        boolean enlisted = beginOperation();
         try {
-            beginOperation();
             wrappedResultSet.updateObject( columnLabel, x, targetSqlType );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         } finally {
-            endOperation();
+            endOperation( enlisted );
         }
     }
 
@@ -2609,7 +2616,7 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
         try {
             return wrappedResultSet.unwrap( target );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         }            
     }
@@ -2619,7 +2626,7 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
         try {
             return wrappedResultSet.isWrapperFor( target );
         } catch ( SQLException se ) {
-            statement.getConnectionWrapper().getHandler().setFlushOnly( se );
+            handler.setFlushOnly( se );
             throw se;
         }            
     }
