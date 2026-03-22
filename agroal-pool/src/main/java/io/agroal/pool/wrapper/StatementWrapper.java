@@ -83,9 +83,7 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
     protected void beginOperation() throws SQLException {
         connection.getHandler().readLock();
         wasEnlisted = connection.getHandler().isEnlisted();
-        if ( holdState ) {
-            connection.verifyEnlistment();
-        }
+        connection.verifyEnlistment();
     }
 
     /**

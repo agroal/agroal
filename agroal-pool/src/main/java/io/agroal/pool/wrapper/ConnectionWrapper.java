@@ -187,6 +187,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.setFlushOnly();
             throw new SQLException( "Trying to set autocommit in connection taking part of transaction" );
         }
+        handler.readLock();
         try {
             verifyEnlistment();
             if ( wrappedConnection.getAutoCommit() != autoCommit ) {
@@ -194,8 +195,9 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
                 wrappedConnection.setAutoCommit( autoCommit );
             }
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -218,11 +220,13 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.setFlushOnly();
             throw new SQLException( "Attempting to commit while taking part in a transaction" );
         }
+        handler.readLock();
         try {
             wrappedConnection.commit();
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -233,12 +237,14 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.setFlushOnly();
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
+        handler.readLock();
         try {
             verifyEnlistment();
             wrappedConnection.rollback();
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -249,12 +255,14 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.setFlushOnly();
             throw new SQLException( "Attempting to rollback while enlisted in a transaction" );
         }
+        handler.readLock();
         try {
             verifyEnlistment();
             wrappedConnection.rollback( savepoint );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -394,14 +402,16 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public void setCatalog(String catalog) throws SQLException {
+        handler.readLock();
         try {
             handler.traceConnectionOperation( "setCatalog(String)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.CATALOG );
             wrappedConnection.setCatalog( catalog );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -419,6 +429,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public void setHoldability(int holdability) throws SQLException {
+        handler.readLock();
         try {
             handler.traceConnectionOperation( "setHoldability(int)" );
             verifyEnlistment();
@@ -426,8 +437,9 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             holdState = ( holdability == HOLD_CURSORS_OVER_COMMIT );
             wrappedConnection.setHoldability( holdability );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -508,14 +520,16 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public void setSchema(String schema) throws SQLException {
+        handler.readLock();
         try {
             handler.traceConnectionOperation( "setSchema(String)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.SCHEMA );
             wrappedConnection.setSchema( schema );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -533,13 +547,15 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
+        handler.readLock();
         try {
             handler.traceConnectionOperation( "setTypeMap(Map<String, Class<?>>)" );
             verifyEnlistment();
             wrappedConnection.setTypeMap( map );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -557,14 +573,16 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public void setTransactionIsolation(int level) throws SQLException {
+        handler.readLock();
         try {
             handler.traceConnectionOperation( "setTransactionIsolation(int)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION );
             wrappedConnection.setTransactionIsolation( level );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -605,15 +623,17 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
+        handler.traceConnectionOperation( "setReadOnly(boolean)" );
+        handler.verifyReadOnly( readOnly );
+        handler.readLock();
         try {
-            handler.traceConnectionOperation( "setReadOnly(boolean)" );
-            handler.verifyReadOnly( readOnly );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.READ_ONLY );
             wrappedConnection.setReadOnly( readOnly );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 
@@ -802,14 +822,16 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
+        handler.readLock();
         try {
             handler.traceConnectionOperation( "setNetworkTimeout(Executor, int)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.NETWORK_TIMEOUT );
             wrappedConnection.setNetworkTimeout( executor, milliseconds );
         } catch ( SQLException se ) {
-            handler.setFlushOnly( se );
-            throw se;
+            throw handler.handleException( se );
+        } finally {
+            handler.readUnlock();
         }
     }
 

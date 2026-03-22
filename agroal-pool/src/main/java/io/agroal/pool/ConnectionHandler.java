@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -153,10 +154,21 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     /**
      * Acquires the read lock to prevent xaResource.end() from executing while a statement operation is in-flight.
      * No-op for non-XA datasources where there is no XA branch to synchronize with.
+     * Uses the pool's acquisition timeout to avoid blocking indefinitely (e.g. during a suspended XA branch).
      */
-    public void readLock() {
+    public void readLock() throws SQLException {
         if ( xaResource != null ) {
-            xaEndLock.readLock().lock();
+            Duration timeout = connectionPool.getConfiguration().acquisitionTimeout();
+            try {
+                if ( timeout.isZero() ) {
+                    xaEndLock.readLock().lockInterruptibly();
+                } else if ( !xaEndLock.readLock().tryLock( timeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                    throw new SQLException( "Failed to acquire read lock within acquisition timeout" );
+                }
+            } catch ( InterruptedException e ) {
+                Thread.currentThread().interrupt();
+                throw new SQLException( "Interrupted while acquiring read lock", e );
+            }
         }
     }
 
@@ -540,6 +552,15 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         }
     }
 
+    /**
+     * Centralized error handling: applies the exception sorter to mark the connection for flush if the
+     * exception is fatal, then rethrows the exception. Reduces boilerplate try/catch in wrapper classes.
+     */
+    public SQLException handleException(SQLException se) {
+        setFlushOnly( se );
+        return se;
+    }
+
     // --- //
 
     /**
@@ -550,10 +571,13 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
      * This blocks statement operations for the duration of the suspend, preventing them from executing
      * on a connection whose XA branch is temporarily dissociated ("back in 5 minutes" rather than closed).
      * <p>
-     * For {@code end(TMSUCCESS|TMFAIL)}: uses {@code tryLock()} so the reaper is never blocked
-     * by a long-running query. If the lock cannot be acquired, end() proceeds without it.
+     * For {@code end(TMSUCCESS|TMFAIL)}: uses {@code tryLock(timeout)} with a short grace period so
+     * in-flight operations have a chance to complete, while the reaper is never blocked for long.
+     * If the lock cannot be acquired within the grace period, end() proceeds without it.
      */
     private class LockingXAResource implements XAResource {
+
+        private static final long END_GRACE_PERIOD_MS = 100;
 
         private final XAResource delegate;
 
@@ -578,7 +602,13 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                     // On success the lock is intentionally kept — released by start(TMRESUME)
                 }
             } else {
-                boolean locked = xaEndLock.writeLock().tryLock();
+                boolean locked;
+                try {
+                    locked = xaEndLock.writeLock().tryLock( END_GRACE_PERIOD_MS, TimeUnit.MILLISECONDS );
+                } catch ( InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                    locked = false;
+                }
                 try {
                     delegate.end( xid, flags );
                 } finally {
