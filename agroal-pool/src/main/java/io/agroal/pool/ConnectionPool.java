@@ -127,6 +127,8 @@ public final class ConnectionPool implements Pool {
         validationEnabled = !configuration.validationTimeout().isZero();
         reapEnabled = !configuration.reapTimeout().isZero();
         recoveryEnabled = configuration.recoveryEnable();
+
+        setPoolInterceptors(configuration.interceptors());
     }
 
     private TransactionIntegration.ResourceRecoveryFactory getResourceRecoveryFactory() {
