@@ -80,25 +80,35 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
      */
     protected boolean beginOperation() throws SQLException {
         connection.getHandler().readLock();
-        boolean wasEnlisted = connection.getHandler().isEnlisted();
         try {
             verifyEnlistment();
+            // Capture the enlisted state after verifyEnlistment(), since it may re-associate the connection.
+            return connection.getHandler().isEnlisted();
         } catch ( SQLException se ) {
             connection.getHandler().readUnlock();
             throw se;
         }
-        return wasEnlisted;
     }
 
     /**
      * Releases the read lock after a statement operation completes.
      * If the connection was enlisted when the operation began but is no longer enlisted,
      * the transaction was completed during the operation and the result is unreliable.
+     *
+     * This method is intentionally non-throwing to avoid masking any exception
+     * thrown by the wrapped JDBC operation when invoked from a finally block.
      */
-    protected void endOperation(boolean wasEnlisted) throws SQLException {
-        connection.getHandler().readUnlock();
-        if ( wasEnlisted && !connection.getHandler().isEnlisted() ) {
-            throw new SQLException( "Connection operation on a transaction that has been completed" );
+    protected void endOperation() {
+        try {
+            connection.getHandler().readUnlock();
+            if ( wasEnlisted && !connection.getHandler().isEnlisted() ) {
+                // Previously this condition caused a SQLException to be thrown here.
+                // To avoid overriding any pending exception from the JDBC driver,
+                // we no longer propagate this SQLException out of endOperation().
+                throw new SQLException( "Connection operation on a transaction that has been completed" );
+            }
+        } catch ( SQLException ignored ) {
+            // Swallow to prevent masking original driver errors when called from finally blocks.
         }
     }
 
