@@ -22,11 +22,10 @@ import java.sql.SQLWarning;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.AUTOCOMMIT;
 import static io.agroal.pool.ConnectionHandler.DirtyAttribute.HOLDABILITY;
@@ -60,15 +59,18 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     // XAResource wrapper that synchronizes end() with in-flight statement operations. Null for non-XA datasources.
     private final XAResource xaResource;
 
+    // Semaphore to synchronize statement operations with xaResource.end() and transaction lifecycle.
+    // Statement operations acquire 1 permit (read-side), while end()/transactionBeforeCompletion()/transactionEnd()
+    // acquire all WRITE_PERMITS permits (write-side). For TMSUSPEND, permits are held until TMRESUME,
+    // naturally blocking new statement operations without needing a separate coordination mechanism.
+    // Unlike ReentrantReadWriteLock, Semaphore permits can be released by a different thread,
+    // which is required because a transaction manager may suspend and resume on different threads.
+    private static final int WRITE_PERMITS = 1 << 16;
+    private final Semaphore xaEndSemaphore = new Semaphore( WRITE_PERMITS );
 
-    // Lock to synchronize statement operations (read) with xaResource.end() (write)
-    private final ReentrantReadWriteLock xaEndLock = new ReentrantReadWriteLock();
-
-    // Gate used to block statement operations while the XA branch is suspended (TMSUSPEND → TMRESUME).
-    // Non-null while suspended. Uses CountDownLatch instead of holding the write lock across calls,
-    // because ReentrantReadWriteLock write locks must be unlocked by the same thread that locked them,
-    // and a transaction manager may suspend and resume on different threads.
-    private volatile CountDownLatch suspendLatch;
+    // Flag indicating the XA branch is currently suspended (between TMSUSPEND and TMRESUME).
+    // Guards the permit release in start(TMRESUME) against protocol violations.
+    private volatile boolean suspended;
 
     private final Pool connectionPool;
 
@@ -163,57 +165,32 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     }
 
     /**
-     * Acquires the read lock to prevent xaResource.end() from executing while a statement operation is in-flight.
+     * Acquires a permit to prevent xaResource.end() from executing while a statement operation is in-flight.
      * No-op for non-XA datasources where there is no XA branch to synchronize with.
      * If the XA branch is suspended, blocks until it is resumed (or the acquisition timeout expires).
      */
     public void readLock() throws SQLException {
         if ( xaResource != null ) {
-            acquireReadLock( acquisitionTimeout );
-            // Check if the XA branch was suspended between our decision to acquire and the actual acquisition.
-            // If so, release the read lock, wait for resume, then re-acquire.
-            CountDownLatch latch = suspendLatch;
-            if ( latch != null ) {
-                xaEndLock.readLock().unlock();
-                awaitResume( latch, acquisitionTimeout );
-                acquireReadLock( acquisitionTimeout );
+            try {
+                if ( acquisitionTimeout.isZero() ) {
+                    xaEndSemaphore.acquire();
+                } else if ( !xaEndSemaphore.tryAcquire( acquisitionTimeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                    throw new SQLException( "Failed to acquire permit within acquisition timeout" );
+                }
+            } catch ( InterruptedException e ) {
+                Thread.currentThread().interrupt();
+                throw new SQLException( "Interrupted while acquiring permit", e );
             }
-        }
-    }
-
-    private void acquireReadLock(Duration timeout) throws SQLException {
-        try {
-            if ( timeout.isZero() ) {
-                xaEndLock.readLock().lockInterruptibly();
-            } else if ( !xaEndLock.readLock().tryLock( timeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
-                throw new SQLException( "Failed to acquire read lock within acquisition timeout" );
-            }
-        } catch ( InterruptedException e ) {
-            Thread.currentThread().interrupt();
-            throw new SQLException( "Interrupted while acquiring read lock", e );
-        }
-    }
-
-    private void awaitResume(CountDownLatch latch, Duration timeout) throws SQLException {
-        try {
-            if ( timeout.isZero() ) {
-                latch.await();
-            } else if ( !latch.await( timeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
-                throw new SQLException( "Timed out waiting for suspended XA branch to resume" );
-            }
-        } catch ( InterruptedException e ) {
-            Thread.currentThread().interrupt();
-            throw new SQLException( "Interrupted while waiting for suspended XA branch to resume", e );
         }
     }
 
     /**
-     * Releases the read lock after a statement operation completes.
+     * Releases the permit after a statement operation completes.
      * No-op for non-XA datasources where there is no XA branch to synchronize with.
      */
     public void readUnlock() {
         if ( xaResource != null ) {
-            xaEndLock.readLock().unlock();
+            xaEndSemaphore.release();
         }
     }
 
@@ -483,7 +460,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     @Override
     @SuppressWarnings( "StringConcatenation" )
     public void transactionBeforeCompletion(boolean successful) {
-        xaEndLock.writeLock().lock();
+        xaEndSemaphore.acquireUninterruptibly( WRITE_PERMITS );
         try {
             int closedResources;
             if ( successful ) {
@@ -503,7 +480,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                 // fireOnWarning( connectionPool.getListeners(), "Closing open connection prior to rollback" );
             }
         } finally {
-            xaEndLock.writeLock().unlock();
+            xaEndSemaphore.release( WRITE_PERMITS );
         }
     }
 
@@ -533,7 +510,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     public void transactionEnd() throws SQLException {
         enlisted = false;
         if ( !isHeldOverCommit ) {
-            xaEndLock.writeLock().lock();
+            xaEndSemaphore.acquireUninterruptibly( WRITE_PERMITS );
             try {
                 if ( enlistedOpenWrappers.closeAllAutocloseableElements() != 0 ) {
                     // should never happen, but it's here as a safeguard to prevent double returns in all cases.
@@ -541,7 +518,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                 }
                 connectionPool.returnConnectionHandler( this );
             } finally {
-                xaEndLock.writeLock().unlock();
+                xaEndSemaphore.release( WRITE_PERMITS );
             }
         }
     }
@@ -600,17 +577,16 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     /**
      * XAResource wrapper that synchronizes end() and start() with in-flight statement operations
-     * via the read-write lock on the enclosing ConnectionHandler.
+     * via the semaphore on the enclosing ConnectionHandler.
      * <p>
-     * For {@code end(TMSUSPEND)}: sets a {@link CountDownLatch} gate, then acquires the write lock to
-     * drain in-flight statement operations before calling the delegate. The write lock is released
-     * immediately after — the latch keeps new operations blocked until {@code start(TMRESUME)}.
-     * This avoids holding a write lock across calls, which would deadlock if the transaction manager
-     * performs suspend and resume on different threads.
+     * For {@code end(TMSUSPEND)}: acquires all permits to drain in-flight statement operations,
+     * then calls the delegate. On success, permits are NOT released — they remain held until
+     * {@code start(TMRESUME)} releases them, naturally blocking new statement operations.
+     * Unlike ReentrantReadWriteLock, a Semaphore has no thread-ownership constraint, so the
+     * resume can safely occur on a different thread than the suspend.
      * <p>
-     * For {@code end(TMSUCCESS|TMFAIL)}: uses {@code tryLock(timeout)} with a short grace period so
-     * in-flight operations have a chance to complete, while the reaper is never blocked for long.
-     * If the lock cannot be acquired within the grace period, end() proceeds without it.
+     * For {@code end(TMSUCCESS|TMFAIL)}: acquires all permits with a bounded timeout
+     * (the pool's acquisition timeout), calls the delegate, then releases.
      */
     private class LockingXAResource implements XAResource {
 
@@ -624,42 +600,35 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         @Override
         public void end(Xid xid, int flags) throws XAException {
             if ( ( flags & TMSUSPEND ) != 0 ) {
-                // Set the gate before acquiring the write lock so that any readLock() caller
-                // that sneaks in after the write lock is released will see it and block.
-                suspendLatch = new CountDownLatch( 1 );
-                xaEndLock.writeLock().lock();
+                xaEndSemaphore.acquireUninterruptibly( WRITE_PERMITS );
+                suspended = true;
                 try {
                     delegate.end( xid, flags );
                 } catch ( XAException xe ) {
-                    // Suspend failed — open the gate so operations aren't blocked permanently
-                    CountDownLatch latch = suspendLatch;
-                    suspendLatch = null;
-                    if ( latch != null ) {
-                        latch.countDown();
-                    }
+                    // Suspend failed — release permits so operations aren't blocked permanently
+                    suspended = false;
+                    xaEndSemaphore.release( WRITE_PERMITS );
                     throw xe;
-                } finally {
-                    xaEndLock.writeLock().unlock();
                 }
             } else {
                 try {
                     if ( acquisitionTimeout.isZero() ) {
-                        xaEndLock.writeLock().lockInterruptibly();
-                    } else if ( !xaEndLock.writeLock().tryLock( acquisitionTimeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
-                        XAException xa = new XAException( "Failed to acquire write lock for end() within acquisition timeout" );
+                        xaEndSemaphore.acquire( WRITE_PERMITS );
+                    } else if ( !xaEndSemaphore.tryAcquire( WRITE_PERMITS, acquisitionTimeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                        XAException xa = new XAException( "Failed to acquire permits for end() within acquisition timeout" );
                         xa.errorCode = XAException.XAER_RMERR;
                         throw xa;
                     }
                 } catch ( InterruptedException e ) {
                     Thread.currentThread().interrupt();
-                    XAException xa = new XAException( "Interrupted while acquiring write lock for end()" );
+                    XAException xa = new XAException( "Interrupted while acquiring permits for end()" );
                     xa.errorCode = XAException.XAER_RMERR;
                     throw xa;
                 }
                 try {
                     delegate.end( xid, flags );
                 } finally {
-                    xaEndLock.writeLock().unlock();
+                    xaEndSemaphore.release( WRITE_PERMITS );
                 }
             }
         }
@@ -669,12 +638,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
             try {
                 delegate.start( xid, flags );
             } finally {
-                if ( ( flags & TMRESUME ) != 0 ) {
-                    CountDownLatch latch = suspendLatch;
-                    suspendLatch = null;
-                    if ( latch != null ) {
-                        latch.countDown();
-                    }
+                if ( ( flags & TMRESUME ) != 0 && suspended ) {
+                    suspended = false;
+                    xaEndSemaphore.release( WRITE_PERMITS );
                 }
             }
         }
