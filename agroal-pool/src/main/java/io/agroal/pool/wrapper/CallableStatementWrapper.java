@@ -255,6 +255,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     @Override
     public Object getObject(int parameterIndex) throws SQLException {
         try {
+            verifyEnlistment();
             Object driverObject = wrappedStatement.getObject( parameterIndex );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
@@ -277,6 +278,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     @Override
     public Object getObject(int parameterIndex, Map<String, Class<?>> map) throws SQLException {
         try {
+            verifyEnlistment();
             Object driverObject = wrappedStatement.getObject( parameterIndex, map );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
@@ -827,6 +829,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     @Override
     public Object getObject(String parameterName) throws SQLException {
         try {
+            verifyEnlistment();
             Object driverObject = wrappedStatement.getObject( parameterName );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
@@ -849,6 +852,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     @Override
     public Object getObject(String parameterName, Map<String, Class<?>> map) throws SQLException {
         try {
+            verifyEnlistment();
             Object driverObject = wrappedStatement.getObject( parameterName, map );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
@@ -1301,6 +1305,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     @SuppressWarnings( "unchecked" )
     public <T> T getObject(int parameterIndex, Class<T> type) throws SQLException {
         try {
+            verifyEnlistment();
             T driverObject = wrappedStatement.getObject( parameterIndex, type );
             return driverObject instanceof ResultSet rs ? (T) trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
@@ -1313,6 +1318,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     @SuppressWarnings( "unchecked" )
     public <T> T getObject(String parameterName, Class<T> type) throws SQLException {
         try {
+            verifyEnlistment();
             T driverObject = wrappedStatement.getObject( parameterName, type );
             return driverObject instanceof ResultSet rs ? (T) trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
