@@ -636,10 +636,13 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
         @Override
         public void start(Xid xid, int flags) throws XAException {
-            delegate.start( xid, flags );
-            if ( ( flags & TMRESUME ) != 0 && suspended ) {
-                suspended = false;
-                xaEndSemaphore.release( WRITE_PERMITS );
+            try {
+                delegate.start( xid, flags );
+            } finally {
+                if ( ( flags & TMRESUME ) != 0 && suspended ) {
+                    suspended = false;
+                    xaEndSemaphore.release( WRITE_PERMITS );
+                }
             }
         }
 
