@@ -705,7 +705,6 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
     @Override
     public final <T> T unwrap(Class<T> target) throws SQLException {
         try {
-            verifyEnlistment();
             return wrappedStatement.unwrap( target );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
