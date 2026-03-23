@@ -72,6 +72,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     private final Pool connectionPool;
 
+    // Cached once — this value never changes after pool creation
+    private final Duration acquisitionTimeout;
+
     // attributes that need to be reset when the connection is returned
     private final Set<DirtyAttribute> dirtyAttributes = noneOf( DirtyAttribute.class );
 
@@ -119,6 +122,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         xaResource = rawXaResource != null ? new LockingXAResource( rawXaResource ) : null;
 
         connectionPool = pool;
+        acquisitionTimeout = pool.getConfiguration().acquisitionTimeout();
         defaultIsolationLevel = isolationLevel;
         defaultHoldability = holdability;
         touch();
@@ -165,15 +169,14 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
      */
     public void readLock() throws SQLException {
         if ( xaResource != null ) {
-            Duration timeout = connectionPool.getConfiguration().acquisitionTimeout();
-            acquireReadLock( timeout );
+            acquireReadLock( acquisitionTimeout );
             // Check if the XA branch was suspended between our decision to acquire and the actual acquisition.
             // If so, release the read lock, wait for resume, then re-acquire.
             CountDownLatch latch = suspendLatch;
             if ( latch != null ) {
                 xaEndLock.readLock().unlock();
-                awaitResume( latch, timeout );
-                acquireReadLock( timeout );
+                awaitResume( latch, acquisitionTimeout );
+                acquireReadLock( acquisitionTimeout );
             }
         }
     }
@@ -611,7 +614,6 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
      */
     private class LockingXAResource implements XAResource {
 
-        private static final long END_GRACE_PERIOD_MS = 100;
 
         private final XAResource delegate;
 
@@ -640,19 +642,24 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                     xaEndLock.writeLock().unlock();
                 }
             } else {
-                boolean locked;
                 try {
-                    locked = xaEndLock.writeLock().tryLock( END_GRACE_PERIOD_MS, TimeUnit.MILLISECONDS );
+                    if ( acquisitionTimeout.isZero() ) {
+                        xaEndLock.writeLock().lockInterruptibly();
+                    } else if ( !xaEndLock.writeLock().tryLock( acquisitionTimeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                        XAException xa = new XAException( "Failed to acquire write lock for end() within acquisition timeout" );
+                        xa.errorCode = XAException.XAER_RMERR;
+                        throw xa;
+                    }
                 } catch ( InterruptedException e ) {
                     Thread.currentThread().interrupt();
-                    locked = false;
+                    XAException xa = new XAException( "Interrupted while acquiring write lock for end()" );
+                    xa.errorCode = XAException.XAER_RMERR;
+                    throw xa;
                 }
                 try {
                     delegate.end( xid, flags );
                 } finally {
-                    if ( locked ) {
-                        xaEndLock.writeLock().unlock();
-                    }
+                    xaEndLock.writeLock().unlock();
                 }
             }
         }
