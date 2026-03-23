@@ -45,7 +45,7 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
 
     private final ConnectionHandler handler;
 
-    private XAConnection wrappedXAConnection;
+    private volatile XAConnection wrappedXAConnection;
 
     public XAConnectionWrapper(ConnectionHandler connectionHandler, XAConnection xaConnection, boolean trackResources) {
         super( null );
@@ -76,7 +76,8 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     @Override
     public void close() throws SQLException {
         handler.traceConnectionOperation( "close()" );
-        if ( wrappedXAConnection != CLOSED_XA_CONNECTION ) {
+        XAConnection c = wrappedXAConnection;
+        if ( c != CLOSED_XA_CONNECTION ) {
             wrappedXAConnection = CLOSED_XA_CONNECTION;
 
             if ( trackedXAResources != null ) {
@@ -114,25 +115,29 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     @Override
     public void addConnectionEventListener(ConnectionEventListener listener) {
         handler.traceConnectionOperation( "addConnectionEventListener()" );
-        wrappedXAConnection.addConnectionEventListener( listener );
+        XAConnection c = wrappedXAConnection;
+        c.addConnectionEventListener( listener );
     }
 
     @Override
     public void removeConnectionEventListener(ConnectionEventListener listener) {
         handler.traceConnectionOperation( "removeConnectionEventListener()" );
-        wrappedXAConnection.removeConnectionEventListener( listener );
+        XAConnection c = wrappedXAConnection;
+        c.removeConnectionEventListener( listener );
     }
 
     @Override
     public void addStatementEventListener(StatementEventListener listener) {
         handler.traceConnectionOperation( "addStatementEventListener()" );
-        wrappedXAConnection.addStatementEventListener( listener );
+        XAConnection c = wrappedXAConnection;
+        c.addStatementEventListener( listener );
     }
 
     @Override
     public void removeStatementEventListener(StatementEventListener listener) {
         handler.traceConnectionOperation( "removeStatementEventListener()" );
-        wrappedXAConnection.removeStatementEventListener( listener );
+        XAConnection c = wrappedXAConnection;
+        c.removeStatementEventListener( listener );
     }
 
 }
