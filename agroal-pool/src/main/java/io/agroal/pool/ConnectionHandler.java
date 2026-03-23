@@ -66,7 +66,6 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     // Unlike ReentrantReadWriteLock, Semaphore permits can be released by a different thread,
     // which is required because a transaction manager may suspend and resume on different threads.
     private static final int WRITE_PERMITS = 1 << 16;
-    private static final long XA_SYNC_TIMEOUT_MS = 10_000;
     private final Semaphore xaEndSemaphore = new Semaphore( WRITE_PERMITS );
 
     // Flag indicating the XA branch is currently suspended (between TMSUSPEND and TMRESUME).
@@ -75,6 +74,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     private final Pool connectionPool;
 
+    // Cached from the pool configuration; Duration.ZERO means no timeout (block indefinitely).
+    // Null-safe: the TRANSFER_POISON sentinel is constructed with pool == null.
+    private final Duration acquisitionTimeout;
 
     // attributes that need to be reset when the connection is returned
     private final Set<DirtyAttribute> dirtyAttributes = noneOf( DirtyAttribute.class );
@@ -123,6 +125,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         xaResource = rawXaResource != null ? new LockingXAResource( rawXaResource ) : null;
 
         connectionPool = pool;
+        acquisitionTimeout = pool != null ? pool.getConfiguration().acquisitionTimeout() : Duration.ZERO;
         defaultIsolationLevel = isolationLevel;
         defaultHoldability = holdability;
         touch();
@@ -170,8 +173,10 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     public void readLock() throws SQLException {
         if ( xaResource != null ) {
             try {
-                if ( !xaEndSemaphore.tryAcquire( XA_SYNC_TIMEOUT_MS, TimeUnit.MILLISECONDS ) ) {
-                    throw new SQLException( "Failed to acquire permit within XA synchronization timeout" );
+                if ( acquisitionTimeout.isZero() ) {
+                    xaEndSemaphore.acquire();
+                } else if ( !xaEndSemaphore.tryAcquire( acquisitionTimeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                    throw new SQLException( "Failed to acquire permit within acquisition timeout" );
                 }
             } catch ( InterruptedException e ) {
                 Thread.currentThread().interrupt();
@@ -608,8 +613,10 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
                 }
             } else {
                 try {
-                    if ( !xaEndSemaphore.tryAcquire( WRITE_PERMITS, XA_SYNC_TIMEOUT_MS, TimeUnit.MILLISECONDS ) ) {
-                        XAException xa = new XAException( "Failed to acquire permits for end() within XA synchronization timeout" );
+                    if ( acquisitionTimeout.isZero() ) {
+                        xaEndSemaphore.acquire( WRITE_PERMITS );
+                    } else if ( !xaEndSemaphore.tryAcquire( WRITE_PERMITS, acquisitionTimeout.toNanos(), TimeUnit.NANOSECONDS ) ) {
+                        XAException xa = new XAException( "Failed to acquire permits for end() within acquisition timeout" );
                         xa.errorCode = XAException.XAER_RMERR;
                         throw xa;
                     }
