@@ -82,7 +82,7 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
         connection.getHandler().readLock();
         boolean wasEnlisted = connection.getHandler().isEnlisted();
         try {
-            connection.verifyEnlistment();
+            verifyEnlistment();
         } catch ( SQLException se ) {
             connection.getHandler().readUnlock();
             throw se;
@@ -136,14 +136,12 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
 
     @Override
     public final void clearWarnings() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.clearWarnings();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
@@ -175,118 +173,100 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
 
     @Override
     public final int getMaxFieldSize() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getMaxFieldSize();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setMaxFieldSize(int max) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setMaxFieldSize( max );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final int getMaxRows() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getMaxRows();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setMaxRows(int max) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setMaxRows( max );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setEscapeProcessing(boolean enable) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setEscapeProcessing( enable );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final int getQueryTimeout() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getQueryTimeout();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setQueryTimeout(int seconds) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setQueryTimeout( seconds );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void cancel() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.cancel();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setCursorName(String name) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setCursorName( name );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
@@ -305,144 +285,122 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
 
     @Override
     public final ResultSet getResultSet() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return trackResultSet( wrappedStatement.getResultSet() );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final int getUpdateCount() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getUpdateCount();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final boolean getMoreResults() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getMoreResults();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final int getFetchDirection() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getFetchDirection();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setFetchDirection(int direction) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setFetchDirection( direction );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final int getFetchSize() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getFetchSize();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setFetchSize(int rows) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setFetchSize( rows );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final int getResultSetConcurrency() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getResultSetConcurrency();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final int getResultSetType() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getResultSetType();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void addBatch(String sql) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.addBatch( sql );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void clearBatch() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.clearBatch();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
@@ -461,37 +419,29 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
 
     @Override
     public final Connection getConnection() throws SQLException {
-        boolean enlisted = beginOperation();
-        try {
-            return connection;
-        } finally {
-            endOperation( enlisted );
-        }
+        verifyEnlistment();
+        return connection;
     }
 
     @Override
     public final boolean getMoreResults(int current) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getMoreResults( current );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final ResultSet getGeneratedKeys() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return trackResultSet( wrappedStatement.getGeneratedKeys() );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
@@ -575,80 +525,68 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
 
     @Override
     public final int getResultSetHoldability() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getResultSetHoldability();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final boolean isPoolable() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.isPoolable();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void setPoolable(boolean poolable) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setPoolable( poolable );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final void closeOnCompletion() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.closeOnCompletion();
             closeOnCompletionState = true;
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final boolean isCloseOnCompletion() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.isCloseOnCompletion();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public final SQLWarning getWarnings() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getWarnings();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
@@ -666,40 +604,34 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
 
     @Override
     public long getLargeUpdateCount() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getLargeUpdateCount();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public long getLargeMaxRows() throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             return wrappedStatement.getLargeMaxRows();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
     @Override
     public void setLargeMaxRows(long max) throws SQLException {
-        boolean enlisted = beginOperation();
         try {
+            verifyEnlistment();
             wrappedStatement.setLargeMaxRows( max );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
-        } finally {
-            endOperation( enlisted );
         }
     }
 
@@ -773,6 +705,7 @@ public class StatementWrapper extends AutoCloseableElement<StatementWrapper> imp
     @Override
     public final <T> T unwrap(Class<T> target) throws SQLException {
         try {
+            verifyEnlistment();
             return wrappedStatement.unwrap( target );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
