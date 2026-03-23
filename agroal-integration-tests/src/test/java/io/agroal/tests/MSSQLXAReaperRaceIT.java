@@ -19,6 +19,7 @@ import java.sql.Statement;
 import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /**
@@ -155,39 +156,22 @@ class MSSQLXAReaperRaceIT extends XAReaperRaceITBase {
                     logger.info( "MSDTC cancelled WAITFOR: " + msdtcCancellation.getMessage() );
                 }
 
-                // CRITICAL: attempt INSERT in the window between MSDTC cancellation
-                // and reaper poisoning. This must NOT persist.
-                boolean immediateRetrySucceeded = false;
-                try {
-                    stmt.executeUpdate( "INSERT INTO xa_reaper_test (id, val) VALUES (3, 'msdtc-window-LEAKED')" );
-                    immediateRetrySucceeded = true;
-                    logger.warning( "MSDTC window INSERT succeeded — potential data leak!" );
-                } catch ( SQLException rejected ) {
-                    logger.info( "MSDTC window INSERT rejected: " + rejected.getMessage() );
-                }
-
-                // Even if the INSERT succeeded (window hit), verify no data persists
-                // after the transaction is fully rolled back
-            } catch ( SQLException e ) {
-                logger.info( "Connection exception: " + e.getMessage() );
+                assertThatThrownBy( () -> stmt.executeUpdate(
+                        "INSERT INTO xa_reaper_test (id, val) VALUES (3, 'msdtc-window-LEAKED')" ) )
+                        .as( "INSERT in MSDTC cancellation window must be rejected by XAConnectionLock" )
+                        .isInstanceOf( SQLException.class );
             }
 
             try { txManager.rollback(); } catch ( Exception ignore ) {}
 
-            // Wait for all reaper processing to complete
             Thread.sleep( 2000 );
 
-            // THE ATOMICITY CHECK: no rows must exist
             try ( Connection verify = dataSource.getConnection();
                   Statement s = verify.createStatement();
-                  ResultSet rs = s.executeQuery( "SELECT id, val FROM xa_reaper_test ORDER BY id" ) ) {
-                int count = 0;
-                while ( rs.next() ) {
-                    count++;
-                    logger.warning( "LEAKED ROW: id=" + rs.getInt( 1 ) + " val=" + rs.getString( 2 ) );
-                }
-                assertThat( count )
-                        .as( "No rows must persist — XA rolled back row 1, lock/MSDTC must block row 3" )
+                  ResultSet rs = s.executeQuery( "SELECT COUNT(*) FROM xa_reaper_test" ) ) {
+                rs.next();
+                assertThat( rs.getInt( 1 ) )
+                        .as( "No rows must persist — XA rolled back row 1, lock rejected row 3" )
                         .isEqualTo( 0 );
             }
         } catch ( Exception e ) {
