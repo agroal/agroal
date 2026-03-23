@@ -4,6 +4,7 @@
 package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
+import io.agroal.api.transaction.XAConnectionLock;
 import org.jboss.tm.XAResourceWrapper;
 
 import javax.transaction.xa.XAException;
@@ -64,6 +65,43 @@ public class BaseXAResource implements XAResourceWrapper {
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
+        if ( ( flags & TMFAIL ) != 0 ) {
+            endWithXaLock( xid, flags );
+        } else {
+            try {
+                xaResource.end( xid, flags );
+            } catch ( XAException xe ) {
+                if ( !XAExceptionUtils.isUnilateralRollbackOnAbort( xe.errorCode, flags ) ) {
+                    transactionAware.setFlushOnly();
+                }
+                throw xe;
+            } catch ( Exception e ) {
+                transactionAware.setFlushOnly();
+                throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, "Error trying to end xa transaction: ", e );
+            }
+        }
+    }
+
+    /**
+     * end(TMFAIL) under the XAConnectionLock write lock.
+     * Blocks until all in-flight JDBC operations (holding the read lock) complete,
+     * then executes the driver's end(TMFAIL) and poisons the connection.
+     */
+    private void endWithXaLock(Xid xid, int flags) throws XAException {
+        XAConnectionLock xaLock = getXaConnectionLock();
+        if ( xaLock == null ) {
+            try {
+                xaResource.end( xid, flags );
+            } catch ( XAException xe ) {
+                if ( !XAExceptionUtils.isUnilateralRollbackOnAbort( xe.errorCode, flags ) ) {
+                    transactionAware.setFlushOnly();
+                }
+                throw xe;
+            }
+            return;
+        }
+
+        xaLock.acquireForXaEnd();
         try {
             xaResource.end( xid, flags );
         } catch ( XAException xe ) {
@@ -74,6 +112,9 @@ public class BaseXAResource implements XAResourceWrapper {
         } catch ( Exception e ) {
             transactionAware.setFlushOnly();
             throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, "Error trying to end xa transaction: ", e );
+        } finally {
+            xaLock.markPoisoned( "XA branch ended with TMFAIL" );
+            xaLock.releaseForXaEnd();
         }
     }
 
@@ -129,12 +170,23 @@ public class BaseXAResource implements XAResourceWrapper {
 
     @Override
     public void rollback(Xid xid) throws XAException {
+        XAConnectionLock xaLock = getXaConnectionLock();
+        if ( xaLock != null ) {
+            xaLock.acquireForXaEnd();
+        }
         try {
             transactionAware.transactionBeforeCompletion( false );
             xaResource.rollback( xid );
         } catch ( XAException xe ) {
             transactionAware.setFlushOnly();
             throw xe;
+        } finally {
+            if ( xaLock != null ) {
+                if ( !xaLock.isPoisoned() ) {
+                    xaLock.markPoisoned( "XA branch rolled back" );
+                }
+                xaLock.releaseForXaEnd();
+            }
         }
     }
 
@@ -153,6 +205,11 @@ public class BaseXAResource implements XAResourceWrapper {
         try {
             transactionAware.transactionStart();
             xaResource.start( xid, flags );
+
+            XAConnectionLock xaLock = getXaConnectionLock();
+            if ( xaLock != null ) {
+                xaLock.reset();
+            }
         } catch ( XAException xe ) {
             transactionAware.setFlushOnly();
             throw xe;
@@ -160,5 +217,9 @@ public class BaseXAResource implements XAResourceWrapper {
             transactionAware.setFlushOnly();
             throw XAExceptionUtils.xaException( XAException.XAER_RMFAIL, "Error trying to start xa transaction: ", e );
         }
+    }
+
+    private XAConnectionLock getXaConnectionLock() {
+        return transactionAware.getXaConnectionLock();
     }
 }

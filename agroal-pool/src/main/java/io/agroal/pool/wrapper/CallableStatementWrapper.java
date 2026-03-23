@@ -1329,23 +1329,29 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
 
     @Override
     public ResultSet executeQuery() throws SQLException {
+        connection.getHandler().getXaConnectionLock().acquireForJdbc();
         try {
             verifyEnlistment();
             return trackResultSet( wrappedStatement.executeQuery() );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            connection.getHandler().getXaConnectionLock().releaseForJdbc();
         }
     }
 
     @Override
     public int executeUpdate() throws SQLException {
+        connection.getHandler().getXaConnectionLock().acquireForJdbc();
         try {
             verifyEnlistment();
             return wrappedStatement.executeUpdate();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            connection.getHandler().getXaConnectionLock().releaseForJdbc();
         }
     }
 
@@ -1572,12 +1578,15 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
 
     @Override
     public boolean execute() throws SQLException {
+        connection.getHandler().getXaConnectionLock().acquireForJdbc();
         try {
             verifyEnlistment();
             return wrappedStatement.execute();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            connection.getHandler().getXaConnectionLock().releaseForJdbc();
         }
     }
 
@@ -1959,12 +1968,15 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
 
     @Override
     public long executeLargeUpdate() throws SQLException {
+        connection.getHandler().getXaConnectionLock().acquireForJdbc();
         try {
             verifyEnlistment();
             return wrappedStatement.executeLargeUpdate();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        } finally {
+            connection.getHandler().getXaConnectionLock().releaseForJdbc();
         }
     }
 }

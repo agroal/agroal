@@ -6,6 +6,7 @@ package io.agroal.pool;
 import io.agroal.api.cache.Acquirable;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.transaction.TransactionAware;
+import io.agroal.api.transaction.XAConnectionLock;
 import io.agroal.pool.util.AutoCloseableElement;
 import io.agroal.pool.util.UncheckedArrayList;
 import io.agroal.pool.wrapper.ConnectionWrapper;
@@ -97,6 +98,11 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     // If there is no transaction integration this should just return false
     private SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
+    // Lock that serializes JDBC execute operations (read lock) with XA branch
+    // termination by the reaper thread (write lock). Prevents the connection from
+    // silently exiting XA mode while SQL is in flight.
+    private final XAConnectionLock xaConnectionLock = new XAConnectionLock();
+
     public ConnectionHandler(XAConnection xa, Pool pool, int isolationLevel, int holdability) throws SQLException {
         xaConnection = xa;
         connection = xaConnection.getConnection();
@@ -140,6 +146,11 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     public XAResource getXaResource() {
         return xaResource;
+    }
+
+    @Override
+    public XAConnectionLock getXaConnectionLock() {
+        return xaConnectionLock;
     }
 
     @SuppressWarnings( "MagicConstant" )
@@ -452,6 +463,19 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     @Override
     public void transactionEnd() throws SQLException {
         enlisted = false;
+
+        // If the XA branch was terminated by the reaper, rollback any pending
+        // local transaction that may have started after the forced XA rollback,
+        // then reset the lock so the connection can be reused from the pool.
+        if ( xaConnectionLock.isPoisoned() ) {
+            try {
+                connection.rollback();
+            } catch ( SQLException ignore ) {
+                // Connection may already be in error state after forced XA abort
+            }
+            xaConnectionLock.reset();
+        }
+
         if ( !isHeldOverCommit ) {
             if ( enlistedOpenWrappers.closeAllAutocloseableElements() != 0 ) {
                 // should never happen, but it's here as a safeguard to prevent double returns in all cases.
