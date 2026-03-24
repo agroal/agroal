@@ -1,7 +1,6 @@
 package io.agroal.tests;
 
 import io.agroal.api.AgroalDataSource;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,6 @@ import org.testcontainers.mssqlserver.MSSQLServerContainer;
 
 import jakarta.transaction.TransactionManager;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -27,7 +25,7 @@ import static org.assertj.core.api.Assertions.fail;
  * Uses WAITFOR DELAY for slow SQL that holds the read lock past the transaction timeout.
  *
  * MSSQL XA requires the JDBC XA stored procedures to be installed.
- * The @BeforeAll method installs them via sp_sqljdbc_xa_install.
+ * The init script (mssql-xa-init.sql) installs them via sp_sqljdbc_xa_install.
  */
 @Tag( "testcontainers" )
 @Testcontainers
@@ -37,21 +35,8 @@ class MSSQLXAReaperRaceIT extends XAReaperRaceITBase {
 
     @Container
     static MSSQLServerContainer mssql = new MSSQLServerContainer( "mcr.microsoft.com/mssql/server:2022-latest" )
-            .acceptLicense();
-
-    @BeforeAll
-    static void installXASupport() {
-        // Install the JDBC XA stored procedures required for XA transactions.
-        // This must run as SA before any XA enlistment is attempted.
-        try ( var conn = DriverManager.getConnection( mssql.getJdbcUrl(), mssql.getUsername(), mssql.getPassword() );
-              Statement stmt = conn.createStatement() ) {
-            stmt.execute( "EXEC sp_sqljdbc_xa_install" );
-            logger.info( "MSSQL: sp_sqljdbc_xa_install executed successfully" );
-        } catch ( Exception e ) {
-            logger.warning( "MSSQL: Failed to install XA support: " + e.getMessage() );
-            // The test will fail at XA enlistment and be skipped via assumeTrue
-        }
-    }
+            .acceptLicense()
+            .withInitScript( "mssql-xa-init.sql" );
 
     @Override
     String xaDataSourceClassName() {

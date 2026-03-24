@@ -5,6 +5,7 @@ package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
 import io.agroal.api.transaction.TransactionIntegration;
+import io.agroal.pool.ConnectionHandler;
 import jakarta.transaction.Synchronization;
 import jakarta.transaction.Transaction;
 import jakarta.transaction.TransactionManager;
@@ -120,10 +121,11 @@ public class NarayanaTransactionIntegration implements TransactionIntegration {
 
     private XAResource createXaResource(TransactionAware transactionAware, XAResource xaResource) {
         if ( xaResource != null ) {
+            var xaConnectionLock = ( (ConnectionHandler) transactionAware ).getXaConnectionLock();
             if ( firstResource ) {
-                return new FirstResourceBaseXAResource( transactionAware, xaResource, jndiName );
+                return new FirstResourceBaseXAResource( transactionAware, xaResource, jndiName, xaConnectionLock );
             } else {
-                return new BaseXAResource( transactionAware, xaResource, jndiName );
+                return new BaseXAResource( transactionAware, xaResource, jndiName, xaConnectionLock );
             }
         } else if ( connectable ) {
             return new ConnectableLocalXAResource( transactionAware, jndiName );

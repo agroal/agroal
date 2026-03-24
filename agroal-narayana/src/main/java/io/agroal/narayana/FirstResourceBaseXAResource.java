@@ -4,13 +4,14 @@
 package io.agroal.narayana;
 
 import io.agroal.api.transaction.TransactionAware;
+import io.agroal.api.transaction.XAConnectionLock;
 import org.jboss.tm.FirstResource;
 
 import javax.transaction.xa.XAResource;
 
 public class FirstResourceBaseXAResource extends BaseXAResource implements FirstResource {
 
-    public FirstResourceBaseXAResource(TransactionAware transactionAware, XAResource xaResource, String jndiName) {
-        super( transactionAware, xaResource, jndiName );
+    public FirstResourceBaseXAResource(TransactionAware transactionAware, XAResource xaResource, String jndiName, XAConnectionLock xaConnectionLock) {
+        super( transactionAware, xaResource, jndiName, xaConnectionLock );
     }
 }

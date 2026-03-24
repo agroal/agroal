@@ -56,15 +56,6 @@ public interface TransactionAware {
      */
     void setFlushOnly();
 
-    /**
-     * Returns the XAConnectionLock for this resource, or null if not supported.
-     * The lock serializes JDBC execute operations with XA branch termination
-     * by the transaction reaper thread.
-     */
-    default XAConnectionLock getXaConnectionLock() {
-        return null;
-    }
-
     // --- //
 
     /**

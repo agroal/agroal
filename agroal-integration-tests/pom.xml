@@ -13,6 +13,7 @@
   <properties>
     <testcontainers.version>2.0.3</testcontainers.version>
     <assertj.version>3.27.7</assertj.version>
+    <byteman.version>4.0.23</byteman.version>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -136,6 +137,25 @@
       <artifactId>testcontainers-mariadb</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-oracle-free</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Oracle JDBC -->
+    <dependency>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ojdbc11</artifactId>
+      <version>23.7.0.25.01</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Byteman (deterministic thread interleaving for race condition tests) -->
+    <dependency>
+      <groupId>org.jboss.byteman</groupId>
+      <artifactId>byteman-bmunit5</artifactId>
+      <version>${byteman.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -144,6 +164,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludedGroups>testcontainers</excludedGroups>
+          <argLine>-Djdk.attach.allowAttachSelf=true</argLine>
         </configuration>
       </plugin>
     </plugins>
@@ -159,6 +180,7 @@
             <configuration>
               <excludedGroups>none</excludedGroups>
               <reuseForks>false</reuseForks>
+              <argLine>-Djdk.attach.allowAttachSelf=true</argLine>
             </configuration>
           </plugin>
         </plugins>

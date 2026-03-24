@@ -36,7 +36,7 @@ class XAExceptionTests {
         XAException endXAException = XAExceptionUtils.xaException( rbCode );
         try {
             txManager.begin();
-            txManager.getTransaction().enlistResource( new BaseXAResource(new MockTransactionAware.Empty(), new EndThrows( endXAException ), null ) );
+            txManager.getTransaction().enlistResource( new BaseXAResource(new MockTransactionAware.Empty(), new EndThrows( endXAException ), null, null ) );
             txManager.getTransaction().enlistResource( new MockXAResource.Empty() ); // Force two phase commit
             txManager.commit();
 
@@ -69,7 +69,7 @@ class XAExceptionTests {
         TransactionAware transactionAware = mock(TransactionAware.class);
         try {
             txManager.begin();
-            txManager.getTransaction().enlistResource( new BaseXAResource(transactionAware, new EndThrows( endXAException ), null ) );
+            txManager.getTransaction().enlistResource( new BaseXAResource(transactionAware, new EndThrows( endXAException ), null, null ) );
             txManager.getTransaction().enlistResource( new MockXAResource.Empty() ); // Force two phase commit
             txManager.rollback();
         } catch ( Exception e ) {

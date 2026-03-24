@@ -148,7 +148,6 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         return xaResource;
     }
 
-    @Override
     public XAConnectionLock getXaConnectionLock() {
         return xaConnectionLock;
     }

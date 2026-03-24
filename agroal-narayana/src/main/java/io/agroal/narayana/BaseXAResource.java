@@ -23,11 +23,13 @@ public class BaseXAResource implements XAResourceWrapper {
     private final TransactionAware transactionAware;
     private final XAResource xaResource;
     private final String jndiName;
+    private final XAConnectionLock xaConnectionLock;
 
-    public BaseXAResource(TransactionAware transactionAware, XAResource xaResource, String jndiName) {
+    public BaseXAResource(TransactionAware transactionAware, XAResource xaResource, String jndiName, XAConnectionLock xaConnectionLock) {
         this.transactionAware = transactionAware;
         this.xaResource = xaResource;
         this.jndiName = jndiName;
+        this.xaConnectionLock = xaConnectionLock;
     }
 
     @Override
@@ -88,7 +90,7 @@ public class BaseXAResource implements XAResourceWrapper {
      * then executes the driver's end(TMFAIL) and poisons the connection.
      */
     private void endWithXaLock(Xid xid, int flags) throws XAException {
-        XAConnectionLock xaLock = getXaConnectionLock();
+        XAConnectionLock xaLock = xaConnectionLock;
         if ( xaLock == null ) {
             try {
                 xaResource.end( xid, flags );
@@ -170,7 +172,7 @@ public class BaseXAResource implements XAResourceWrapper {
 
     @Override
     public void rollback(Xid xid) throws XAException {
-        XAConnectionLock xaLock = getXaConnectionLock();
+        XAConnectionLock xaLock = xaConnectionLock;
         if ( xaLock != null ) {
             xaLock.acquireForXaEnd();
         }
@@ -206,7 +208,7 @@ public class BaseXAResource implements XAResourceWrapper {
             transactionAware.transactionStart();
             xaResource.start( xid, flags );
 
-            XAConnectionLock xaLock = getXaConnectionLock();
+            XAConnectionLock xaLock = xaConnectionLock;
             if ( xaLock != null ) {
                 xaLock.reset();
             }
@@ -219,7 +221,4 @@ public class BaseXAResource implements XAResourceWrapper {
         }
     }
 
-    private XAConnectionLock getXaConnectionLock() {
-        return transactionAware.getXaConnectionLock();
-    }
 }
