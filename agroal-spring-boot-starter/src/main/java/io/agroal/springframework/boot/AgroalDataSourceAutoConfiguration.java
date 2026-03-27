@@ -5,6 +5,7 @@ package io.agroal.springframework.boot;
 
 import java.util.List;
 
+import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.jndi.AgroalDataSourceJndiBinder;
@@ -49,16 +50,19 @@ public class AgroalDataSourceAutoConfiguration {
     private final ObjectProvider<XAResourceRecoveryRegistry> recoveryRegistryProvider;
     private final ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder;
     private final ObjectProvider<AgroalSecurityProvider> securityProvider;
+    private final ObjectProvider<AgroalPoolInterceptor> poolInterceptor;
 
     public AgroalDataSourceAutoConfiguration(
             ObjectProvider<JtaTransactionManager> jtaPlatformProvider,
             ObjectProvider<XAResourceRecoveryRegistry> recoveryRegistryProvider,
             ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder,
-            ObjectProvider<AgroalSecurityProvider> securityProvider ) {
+            ObjectProvider<AgroalSecurityProvider> securityProvider,
+            ObjectProvider<AgroalPoolInterceptor> poolInterceptor ) {
         this.jtaPlatformProvider = jtaPlatformProvider;
         this.recoveryRegistryProvider = recoveryRegistryProvider;
         this.jndiBinder = jndiBinder;
         this.securityProvider = securityProvider;
+        this.poolInterceptor = poolInterceptor;
     }
 
     @Bean
@@ -118,6 +122,8 @@ public class AgroalDataSourceAutoConfiguration {
         securityProvider.orderedStream().forEach( dataSource::addSecurityProvider );
         credentials.forEach( dataSource::addCredential );
         recoveryCredentials.forEach( dataSource::addRecoveryCredential );
+
+        poolInterceptor.forEach( dataSource::addPoolInterceptor );
 
         return dataSource;
     }

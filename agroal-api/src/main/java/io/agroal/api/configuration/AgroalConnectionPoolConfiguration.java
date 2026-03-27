@@ -3,12 +3,14 @@
 
 package io.agroal.api.configuration;
 
+import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.cache.ConnectionCache;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.Collection;
 
 /**
  * The configuration of the connection pool.
@@ -158,6 +160,11 @@ public interface AgroalConnectionPoolConfiguration {
      * A duration of {@link Duration#ZERO} means that a thread will wait indefinitely.
      */
     void setAcquisitionTimeout(Duration timeout);
+
+    /**
+     * The Collection of AgroalPoolInterceptors to be set to the pool.
+     */
+    Collection<AgroalPoolInterceptor> interceptors();
 
     // --- //
 
