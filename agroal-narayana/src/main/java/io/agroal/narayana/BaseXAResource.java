@@ -64,6 +64,9 @@ public class BaseXAResource implements XAResourceWrapper {
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
+        if ( ( flags & XAResource.TMFAIL ) != 0 ) {
+            transactionAware.transactionBeforeCompletion( false );
+        }
         try {
             xaResource.end( xid, flags );
         } catch ( XAException xe ) {
