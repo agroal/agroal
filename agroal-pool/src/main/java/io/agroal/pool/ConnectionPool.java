@@ -449,7 +449,7 @@ public final class ConnectionPool implements Pool {
     // handler must be in VALIDATION state
     private boolean performValidation(ConnectionHandler handler, boolean idle) {
         fireBeforeConnectionValidation( listeners, handler );
-        if ( handler.isValid() && idle ? handler.passValidationToIdle() : handler.passValidationToActive() ) {
+        if ( handler.isValid() && ( idle ? handler.passValidationToIdle() : handler.passValidationToActive() ) ) {
             fireOnConnectionValid( listeners, handler );
             if ( idle ) {
                 handlerTransferQueue.tryTransfer( handler );
