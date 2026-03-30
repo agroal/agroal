@@ -1,0 +1,77 @@
+# Arms the interleave mechanism once the INSERT statement is prepared.
+# All subsequent rules check this flag so they only fire during the test window.
+RULE Enable interleave sync after prepareStatement
+CLASS io.agroal.tests.xa.XAReaperRaceTestBase
+METHOD testInterleave
+AFTER INVOKE prepareStatement
+BIND NOTHING
+IF TRUE
+DO debug("enabling interleave sync flag"),
+   flag("interleave-active")
+ENDRULE
+
+# Blocks the app thread inside execute() until the reaper has passed through
+# end() and reached rollback() AT ENTRY — creating the race window.
+RULE App thread waits at execute entry for reaper to reach rollback
+CLASS io.agroal.pool.wrapper.PreparedStatementWrapper
+METHOD execute()
+AT ENTRY
+BIND NOTHING
+IF flagged("interleave-active")
+DO debug("app thread: waiting for reaper to complete end(TMFAIL) and reach rollback entry"),
+   waitFor("reaper-at-rollback", 30000),
+   debug("app thread: reaper is held at rollback entry, proceeding with execute()")
+ENDRULE
+
+# When the reaper reaches rollback(), it has already completed end().
+# Signal the app thread to proceed with the INSERT, then hold the reaper
+# so the INSERT runs before rollback() executes.
+RULE Reaper signals app and holds at rollback entry
+CLASS io.agroal.narayana.BaseXAResource
+METHOD rollback
+AT ENTRY
+BIND NOTHING
+IF flagged("interleave-active")
+DO flag("rollback-started"),
+   debug("reaper: end(TMFAIL) done, signaling app thread and holding"),
+   signalWake("reaper-at-rollback", false),
+   waitFor("app-execute-done", 30000),
+   debug("reaper: app done, proceeding with rollback()")
+ENDRULE
+
+# On successful rollback, mark the flag so the test can verify it.
+RULE Mark rollback succeeded
+CLASS io.agroal.narayana.BaseXAResource
+METHOD rollback
+AT EXIT
+BIND NOTHING
+IF flagged("rollback-started")
+DO clear("rollback-started"),
+   debug("reaper: rollback() completed successfully"),
+   io.agroal.tests.xa.XAReaperRaceTestBase.markRollbackSucceeded()
+ENDRULE
+
+# On failed rollback (e.g. Oracle XAER_PROTO), clear the flag so that
+# a Narayana retry cannot falsely set rollbackSucceeded.
+RULE Clear rollback-started on failure
+CLASS io.agroal.narayana.BaseXAResource
+METHOD rollback
+AT EXCEPTION EXIT
+BIND NOTHING
+IF flagged("rollback-started")
+DO clear("rollback-started"),
+   debug("reaper: rollback() failed, clearing rollback-started")
+ENDRULE
+
+# After the app thread's INSERT attempt, release the reaper so it can
+# proceed with rollback(). Clears interleave-active to disarm all rules.
+RULE Release reaper before suspend
+CLASS io.agroal.tests.xa.XAReaperRaceTestBase
+METHOD testInterleave
+AT INVOKE suspend
+BIND NOTHING
+IF flagged("interleave-active")
+DO debug("app thread: execute attempt finished, releasing reaper"),
+   clear("interleave-active"),
+   signalWake("app-execute-done", false)
+ENDRULE
