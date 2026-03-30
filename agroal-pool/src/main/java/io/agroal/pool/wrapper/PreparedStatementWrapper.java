@@ -7,8 +7,6 @@ import io.agroal.pool.util.AutoCloseableElement;
 
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
@@ -29,8 +27,6 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
-
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
@@ -39,23 +35,7 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
 
     static final String CLOSED_PREPARED_STATEMENT_STRING = PreparedStatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
 
-    private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
-        @Override
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            switch ( method.getName() ) {
-                case "close":
-                    return Void.TYPE;
-                case "isClosed":
-                    return Boolean.TRUE;
-                case "toString":
-                    return CLOSED_PREPARED_STATEMENT_STRING;
-                default:
-                    throw new SQLException( "PreparedStatement is closed" );
-            }
-        }
-    };
-
-    private static final PreparedStatement CLOSED_STATEMENT = (PreparedStatement) newProxyInstance( PreparedStatement.class.getClassLoader(), new Class[]{PreparedStatement.class}, CLOSED_HANDLER );
+    private static final PreparedStatement CLOSED_STATEMENT = new ClosedPreparedStatement();
 
     // --- //
 
@@ -712,6 +692,196 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
+        }
+    }
+
+    static class ClosedPreparedStatement extends StatementWrapper.ClosedStatement implements PreparedStatement {
+
+        @Override
+        protected SQLException closed() {
+            return new SQLException( "PreparedStatement is closed" );
+        }
+
+        // --- PreparedStatement methods ---
+
+        @Override
+        public ResultSet executeQuery() throws SQLException { throw closed(); }
+
+        @Override
+        public int executeUpdate() throws SQLException { throw closed(); }
+
+        @Override
+        public void setNull(int parameterIndex, int sqlType) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBoolean(int parameterIndex, boolean x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setByte(int parameterIndex, byte x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setShort(int parameterIndex, short x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setInt(int parameterIndex, int x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setLong(int parameterIndex, long x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setFloat(int parameterIndex, float x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setDouble(int parameterIndex, double x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setString(int parameterIndex, String x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBytes(int parameterIndex, byte[] x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setDate(int parameterIndex, Date x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setTime(int parameterIndex, Time x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException { throw closed(); }
+
+        @Override
+        @SuppressWarnings( "deprecation" )
+        public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException { throw closed(); }
+
+        @Override
+        public void clearParameters() throws SQLException { throw closed(); }
+
+        @Override
+        public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException { throw closed(); }
+
+        @Override
+        public void setObject(int parameterIndex, Object x) throws SQLException { throw closed(); }
+
+        @Override
+        public boolean execute() throws SQLException { throw closed(); }
+
+        @Override
+        public void addBatch() throws SQLException { throw closed(); }
+
+        @Override
+        public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setRef(int parameterIndex, Ref x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBlob(int parameterIndex, Blob x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setClob(int parameterIndex, Clob x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setArray(int parameterIndex, Array x) throws SQLException { throw closed(); }
+
+        @Override
+        public ResultSetMetaData getMetaData() throws SQLException { throw closed(); }
+
+        @Override
+        public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException { throw closed(); }
+
+        @Override
+        public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException { throw closed(); }
+
+        @Override
+        public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException { throw closed(); }
+
+        @Override
+        public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException { throw closed(); }
+
+        @Override
+        public void setURL(int parameterIndex, URL x) throws SQLException { throw closed(); }
+
+        @Override
+        public ParameterMetaData getParameterMetaData() throws SQLException { throw closed(); }
+
+        @Override
+        public void setRowId(int parameterIndex, RowId x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setNString(int parameterIndex, String value) throws SQLException { throw closed(); }
+
+        @Override
+        public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setNClob(int parameterIndex, NClob value) throws SQLException { throw closed(); }
+
+        @Override
+        public void setClob(int parameterIndex, Reader reader, long length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException { throw closed(); }
+
+        @Override
+        public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException { throw closed(); }
+
+        @Override
+        public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException { throw closed(); }
+
+        @Override
+        public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException { throw closed(); }
+
+        @Override
+        public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException { throw closed(); }
+
+        @Override
+        public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException { throw closed(); }
+
+        @Override
+        public void setClob(int parameterIndex, Reader reader) throws SQLException { throw closed(); }
+
+        @Override
+        public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException { throw closed(); }
+
+        @Override
+        public void setNClob(int parameterIndex, Reader reader) throws SQLException { throw closed(); }
+
+        @Override
+        public void setObject(int parameterIndex, Object x, SQLType targetSqlType, int scaleOrLength) throws SQLException { throw closed(); }
+
+        @Override
+        public void setObject(int parameterIndex, Object x, SQLType targetSqlType) throws SQLException { throw closed(); }
+
+        @Override
+        public long executeLargeUpdate() throws SQLException { throw closed(); }
+
+        @Override
+        public String toString() {
+            return CLOSED_PREPARED_STATEMENT_STRING;
         }
     }
 }
