@@ -9,6 +9,7 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockStatement;
+import io.agroal.test.MockDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
@@ -85,21 +87,28 @@ public class ValidationTests {
             logger.info( format( "Awaiting for validation of all the {0} connections on the pool", MAX_POOL_SIZE ) );
             listener.awaitValidation( 3 * VALIDATION_MS );
 
-            assertEquals( MAX_POOL_SIZE, dataSource.getMetrics().invalidCount(), "Expected connection invalid count" );
+            // With flush-on-first-failure, only the first connection is validated (and found invalid).
+            // The remaining connections are flushed directly without validation.
+            long invalidCount = dataSource.getMetrics().invalidCount();
+            long flushCount = dataSource.getMetrics().flushCount();
+            assertEquals( MAX_POOL_SIZE, invalidCount + flushCount, "Expected all connections removed (invalid + flush)" );
             assertEquals( 0, dataSource.getMetrics().availableCount(), "Expected no available connections" );
 
+            long creationsBefore = dataSource.getMetrics().creationCount();
             try ( Connection connection = dataSource.getConnection() ) {
                 assertNotNull( connection.getSchema(), "Expected non null value" );
-                assertEquals( MAX_POOL_SIZE + 1, dataSource.getMetrics().creationCount(), "Expected connection creation" );
+                assertEquals( creationsBefore + 1, dataSource.getMetrics().creationCount(), "Expected connection creation" );
             }
 
             logger.info( format( "Short sleep to trigger idle validation" ) );
             Thread.sleep( 2 * IDLE_VALIDATION_MS );
 
+            long invalidsBefore = dataSource.getMetrics().invalidCount();
+            long creationsBefore2 = dataSource.getMetrics().creationCount();
             try ( Connection connection = dataSource.getConnection() ) {
                 assertNotNull( connection.getSchema(), "Expected non null value" );
-                assertEquals( MAX_POOL_SIZE + 1, dataSource.getMetrics().invalidCount(), "Expected connection invalid count" );
-                assertEquals( MAX_POOL_SIZE + 2, dataSource.getMetrics().creationCount(), "Expected connection creation" );
+                assertEquals( invalidsBefore + 1, dataSource.getMetrics().invalidCount(), "Expected connection invalid count" );
+                assertEquals( creationsBefore2 + 1, dataSource.getMetrics().creationCount(), "Expected connection creation" );
             }
         }
     }
@@ -152,6 +161,11 @@ public class ValidationTests {
 
         @Override
         public void onConnectionInvalid(Connection connection) {
+            latch.countDown();
+        }
+
+        @Override
+        public void onConnectionFlush(Connection connection) {
             latch.countDown();
         }
 
@@ -269,6 +283,102 @@ public class ValidationTests {
         public boolean execute(String sql) throws SQLException {
             executedSql = sql;
             return false;
+        }
+    }
+
+    @Test
+    @DisplayName( "flush all idle connections on first validation failure" )
+    void flushOnFirstValidationFailureTest() throws Exception {
+        int POOL_SIZE = 10, VALIDATION_MS = 500, BLOCK_MS = 200;
+
+        // Reset stale flag before test
+        SlowStaleConnection.stale.set( false );
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( POOL_SIZE )
+                        .maxSize( POOL_SIZE )
+                        .minSize( 0 )
+                        .validationTimeout( ofMillis( VALIDATION_MS ) )
+                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( SlowStaleDataSource.class ) )
+                );
+
+        // Count both flush (for connections flushed without validation) and invalid (for the first connection that fails validation)
+        CountDownLatch removedLatch = new CountDownLatch( POOL_SIZE );
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void onConnectionFlush(Connection connection) {
+                removedLatch.countDown();
+            }
+
+            @Override
+            public void onConnectionInvalid(Connection connection) {
+                removedLatch.countDown();
+            }
+        };
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            // Wait for initial fill to complete on background thread
+            Thread.sleep( 100 );
+            assertEquals( POOL_SIZE, dataSource.getMetrics().creationCount(), "All connections should be created" );
+
+            // Make all connections stale — isValid() will now block for BLOCK_MS then return false
+            SlowStaleConnection.stale.set( true );
+
+            logger.info( format( "Stale flag set. Waiting for background validation to trigger (interval: {0}ms, block: {1}ms)", VALIDATION_MS, BLOCK_MS ) );
+            long start = System.nanoTime();
+
+            // Wait for all connections to be removed (flushed or invalidated).
+            // Background validation runs every VALIDATION_MS. After detecting the first stale connection,
+            // it should flush all remaining idle connections without calling isValid() on each.
+            boolean flushed = removedLatch.await( 3 * VALIDATION_MS, MILLISECONDS );
+            long elapsed = ( System.nanoTime() - start ) / 1_000_000;
+
+            assertTrue( flushed, "All connections should have been flushed" );
+            logger.info( format( "All {0} connections flushed in {1}ms", POOL_SIZE, elapsed ) );
+
+            // The key assertion: elapsed time should be much less than POOL_SIZE * BLOCK_MS
+            // Without the fix, it would take at least POOL_SIZE * BLOCK_MS = 2000ms
+            // With the fix, only 1 connection is validated (BLOCK_MS), the rest are flushed immediately
+            long worstCaseWithoutFix = (long) POOL_SIZE * BLOCK_MS;
+            assertTrue( elapsed < worstCaseWithoutFix,
+                    format( "Flush should complete faster than sequential validation of all connections. Elapsed: {0}ms, worst case without fix: {1}ms", elapsed, worstCaseWithoutFix ) );
+        }
+    }
+
+    // --- //
+
+    public static class SlowStaleDataSource implements MockDataSource {
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return new SlowStaleConnection();
+        }
+    }
+
+    public static class SlowStaleConnection implements MockConnection {
+
+        static final AtomicBoolean stale = new AtomicBoolean( false );
+
+        @Override
+        public String getSchema() throws SQLException {
+            return "slow_stale";
+        }
+
+        @Override
+        public boolean isValid(int timeout) throws SQLException {
+            if ( stale.get() ) {
+                try {
+                    // Simulate socket read timeout on a broken connection
+                    Thread.sleep( 200 );
+                } catch ( InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                }
+                return false;
+            }
+            return true;
         }
     }
 
