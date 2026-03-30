@@ -13,6 +13,14 @@
   <properties>
     <testcontainers.version>2.0.3</testcontainers.version>
     <assertj.version>3.27.7</assertj.version>
+    <byteman.version>4.0.26</byteman.version>
+
+    <!-- Testcontainer Docker images -->
+    <postgres.testcontainer.image>postgres:17-alpine</postgres.testcontainer.image>
+    <mysql.testcontainer.image>mysql:8.0</mysql.testcontainer.image>
+    <mariadb.testcontainer.image>mariadb:11</mariadb.testcontainer.image>
+    <mssql.testcontainer.image>mcr.microsoft.com/mssql/server:2022-CU23-ubuntu-22.04</mssql.testcontainer.image>
+    <oracle.testcontainer.image>gvenzl/oracle-free:slim-faststart</oracle.testcontainer.image>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -63,6 +71,25 @@
       <version>${version.org.slf4j}</version>
       <scope>test</scope>
     </dependency>
+    <!-- Narayana JTA runtime (for TransactionManager in XA tests) -->
+    <dependency>
+      <groupId>org.jboss.narayana.jta</groupId>
+      <artifactId>narayana-jta</artifactId>
+      <version>${version.org.jboss.narayana}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.narayana.jts</groupId>
+      <artifactId>narayana-jts-integration</artifactId>
+      <version>${version.org.jboss.narayana}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.logging</groupId>
+      <artifactId>jboss-logging</artifactId>
+      <version>${version.org.jboss.logging}</version>
+      <scope>test</scope>
+    </dependency>
     <!-- PostgreSQL DB -->
     <dependency>
       <groupId>org.postgresql</groupId>
@@ -70,6 +97,28 @@
       <version>42.7.8</version>
       <scope>test</scope>
     </dependency>
+    <!-- MySQL DB -->
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>9.5.0</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- MSSQL DB -->
+    <dependency>
+      <groupId>com.microsoft.sqlserver</groupId>
+      <artifactId>mssql-jdbc</artifactId>
+      <version>13.2.1.jre11</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- MariaDB -->
+    <dependency>
+      <groupId>org.mariadb.jdbc</groupId>
+      <artifactId>mariadb-java-client</artifactId>
+      <version>3.5.3</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Testcontainers -->
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-junit-jupiter</artifactId>
@@ -80,6 +129,40 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-mysql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-mssqlserver</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-mariadb</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-oracle-free</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Oracle JDBC -->
+    <dependency>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ojdbc11</artifactId>
+      <version>23.7.0.25.01</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Byteman (deterministic thread interleaving for race condition tests) -->
+    <dependency>
+      <groupId>org.jboss.byteman</groupId>
+      <artifactId>byteman-bmunit5</artifactId>
+      <version>${byteman.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -88,6 +171,14 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludedGroups>testcontainers</excludedGroups>
+          <argLine>-Djdk.attach.allowAttachSelf=true -XX:+EnableDynamicAgentLoading</argLine>
+          <systemPropertyVariables>
+            <postgres.testcontainer.image>${postgres.testcontainer.image}</postgres.testcontainer.image>
+            <mysql.testcontainer.image>${mysql.testcontainer.image}</mysql.testcontainer.image>
+            <mariadb.testcontainer.image>${mariadb.testcontainer.image}</mariadb.testcontainer.image>
+            <mssql.testcontainer.image>${mssql.testcontainer.image}</mssql.testcontainer.image>
+            <oracle.testcontainer.image>${oracle.testcontainer.image}</oracle.testcontainer.image>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
     </plugins>
@@ -102,6 +193,15 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <excludedGroups>none</excludedGroups>
+              <reuseForks>false</reuseForks>
+              <argLine>-Djdk.attach.allowAttachSelf=true -XX:+EnableDynamicAgentLoading</argLine>
+              <systemPropertyVariables>
+                <postgres.testcontainer.image>${postgres.testcontainer.image}</postgres.testcontainer.image>
+                <mysql.testcontainer.image>${mysql.testcontainer.image}</mysql.testcontainer.image>
+                <mariadb.testcontainer.image>${mariadb.testcontainer.image}</mariadb.testcontainer.image>
+                <mssql.testcontainer.image>${mssql.testcontainer.image}</mssql.testcontainer.image>
+                <oracle.testcontainer.image>${oracle.testcontainer.image}</oracle.testcontainer.image>
+              </systemPropertyVariables>
             </configuration>
           </plugin>
         </plugins>

@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 public class PostgreSQLTest {
 
     @Container
-    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine");
+    static PostgreSQLContainer postgres = new PostgreSQLContainer( System.getProperty( "postgres.testcontainer.image", "postgres:17-alpine" ) );
 
     AgroalDataSource datasource;
 
