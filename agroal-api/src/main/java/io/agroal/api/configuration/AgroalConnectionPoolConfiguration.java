@@ -260,17 +260,35 @@ public interface AgroalConnectionPoolConfiguration {
          * A validator that uses the provided SQL statement for validation with a timeout (in seconds).
          * If the timeout period expires before the operation completes, the connection is invalidated.
          * A timeout of 0 means no timeout.
+         * Uses {@link Connection#setNetworkTimeout(java.util.concurrent.Executor, int)} as a hard backstop
+         * in addition to {@link java.sql.Statement#setQueryTimeout(int)}, since the query cancellation signal
+         * may not work when the connection is stuck at the network level.
          */
         static ConnectionValidator sqlValidator(String sql, int timeoutSeconds) {
             return new ConnectionValidator() {
                 @Override
                 public boolean isValid(Connection connection) {
+                    int networkTimeout = 0;
+                    try {
+                        networkTimeout = connection.getNetworkTimeout();
+                        if ( timeoutSeconds > 0 ) {
+                            connection.setNetworkTimeout( Runnable::run, timeoutSeconds * 1000 );
+                        }
+                    } catch (Exception ignore) {
+                        // driver may not support network timeout
+                    }
                     try (var statement = connection.createStatement()) {
                         statement.setQueryTimeout( timeoutSeconds );
                         statement.execute( sql );
                         return true;
                     } catch (Exception t) {
                         return false;
+                    } finally {
+                        try {
+                            connection.setNetworkTimeout( Runnable::run, networkTimeout );
+                        } catch (Exception ignore) {
+                            // driver may not support network timeout
+                        }
                     }
                 }
             };
