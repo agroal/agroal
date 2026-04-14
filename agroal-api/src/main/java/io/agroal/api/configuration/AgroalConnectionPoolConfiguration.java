@@ -270,6 +270,18 @@ public interface AgroalConnectionPoolConfiguration {
         }
 
         /**
+         * A validator that uses the provided SQL statement for validation with a timeout.
+         * If the timeout period expires before the operation completes, the connection is invalidated.
+         * A timeout of zero means no timeout.
+         * Uses the same value for both query timeout and network timeout.
+         *
+         * @see #sqlValidator(String, Duration, Duration)
+         */
+        static ConnectionValidator sqlValidator(String sql, Duration timeout) {
+            return sqlValidator( sql, timeout, timeout );
+        }
+
+        /**
          * A validator that uses the provided SQL statement for validation with separate query and network timeouts.
          * {@link java.sql.Statement#setQueryTimeout(int)} sends a cooperative cancellation signal to the server,
          * while {@link Connection#setNetworkTimeout(java.util.concurrent.Executor, int)} acts as a hard backstop
