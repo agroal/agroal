@@ -18,7 +18,6 @@ import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.time.Duration;
 import java.time.LocalTime;
 import java.util.logging.Logger;
 
@@ -62,13 +61,13 @@ class PropertiesReaderTests {
         validator = AgroalPropertiesReader.parseConnectionValidator(connectionValidatorName);
         Assertions.assertEquals( "io.agroal.api.configuration.AgroalConnectionPoolConfiguration$ConnectionValidator$4", validator.getClass().getName() );
         Assertions.assertEquals( "select 1", getDeclaredField( validator, "val$sql" ) );
-        Assertions.assertEquals( Duration.ZERO, getDeclaredField( validator, "val$queryTimeout" ) );
+        Assertions.assertEquals( 0, getDeclaredField( validator, "val$timeoutSeconds" ) );
 
         connectionValidatorName = "sql[select 1]5000";
         validator = AgroalPropertiesReader.parseConnectionValidator(connectionValidatorName);
         Assertions.assertEquals( "io.agroal.api.configuration.AgroalConnectionPoolConfiguration$ConnectionValidator$4", validator.getClass().getName() );
         Assertions.assertEquals( "select 1", getDeclaredField( validator, "val$sql" ) );
-        Assertions.assertEquals( Duration.ofSeconds( 5000 ), getDeclaredField( validator, "val$queryTimeout" ) );
+        Assertions.assertEquals( 5000, getDeclaredField( validator, "val$timeoutSeconds" ) );
     }
 
     // --- //
