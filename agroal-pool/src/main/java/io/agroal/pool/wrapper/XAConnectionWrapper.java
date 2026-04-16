@@ -10,11 +10,8 @@ import javax.sql.ConnectionEventListener;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
-import java.lang.reflect.InvocationHandler;
 import java.sql.Connection;
 import java.sql.SQLException;
-
-import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -23,20 +20,7 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
 
     private static final String CLOSED_HANDLER_STRING = XAConnectionWrapper.class.getSimpleName() + ".CLOSED_XA_CONNECTION";
 
-    private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        switch ( method.getName() ) {
-            case "close":
-                return Void.TYPE;
-            case "isClosed":
-                return Boolean.TRUE;
-            case "toString":
-                return CLOSED_HANDLER_STRING;
-            default:
-                throw new SQLException( "XAConnection is closed" );
-        }
-    };
-
-    private static final XAConnection CLOSED_XA_CONNECTION = (XAConnection) newProxyInstance( XAConnection.class.getClassLoader(), new Class[]{XAConnection.class}, CLOSED_HANDLER );
+    private static final XAConnection CLOSED_XA_CONNECTION = new ClosedXAConnection();
 
     // --- //
 
@@ -133,6 +117,22 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     public void removeStatementEventListener(StatementEventListener listener) {
         handler.traceConnectionOperation( "removeStatementEventListener()" );
         wrappedXAConnection.removeStatementEventListener( listener );
+    }
+
+    private static final class ClosedXAConnection implements XAConnection {
+
+        @Override public void close() { /* no-op */ }
+        @Override public Connection getConnection() throws SQLException { throw new SQLException( "XAConnection is closed" ); }
+        @Override public XAResource getXAResource() throws SQLException { throw new SQLException( "XAConnection is closed" ); }
+        @Override public void addConnectionEventListener(ConnectionEventListener listener) { /* no-op */ }
+        @Override public void removeConnectionEventListener(ConnectionEventListener listener) { /* no-op */ }
+        @Override public void addStatementEventListener(StatementEventListener listener) { /* no-op */ }
+        @Override public void removeStatementEventListener(StatementEventListener listener) { /* no-op */ }
+
+        @Override
+        public String toString() {
+            return CLOSED_HANDLER_STRING;
+        }
     }
 
 }

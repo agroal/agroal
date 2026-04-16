@@ -6,10 +6,6 @@ import io.agroal.pool.util.AutoCloseableElement;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import java.lang.reflect.InvocationHandler;
-import java.sql.SQLException;
-
-import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
@@ -18,20 +14,7 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
 
     private static final String CLOSED_HANDLER_STRING = XAResourceWrapper.class.getSimpleName() + ".CLOSED_XA_RESOURCE";
 
-    private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        switch ( method.getName() ) {
-            case "close":
-                return Void.TYPE;
-            case "isClosed":
-                return Boolean.TRUE;
-            case "toString":
-                return CLOSED_HANDLER_STRING;
-            default:
-                throw new SQLException( "XAConnection for the XAResource is closed" );
-        }
-    };
-
-    private static final XAResource CLOSED_XA_RESOURCE = (XAResource) newProxyInstance( XAResource.class.getClassLoader(), new Class[]{XAResource.class}, CLOSED_HANDLER );
+    private static final XAResource CLOSED_XA_RESOURCE = new ClosedXAResource();
 
     // --- //
 
@@ -122,5 +105,28 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
     public void start(Xid xid, int flags) throws XAException {
         handler.traceConnectionOperation( "xaResource.start()" );
         wrappedXAResource.start( xid, flags );
+    }
+
+    private static final class ClosedXAResource implements XAResource {
+
+        private static XAException closed() {
+            return new XAException( "XAConnection for the XAResource is closed" );
+        }
+
+        @Override public void commit(Xid xid, boolean onePhase) throws XAException { throw closed(); }
+        @Override public void end(Xid xid, int flags) throws XAException { throw closed(); }
+        @Override public void forget(Xid xid) throws XAException { throw closed(); }
+        @Override public int getTransactionTimeout() throws XAException { throw closed(); }
+        @Override public boolean isSameRM(XAResource xares) throws XAException { throw closed(); }
+        @Override public int prepare(Xid xid) throws XAException { throw closed(); }
+        @Override public Xid[] recover(int flag) throws XAException { throw closed(); }
+        @Override public void rollback(Xid xid) throws XAException { throw closed(); }
+        @Override public boolean setTransactionTimeout(int seconds) throws XAException { throw closed(); }
+        @Override public void start(Xid xid, int flags) throws XAException { throw closed(); }
+
+        @Override
+        public String toString() {
+            return CLOSED_HANDLER_STRING;
+        }
     }
 }
