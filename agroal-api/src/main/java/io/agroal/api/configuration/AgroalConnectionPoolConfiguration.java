@@ -275,6 +275,58 @@ public interface AgroalConnectionPoolConfiguration {
                 }
             };
         }
+
+        /**
+         * A validator that uses the provided SQL statement for validation with a timeout.
+         * If the timeout period expires before the operation completes, the connection is invalidated.
+         * A timeout of zero means no timeout.
+         *
+         * @see #sqlValidator(String, int)
+         */
+        static ConnectionValidator sqlValidator(String sql, Duration timeout) {
+            return sqlValidator( sql, (int) timeout.toSeconds() );
+        }
+
+        /**
+         * A validator that uses the provided SQL statement for validation with separate query and network timeouts.
+         * {@link java.sql.Statement#setQueryTimeout(int)} sends a cooperative cancellation signal to the server,
+         * while {@link Connection#setNetworkTimeout(java.util.concurrent.Executor, int)} acts as a hard backstop
+         * at the socket level, ensuring validation returns even when the connection is stuck at the network level.
+         * A timeout of zero means no timeout.
+         *
+         * @param sql the SQL statement to use for validation
+         * @param queryTimeout the query timeout
+         * @param networkTimeout the network timeout
+         */
+        static ConnectionValidator sqlValidator(String sql, Duration queryTimeout, Duration networkTimeout) {
+            return new ConnectionValidator() {
+                @Override
+                public boolean isValid(Connection connection) {
+                    int originalNetworkTimeout = 0;
+                    try {
+                        originalNetworkTimeout = connection.getNetworkTimeout();
+                        if ( !networkTimeout.isZero() ) {
+                            connection.setNetworkTimeout( Runnable::run, (int) networkTimeout.toMillis() );
+                        }
+                    } catch (Exception ignore) {
+                        // driver may not support network timeout
+                    }
+                    try (var statement = connection.createStatement()) {
+                        statement.setQueryTimeout( (int) queryTimeout.toSeconds() );
+                        statement.execute( sql );
+                        return true;
+                    } catch (Exception t) {
+                        return false;
+                    } finally {
+                        try {
+                            connection.setNetworkTimeout( Runnable::run, originalNetworkTimeout );
+                        } catch (Exception ignore) {
+                            // driver may not support network timeout
+                        }
+                    }
+                }
+            };
+        }
         // --- //
 
         /**
