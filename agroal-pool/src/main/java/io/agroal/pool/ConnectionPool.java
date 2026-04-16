@@ -106,6 +106,8 @@ public final class ConnectionPool implements Pool {
     private final LongAccumulator maxUsed = new LongAccumulator( Math::max, Long.MIN_VALUE );
     private final LongAdder activeCount = new LongAdder();
 
+    private volatile boolean stalePoolDetected;
+
     private MetricsRepository metricsRepository;
     private ConnectionCache localCache;
     private List<AgroalPoolInterceptor> interceptors;
@@ -440,6 +442,12 @@ public final class ConnectionPool implements Pool {
     }
 
     private boolean borrowValidation(ConnectionHandler handler) {
+        if ( stalePoolDetected ) {
+            removeFromPool( handler );
+            metricsRepository.afterConnectionInvalid();
+            fireOnConnectionInvalid( listeners, handler );
+            return false;
+        }
         if ( handler.tryValidationFromActive() ) {
             return performValidation( handler, false );
         }
@@ -449,7 +457,7 @@ public final class ConnectionPool implements Pool {
     // handler must be in VALIDATION state
     private boolean performValidation(ConnectionHandler handler, boolean idle) {
         fireBeforeConnectionValidation( listeners, handler );
-        if ( handler.isValid() && idle ? handler.passValidationToIdle() : handler.passValidationToActive() ) {
+        if ( handler.isValid() && ( idle ? handler.passValidationToIdle() : handler.passValidationToActive() ) ) {
             fireOnConnectionValid( listeners, handler );
             if ( idle ) {
                 handlerTransferQueue.tryTransfer( handler );
@@ -866,8 +874,15 @@ public final class ConnectionPool implements Pool {
 
             @Override
             public void run() {
+                if ( stalePoolDetected ) {
+                    return;
+                }
                 if ( handler.tryValidationFromIdle() ) {
-                    performValidation( handler, true );
+                    if ( !performValidation( handler, true ) ) {
+                        stalePoolDetected = true;
+                        flushPool( GRACEFUL );
+                        housekeepingExecutor.execute( () -> stalePoolDetected = false );
+                    }
                 }
             }
         }
