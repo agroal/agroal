@@ -728,14 +728,6 @@ public final class ConnectionPool implements Pool {
 
     // --- flush //
 
-    private void flushHandler(ConnectionHandler handler) {
-        allConnections.remove( handler );
-        createConnectionPermits.addAndGet( -( 1L << Integer.SIZE ) ); // removes 1 from the high bits
-        metricsRepository.afterConnectionFlush();
-        fireOnConnectionFlush( listeners, handler );
-        housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
-    }
-
     private final class FlushTask implements Runnable {
 
         private final AgroalDataSource.FlushMode mode;
@@ -802,6 +794,14 @@ public final class ConnectionPool implements Pool {
             }
         }
 
+        private void flushHandler(ConnectionHandler handler) {
+            allConnections.remove( handler );
+            createConnectionPermits.addAndGet( -( 1L << Integer.SIZE ) ); // removes 1 from the high bits
+            metricsRepository.afterConnectionFlush();
+            fireOnConnectionFlush( listeners, handler );
+            housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+        }
+
         private void afterFlush(AgroalDataSource.FlushMode mode) {
             switch ( mode ) {
                 case ALL:
@@ -859,25 +859,31 @@ public final class ConnectionPool implements Pool {
         public void run() {
             housekeepingExecutor.schedule( this, configuration.validationTimeout().toNanos(), NANOSECONDS );
 
-            boolean failureDetected = false;
             for ( ConnectionHandler handler : allConnections ) {
-                if ( failureDetected ) {
-                    // After a validation failure, flush remaining idle connections without calling isValid()
-                    if ( handler.tryFlushFromIdle() ) {
-                        flushHandler( handler );
-                    }
-                } else {
-                    if ( handler.tryValidationFromIdle() ) {
-                        if ( !performValidation( handler, true ) ) {
-                            failureDetected = true;
-                            stalePoolDetected = true;
-                        }
+                housekeepingExecutor.execute( new ValidateConnectionTask( handler ) );
+            }
+        }
+
+        private class ValidateConnectionTask implements Runnable {
+
+            private final ConnectionHandler handler;
+
+            ValidateConnectionTask(ConnectionHandler handler) {
+                this.handler = handler;
+            }
+
+            @Override
+            public void run() {
+                if ( stalePoolDetected ) {
+                    return;
+                }
+                if ( handler.tryValidationFromIdle() ) {
+                    if ( !performValidation( handler, true ) ) {
+                        stalePoolDetected = true;
+                        flushPool( GRACEFUL );
+                        housekeepingExecutor.execute( () -> stalePoolDetected = false );
                     }
                 }
-            }
-            if ( failureDetected ) {
-                stalePoolDetected = false;
-                fill( configuration.minSize() );
             }
         }
     }
