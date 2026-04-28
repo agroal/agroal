@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.LongAccumulator;
 
 import static io.agroal.api.AgroalDataSource.FlushMode.ALL;
 import static io.agroal.api.AgroalDataSource.FlushMode.LEAK;
-import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.OFF;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction.LENIENT;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionAcquiredInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionCreateInterceptor;
 import static io.agroal.pool.util.InterceptorHelper.fireOnConnectionDestroyInterceptor;
@@ -206,7 +206,7 @@ public final class Poolless implements Pool {
     }
 
     private void checkMultipleAcquisition() throws SQLException {
-        if ( configuration.multipleAcquisition() != OFF ) {
+        if ( configuration.multipleAcquisition() != LENIENT ) {
             for ( ConnectionHandler handler : allConnections ) {
                 if ( handler.getHoldingThread() == currentThread() ) {
                     switch ( configuration.multipleAcquisition() ) {
@@ -214,7 +214,7 @@ public final class Poolless implements Pool {
                             throw new SQLException( "Acquisition of multiple connections by the same Thread." );
                         case WARN:
                             fireOnWarning( listeners, "Acquisition of multiple connections by the same Thread. This can lead to pool exhaustion and eventually a deadlock!" );
-                        case OFF:
+                        case LENIENT:
                         default:
                             // no action
                     }
@@ -330,7 +330,7 @@ public final class Poolless implements Pool {
                 default:
             }
         }
-        if ( !configuration.leakTimeout().isZero() || configuration.multipleAcquisition() != OFF ) {
+        if ( !configuration.leakTimeout().isZero() || configuration.multipleAcquisition() != LENIENT ) {
             if ( checkedOutHandler.getHoldingThread() != null && checkedOutHandler.getHoldingThread() != currentThread() ) {
                 Throwable warn = new Throwable( "Shared connection between threads '" + checkedOutHandler.getHoldingThread().getName() + "' and '" + currentThread().getName() + "'" );
                 warn.setStackTrace( checkedOutHandler.getHoldingThread().getStackTrace() );
