@@ -38,7 +38,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     ConnectionCache connectionCache = LocalConnectionCache.single();
     TransactionIntegration transactionIntegration = none();
     TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
-    MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.OFF;
+    MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.LENIENT;
     boolean enhancedLeakReport;
     boolean flushOnClose;
     boolean recoveryEnable = true;
@@ -169,11 +169,12 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     /**
-     * Sets the behaviour of the pool when a thread tries to acquire multiple connections. Default is {@link MultipleAcquisitionAction#OFF}
+     * Sets the behaviour of the pool when a thread tries to acquire multiple connections. Default is {@link MultipleAcquisitionAction#LENIENT}
      */
+    @SuppressWarnings( "deprecation" )
     public AgroalConnectionPoolConfigurationSupplier multipleAcquisition(MultipleAcquisitionAction action) {
         checkLock();
-        multipleAcquisitionAction = action;
+        multipleAcquisitionAction = action == MultipleAcquisitionAction.OFF ? MultipleAcquisitionAction.LENIENT : action;
         return this;
     }
 

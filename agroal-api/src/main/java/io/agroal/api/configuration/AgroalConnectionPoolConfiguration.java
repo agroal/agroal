@@ -193,6 +193,12 @@ public interface AgroalConnectionPoolConfiguration {
         /**
          * No restriction.
          */
+        LENIENT,
+        /**
+         * No restriction.
+         * @deprecated Use {@link #LENIENT} instead.
+         */
+        @Deprecated
         OFF,
         /**
          * Warn if thread already holds a connection.
