@@ -4,11 +4,10 @@
 package io.agroal.pool.wrapper;
 
 import io.agroal.pool.util.AutoCloseableElement;
+import io.agroal.pool.wrapper.closed.ClosedPreparedStatement;
 
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
@@ -29,33 +28,11 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
-
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public final class PreparedStatementWrapper extends StatementWrapper implements PreparedStatement {
-
-    static final String CLOSED_PREPARED_STATEMENT_STRING = PreparedStatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
-
-    private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
-        @Override
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            switch ( method.getName() ) {
-                case "close":
-                    return Void.TYPE;
-                case "isClosed":
-                    return Boolean.TRUE;
-                case "toString":
-                    return CLOSED_PREPARED_STATEMENT_STRING;
-                default:
-                    throw new SQLException( "PreparedStatement is closed" );
-            }
-        }
-    };
-
-    private static final PreparedStatement CLOSED_STATEMENT = (PreparedStatement) newProxyInstance( PreparedStatement.class.getClassLoader(), new Class[]{PreparedStatement.class}, CLOSED_HANDLER );
 
     // --- //
 
@@ -68,7 +45,7 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
 
     @Override
     public void close() throws SQLException {
-        wrappedStatement = CLOSED_STATEMENT;
+        wrappedStatement = ClosedPreparedStatement.INSTANCE;
         super.close();
     }
 
@@ -714,4 +691,5 @@ public final class PreparedStatementWrapper extends StatementWrapper implements 
             throw se;
         }
     }
+
 }

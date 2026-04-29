@@ -7,4 +7,5 @@ module io.agroal.pool {
     exports io.agroal.pool;
     exports io.agroal.pool.util;
     exports io.agroal.pool.wrapper;
+    exports io.agroal.pool.wrapper.closed;
 }

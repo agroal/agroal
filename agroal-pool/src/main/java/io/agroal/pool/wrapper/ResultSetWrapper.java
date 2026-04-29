@@ -4,11 +4,10 @@
 package io.agroal.pool.wrapper;
 
 import io.agroal.pool.util.AutoCloseableElement;
+import io.agroal.pool.wrapper.closed.ClosedResultSet;
 
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
@@ -30,33 +29,11 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Map;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
-
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrapper> implements ResultSet {
-
-    static final String CLOSED_RESULT_SET_STRING = ResultSetWrapper.class.getSimpleName() + ".CLOSED_RESULT_SET";
-
-    private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
-        @Override
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            switch ( method.getName() ) {
-                case "close":
-                    return Void.TYPE;
-                case "isClosed":
-                    return Boolean.TRUE;
-                case "toString":
-                    return CLOSED_RESULT_SET_STRING;
-                default:
-                    throw new SQLException( "ResultSet is closed" );
-            }
-        }
-    };
-
-    private static final ResultSet CLOSED_RESULT_SET = (ResultSet) newProxyInstance( ResultSet.class.getClassLoader(), new Class[]{ResultSet.class}, CLOSED_HANDLER );
 
     // --- //
 
@@ -82,7 +59,7 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
             statement.getConnectionWrapper().getHandler().setFlushOnly( se );
             throw se;
         } finally {
-            wrappedResultSet = CLOSED_RESULT_SET;
+            wrappedResultSet = ClosedResultSet.INSTANCE;
             pruneClosed();
             statement.pruneClosedResultSets();
         }
@@ -2225,6 +2202,7 @@ public final class ResultSetWrapper extends AutoCloseableElement<ResultSetWrappe
 
     @Override
     protected boolean internalClosed() {
-        return wrappedResultSet == CLOSED_RESULT_SET;
+        return wrappedResultSet == ClosedResultSet.INSTANCE;
     }
+
 }

@@ -50,7 +50,7 @@ public final class PropertyInjector {
             Method method = propertySetter.get( realName );
             method.invoke( target, typeConvert( propertyValue, method.getParameterTypes()[0] ) );
         } else if ( propertySetter.containsKey( "Property" ) ) {
-            cls.getMethod( "setProperty", propertyName.getClass(), propertyValue.getClass() ).invoke( target, propertyName, propertyValue );
+            propertySetter.get( "Property" ).invoke( target, propertyName, propertyValue );
         } else {
             throw new NoSuchMethodException( "No setter in class " + cls.getName() );
         }

@@ -5,38 +5,19 @@ package io.agroal.pool.wrapper;
 
 import io.agroal.pool.ConnectionHandler;
 import io.agroal.pool.util.AutoCloseableElement;
+import io.agroal.pool.wrapper.closed.ClosedXAConnection;
 
 import javax.sql.ConnectionEventListener;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
-import java.lang.reflect.InvocationHandler;
 import java.sql.Connection;
 import java.sql.SQLException;
-
-import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public final class XAConnectionWrapper extends AutoCloseableElement<XAConnectionWrapper> implements XAConnection {
-
-    private static final String CLOSED_HANDLER_STRING = XAConnectionWrapper.class.getSimpleName() + ".CLOSED_XA_CONNECTION";
-
-    private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        switch ( method.getName() ) {
-            case "close":
-                return Void.TYPE;
-            case "isClosed":
-                return Boolean.TRUE;
-            case "toString":
-                return CLOSED_HANDLER_STRING;
-            default:
-                throw new SQLException( "XAConnection is closed" );
-        }
-    };
-
-    private static final XAConnection CLOSED_XA_CONNECTION = (XAConnection) newProxyInstance( XAConnection.class.getClassLoader(), new Class[]{XAConnection.class}, CLOSED_HANDLER );
 
     // --- //
 
@@ -63,7 +44,7 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     
     @Override
     protected boolean internalClosed() {
-        return wrappedXAConnection == CLOSED_XA_CONNECTION;
+        return wrappedXAConnection == ClosedXAConnection.INSTANCE;
     }
 
     // --- //
@@ -76,8 +57,8 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     @Override
     public void close() throws SQLException {
         handler.traceConnectionOperation( "close()" );
-        if ( wrappedXAConnection != CLOSED_XA_CONNECTION ) {
-            wrappedXAConnection = CLOSED_XA_CONNECTION;
+        if ( wrappedXAConnection != ClosedXAConnection.INSTANCE ) {
+            wrappedXAConnection = ClosedXAConnection.INSTANCE;
 
             if ( trackedXAResources != null ) {
                 trackedXAResources.closeAllAutocloseableElements();

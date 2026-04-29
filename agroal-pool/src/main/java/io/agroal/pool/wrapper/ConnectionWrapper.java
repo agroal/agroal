@@ -5,8 +5,8 @@ package io.agroal.pool.wrapper;
 
 import io.agroal.pool.ConnectionHandler;
 import io.agroal.pool.util.AutoCloseableElement;
+import io.agroal.pool.wrapper.closed.ClosedConnection;
 
-import java.lang.reflect.InvocationHandler;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
 import static java.sql.ClientInfoStatus.REASON_UNKNOWN;
 import static java.sql.ResultSet.HOLD_CURSORS_OVER_COMMIT;
 import static java.util.Collections.emptyMap;
@@ -38,26 +37,6 @@ import static java.util.stream.Collectors.toMap;
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrapper> implements Connection {
-
-    private static final String CLOSED_HANDLER_STRING = ConnectionWrapper.class.getSimpleName() + ".CLOSED_CONNECTION";
-
-    private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        switch ( method.getName() ) {
-            case "abort":
-            case "close":
-                return Void.TYPE;
-            case "isClosed":
-                return Boolean.TRUE;
-            case "isValid":
-                return Boolean.FALSE;
-            case "toString":
-                return CLOSED_HANDLER_STRING;
-            default:
-                throw new SQLException( "Connection is closed" );
-        }
-    };
-
-    private static final Connection CLOSED_CONNECTION = (Connection) newProxyInstance( Connection.class.getClassLoader(), new Class[]{Connection.class}, CLOSED_HANDLER );
 
     // --- //
 
@@ -158,8 +137,8 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     @Override
     public void close() throws SQLException {
         handler.traceConnectionOperation( "close()" );
-        if ( wrappedConnection != CLOSED_CONNECTION ) {
-            wrappedConnection = CLOSED_CONNECTION;
+        if ( wrappedConnection != ClosedConnection.INSTANCE ) {
+            wrappedConnection = ClosedConnection.INSTANCE;
             pruneClosed();
             if ( trackedStatements != null ) {
                 addLeakedStatements( trackedStatements.closeAllAutocloseableElements() );
@@ -172,7 +151,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     public void abort(Executor executor) throws SQLException {
         handler.traceConnectionOperation( "abort()" );
         try {
-            wrappedConnection = CLOSED_CONNECTION;
+            wrappedConnection = ClosedConnection.INSTANCE;
             wrappedConnection.abort( executor );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -877,6 +856,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     protected boolean internalClosed() {
-        return wrappedConnection == CLOSED_CONNECTION;
+        return wrappedConnection == ClosedConnection.INSTANCE;
     }
+
 }

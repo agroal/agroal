@@ -4,11 +4,10 @@
 package io.agroal.pool.wrapper;
 
 import io.agroal.pool.util.AutoCloseableElement;
+import io.agroal.pool.wrapper.closed.ClosedCallableStatement;
 
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
@@ -30,33 +29,11 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Map;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
-
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public final class CallableStatementWrapper extends StatementWrapper implements CallableStatement {
-
-    static final String CLOSED_CALLABLE_STATEMENT_STRING = CallableStatementWrapper.class.getSimpleName() + ".CLOSED_STATEMENT";
-
-    private static final InvocationHandler CLOSED_HANDLER = new InvocationHandler() {
-        @Override
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            switch ( method.getName() ) {
-                case "close":
-                    return Void.TYPE;
-                case "isClosed":
-                    return Boolean.TRUE;
-                case "toString":
-                    return CLOSED_CALLABLE_STATEMENT_STRING;
-                default:
-                    throw new SQLException( "CallableStatement is closed" );
-            }
-        }
-    };
-
-    private static final CallableStatement CLOSED_STATEMENT = (CallableStatement) newProxyInstance( CallableStatement.class.getClassLoader(), new Class[]{CallableStatement.class}, CLOSED_HANDLER );
 
     // --- //
 
@@ -69,7 +46,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
 
     @Override
     public void close() throws SQLException {
-        wrappedStatement = CLOSED_STATEMENT;
+        wrappedStatement = ClosedCallableStatement.INSTANCE;
         super.close();
     }
 
@@ -1967,4 +1944,5 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
             throw se;
         }
     }
+
 }

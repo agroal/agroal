@@ -2,36 +2,16 @@ package io.agroal.pool.wrapper;
 
 import io.agroal.pool.ConnectionHandler;
 import io.agroal.pool.util.AutoCloseableElement;
+import io.agroal.pool.wrapper.closed.ClosedXAResource;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import java.lang.reflect.InvocationHandler;
-import java.sql.SQLException;
-
-import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  */
 public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> implements XAResource {
-
-    private static final String CLOSED_HANDLER_STRING = XAResourceWrapper.class.getSimpleName() + ".CLOSED_XA_RESOURCE";
-
-    private static final InvocationHandler CLOSED_HANDLER = (proxy, method, args) -> {
-        switch ( method.getName() ) {
-            case "close":
-                return Void.TYPE;
-            case "isClosed":
-                return Boolean.TRUE;
-            case "toString":
-                return CLOSED_HANDLER_STRING;
-            default:
-                throw new SQLException( "XAConnection for the XAResource is closed" );
-        }
-    };
-
-    private static final XAResource CLOSED_XA_RESOURCE = (XAResource) newProxyInstance( XAResource.class.getClassLoader(), new Class[]{XAResource.class}, CLOSED_HANDLER );
 
     // --- //
 
@@ -46,7 +26,7 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
     
     @Override
     protected boolean internalClosed() {
-        return wrappedXAResource == CLOSED_XA_RESOURCE;
+        return wrappedXAResource == ClosedXAResource.INSTANCE;
     }
 
     @Override
@@ -57,8 +37,8 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
     @Override
     public void close() throws Exception {
         handler.traceConnectionOperation( "xaResource.close()" );
-        if ( wrappedXAResource != CLOSED_XA_RESOURCE ) {
-            wrappedXAResource = CLOSED_XA_RESOURCE;
+        if ( wrappedXAResource != ClosedXAResource.INSTANCE ) {
+            wrappedXAResource = ClosedXAResource.INSTANCE;
         }
     }
 
@@ -123,4 +103,5 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
         handler.traceConnectionOperation( "xaResource.start()" );
         wrappedXAResource.start( xid, flags );
     }
+
 }
