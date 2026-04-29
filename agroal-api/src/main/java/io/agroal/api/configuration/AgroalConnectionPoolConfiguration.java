@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.concurrent.Executor;
 
 /**
  * The configuration of the connection pool.
@@ -211,6 +212,9 @@ public interface AgroalConnectionPoolConfiguration {
      */
     interface ConnectionValidator {
 
+        // extra buffer so setQueryTimeout can cancel the statement cleanly before the network timeout forces the socket closed
+        Duration NETWORK_TIMEOUT_BUFFER = Duration.ofSeconds( 5 );
+
         /**
          * The default validation strategy {@link Connection#isValid(int)}
          */
@@ -260,17 +264,58 @@ public interface AgroalConnectionPoolConfiguration {
          * A validator that uses the provided SQL statement for validation with a timeout (in seconds).
          * If the timeout period expires before the operation completes, the connection is invalidated.
          * A timeout of 0 means no timeout.
+         *
          */
         static ConnectionValidator sqlValidator(String sql, int timeoutSeconds) {
+            Duration duration = Duration.ofSeconds( timeoutSeconds );
+            return sqlValidator( sql, duration );
+        }
+
+        /**
+         * A validator that uses the provided SQL statement for validation with a query timeout.
+         * If the query timeout period expires before the operation completes, the connection is invalidated.
+         * A query timeout of zero means no timeout.
+         */
+        static ConnectionValidator sqlValidator(String sql, Duration queryTimeout) {
+            return sqlValidator( sql, queryTimeout, queryTimeout.isZero() ? null : queryTimeout.plus( NETWORK_TIMEOUT_BUFFER ) );
+        }
+
+        /**
+         * A validator that uses the provided SQL statement for validation with a query timeout and a configurable network timeout.
+         * If the timeout period expires before the operation completes, the connection is invalidated.
+         * A timeout of zero means no timeout.
+         * The network timeout should be greater than the query timeout to allow the query timeout to cancel the statement
+         * cleanly before the network timeout forces the socket closed.
+         * A null network timeout will keep the connection's network timeout configuration unchanged
+         */
+        static ConnectionValidator sqlValidator(String sql, Duration queryTimeout, Duration networkTimeout) {
             return new ConnectionValidator() {
                 @Override
                 public boolean isValid(Connection connection) {
+                    Executor executor = Runnable::run;
+                    int originalNetworkTimeout = 0;
+                    if ( networkTimeout != null ) {
+                        try {
+                            originalNetworkTimeout = connection.getNetworkTimeout();
+                            connection.setNetworkTimeout( executor, (int) networkTimeout.toMillis() );
+                        } catch ( Exception ignore ) {
+                            // driver may not support network timeout
+                        }
+                    }
                     try (var statement = connection.createStatement()) {
-                        statement.setQueryTimeout( timeoutSeconds );
+                        statement.setQueryTimeout( (int) queryTimeout.toSeconds() );
                         statement.execute( sql );
                         return true;
-                    } catch (Exception t) {
+                    } catch ( Exception t ) {
                         return false;
+                    } finally {
+                        if ( networkTimeout != null ) {
+                            try {
+                                connection.setNetworkTimeout( executor, originalNetworkTimeout );
+                            } catch ( Exception ignore ) {
+                                // driver may not support network timeout
+                            }
+                        }
                     }
                 }
             };
