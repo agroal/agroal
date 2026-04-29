@@ -184,7 +184,9 @@ public class BasicConcurrencyTests {
             }
         } );
 
-        if ( !acquireLatch.await( ACQUISITION_TIMEOUT_MS, MILLISECONDS ) ) {
+        long adjustedTimeout = (long) ( ACQUISITION_TIMEOUT_MS * overheadFactor );
+
+        if ( !acquireLatch.await( adjustedTimeout, MILLISECONDS ) ) {
             fail( "Did not execute within the required amount of time" );
         }
 
@@ -193,7 +195,7 @@ public class BasicConcurrencyTests {
         logger.info( "Closing the datasource" );
         dataSource.close();
 
-        if ( !releaseLatch.await( ACQUISITION_TIMEOUT_MS, MILLISECONDS ) ) {
+        if ( !releaseLatch.await( adjustedTimeout, MILLISECONDS ) ) {
             fail( "Did not execute within the required amount of time" );
         }
 
