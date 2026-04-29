@@ -8,6 +8,7 @@ import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.test.MockConnection;
+import io.agroal.test.MockStatement;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +17,10 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
@@ -29,6 +33,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -177,6 +182,94 @@ public class ValidationTests {
             return counter.get();
         }
 
+    }
+
+    @Test
+    @DisplayName( "sqlValidator with network timeout" )
+    void sqlValidatorWithNetworkTimeoutTest() throws Exception {
+        int POOL_SIZE = 1, TIMEOUT_MS = 1000;
+
+        deregisterMockDriver();
+        registerMockDriver( NetworkTimeoutTrackingConnection.class );
+        try {
+            AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                    .connectionPoolConfiguration( cp -> cp
+                            .initialSize( POOL_SIZE )
+                            .maxSize( POOL_SIZE )
+                            .acquisitionTimeout( ofMillis( TIMEOUT_MS ) )
+                            .validateOnBorrow( true )
+                            .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.sqlValidator( "SELECT 1", Duration.ofSeconds( 5 ) ) )
+                    );
+
+            try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+                try ( Connection connection = dataSource.getConnection() ) {
+                    assertNotNull( connection, "Expected non-null connection" );
+
+                    NetworkTimeoutTrackingConnection trackingConnection = connection.unwrap( NetworkTimeoutTrackingConnection.class );
+                    assertEquals( 5, trackingConnection.lastStatement.queryTimeout, "Expected query timeout to be set" );
+                    assertEquals( "SELECT 1", trackingConnection.lastStatement.executedSql, "Expected SQL to be executed" );
+                    assertEquals( 0, trackingConnection.getNetworkTimeout(), "Expected network timeout to be restored" );
+                    assertTrue( trackingConnection.networkTimeoutWasSet, "Expected network timeout to have been set during validation" );
+                    assertEquals( 10000, trackingConnection.networkTimeoutDuringValidation, "Expected network timeout to include 5s buffer" );
+                }
+            }
+        } finally {
+            deregisterMockDriver();
+            registerMockDriver( ValidationThrowsConnection.class );
+        }
+    }
+
+    // --- //
+
+    public static class NetworkTimeoutTrackingConnection implements MockConnection {
+
+        private int networkTimeout;
+        boolean networkTimeoutWasSet;
+        int networkTimeoutDuringValidation;
+        TrackingStatement lastStatement;
+
+        @Override
+        public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
+            networkTimeout = milliseconds;
+            if ( milliseconds > 0 ) {
+                networkTimeoutWasSet = true;
+                networkTimeoutDuringValidation = milliseconds;
+            }
+        }
+
+        @Override
+        public int getNetworkTimeout() throws SQLException {
+            return networkTimeout;
+        }
+
+        @Override
+        public Statement createStatement() throws SQLException {
+            lastStatement = new TrackingStatement();
+            return lastStatement;
+        }
+
+        @SuppressWarnings( "unchecked" )
+        @Override
+        public <T> T unwrap(Class<T> target) throws SQLException {
+            return (T) this;
+        }
+    }
+
+    public static class TrackingStatement implements MockStatement {
+
+        int queryTimeout;
+        String executedSql;
+
+        @Override
+        public void setQueryTimeout(int seconds) throws SQLException {
+            queryTimeout = seconds;
+        }
+
+        @Override
+        public boolean execute(String sql) throws SQLException {
+            executedSql = sql;
+            return false;
+        }
     }
 
     // --- //
