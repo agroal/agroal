@@ -4,6 +4,9 @@ import io.agroal.pool.ConnectionHandler;
 import io.agroal.pool.util.AutoCloseableElement;
 import io.agroal.pool.wrapper.closed.ClosedXAResource;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -13,20 +16,36 @@ import javax.transaction.xa.Xid;
  */
 public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> implements XAResource {
 
+    private static final VarHandle WRAPPED;
+
+    static {
+        try {
+            WRAPPED = MethodHandles.lookup().findVarHandle( XAResourceWrapper.class, "wrappedXAResource", XAResource.class );
+        } catch ( NoSuchFieldException | IllegalAccessException e ) {
+            throw new ExceptionInInitializerError( e );
+        }
+    }
+
+    private XAResource wrappedXAResource() {
+        return (XAResource) WRAPPED.getAcquire( this );
+    }
+
     // --- //
 
     private final ConnectionHandler handler;
+
+    @SuppressWarnings( "unused" )
     private XAResource wrappedXAResource;
 
     public XAResourceWrapper(ConnectionHandler connectionHandler, XAResource resource, AutoCloseableElement<XAResourceWrapper> head) {
         super( head );
         handler = connectionHandler;
-        wrappedXAResource = resource;
+        WRAPPED.setRelease( this, resource );
     }
-    
+
     @Override
     protected boolean internalClosed() {
-        return wrappedXAResource == ClosedXAResource.INSTANCE;
+        return wrappedXAResource() == ClosedXAResource.INSTANCE;
     }
 
     @Override
@@ -37,8 +56,8 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
     @Override
     public void close() throws Exception {
         handler.traceConnectionOperation( "xaResource.close()" );
-        if ( wrappedXAResource != ClosedXAResource.INSTANCE ) {
-            wrappedXAResource = ClosedXAResource.INSTANCE;
+        if ( wrappedXAResource() != ClosedXAResource.INSTANCE ) {
+            WRAPPED.setRelease( this, ClosedXAResource.INSTANCE );
         }
     }
 
@@ -47,61 +66,61 @@ public class XAResourceWrapper extends AutoCloseableElement<XAResourceWrapper> i
     @Override
     public void commit(Xid xid, boolean onePhase) throws XAException {
         handler.traceConnectionOperation( "xaResource.commit()" );
-        wrappedXAResource.commit( xid, onePhase );
+        wrappedXAResource().commit( xid, onePhase );
     }
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
         handler.traceConnectionOperation( "xaResource.end()" );
-        wrappedXAResource.end( xid, flags );
+        wrappedXAResource().end( xid, flags );
     }
 
     @Override
     public void forget(Xid xid) throws XAException {
         handler.traceConnectionOperation( "xaResource.forget()" );
-        wrappedXAResource.forget( xid );
+        wrappedXAResource().forget( xid );
     }
 
     @Override
     public int getTransactionTimeout() throws XAException {
         handler.traceConnectionOperation( "xaResource.getTransactionTimeout()" );
-        return wrappedXAResource.getTransactionTimeout();
+        return wrappedXAResource().getTransactionTimeout();
     }
 
     @Override
     public boolean isSameRM(XAResource xares) throws XAException {
         handler.traceConnectionOperation( "xaResource.isSameRM()" );
-        return wrappedXAResource.isSameRM( xares );
+        return wrappedXAResource().isSameRM( xares );
     }
 
     @Override
     public int prepare(Xid xid) throws XAException {
         handler.traceConnectionOperation( "xaResource.prepare()" );
-        return wrappedXAResource.prepare( xid );
+        return wrappedXAResource().prepare( xid );
     }
 
     @Override
     public Xid[] recover(int flag) throws XAException {
         handler.traceConnectionOperation( "xaResource.recover()" );
-        return wrappedXAResource.recover( flag );
+        return wrappedXAResource().recover( flag );
     }
 
     @Override
     public void rollback(Xid xid) throws XAException {
         handler.traceConnectionOperation( "xaResource.rollback()" );
-        wrappedXAResource.rollback( xid );
+        wrappedXAResource().rollback( xid );
     }
 
     @Override
     public boolean setTransactionTimeout(int seconds) throws XAException {
         handler.traceConnectionOperation( "xaResource.setTransactionTimeout()" );
-        return wrappedXAResource.setTransactionTimeout( seconds );
+        return wrappedXAResource().setTransactionTimeout( seconds );
     }
 
     @Override
     public void start(Xid xid, int flags) throws XAException {
         handler.traceConnectionOperation( "xaResource.start()" );
-        wrappedXAResource.start( xid, flags );
+        wrappedXAResource().start( xid, flags );
     }
 
 }

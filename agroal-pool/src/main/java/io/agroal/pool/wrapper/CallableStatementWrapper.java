@@ -8,6 +8,8 @@ import io.agroal.pool.wrapper.closed.ClosedCallableStatement;
 
 import java.io.InputStream;
 import java.io.Reader;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
@@ -33,20 +35,36 @@ import java.util.Map;
  * @author <a href="lbarreiro@redhat.com">Luis Barreiro</a>
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
+@SuppressWarnings( "resource" )
 public final class CallableStatementWrapper extends StatementWrapper implements CallableStatement {
+
+    private static final VarHandle WRAPPED;
+
+    static {
+        try {
+            WRAPPED = MethodHandles.lookup().findVarHandle( CallableStatementWrapper.class, "wrappedStatement", CallableStatement.class );
+        } catch ( NoSuchFieldException | IllegalAccessException e ) {
+            throw new ExceptionInInitializerError( e );
+        }
+    }
+
+    private CallableStatement wrappedCallableStatement() {
+        return (CallableStatement) WRAPPED.getAcquire( this );
+    }
 
     // --- //
 
+    @SuppressWarnings( "unused" )
     private CallableStatement wrappedStatement;
 
     public CallableStatementWrapper(ConnectionWrapper connectionWrapper, CallableStatement statement, boolean trackJdbcResources, AutoCloseableElement<StatementWrapper> head, boolean defaultHoldability) {
         super( connectionWrapper, statement, trackJdbcResources, head, defaultHoldability );
-        wrappedStatement = statement;
+        WRAPPED.setRelease( this, statement );
     }
 
     @Override
     public void close() throws SQLException {
-        wrappedStatement = ClosedCallableStatement.INSTANCE;
+        WRAPPED.setRelease( this, ClosedCallableStatement.INSTANCE );
         super.close();
     }
 
@@ -56,7 +74,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void registerOutParameter(int parameterIndex, int sqlType) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.registerOutParameter( parameterIndex, sqlType );
+            wrappedCallableStatement().registerOutParameter( parameterIndex, sqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -67,7 +85,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void registerOutParameter(int parameterIndex, int sqlType, int scale) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.registerOutParameter( parameterIndex, sqlType, scale );
+            wrappedCallableStatement().registerOutParameter( parameterIndex, sqlType, scale );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -78,7 +96,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public boolean wasNull() throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.wasNull();
+            return wrappedCallableStatement().wasNull();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -89,7 +107,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public String getString(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getString( parameterIndex );
+            return wrappedCallableStatement().getString( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -100,7 +118,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public boolean getBoolean(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBoolean( parameterIndex );
+            return wrappedCallableStatement().getBoolean( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -111,7 +129,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public byte getByte(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getByte( parameterIndex );
+            return wrappedCallableStatement().getByte( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -122,7 +140,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public short getShort(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getShort( parameterIndex );
+            return wrappedCallableStatement().getShort( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -133,7 +151,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public int getInt(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getInt( parameterIndex );
+            return wrappedCallableStatement().getInt( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -144,7 +162,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public long getLong(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getLong( parameterIndex );
+            return wrappedCallableStatement().getLong( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -155,7 +173,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public float getFloat(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getFloat( parameterIndex );
+            return wrappedCallableStatement().getFloat( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -166,7 +184,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public double getDouble(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getDouble( parameterIndex );
+            return wrappedCallableStatement().getDouble( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -178,7 +196,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public BigDecimal getBigDecimal(int parameterIndex, int scale) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBigDecimal( parameterIndex, scale );
+            return wrappedCallableStatement().getBigDecimal( parameterIndex, scale );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -189,7 +207,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public byte[] getBytes(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBytes( parameterIndex );
+            return wrappedCallableStatement().getBytes( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -200,7 +218,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Date getDate(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getDate( parameterIndex );
+            return wrappedCallableStatement().getDate( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -211,7 +229,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Time getTime(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTime( parameterIndex );
+            return wrappedCallableStatement().getTime( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -222,7 +240,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Timestamp getTimestamp(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTimestamp( parameterIndex );
+            return wrappedCallableStatement().getTimestamp( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -233,7 +251,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Object getObject(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            Object driverObject = wrappedStatement.getObject( parameterIndex );
+            Object driverObject = wrappedCallableStatement().getObject( parameterIndex );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
@@ -245,7 +263,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public BigDecimal getBigDecimal(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBigDecimal( parameterIndex );
+            return wrappedCallableStatement().getBigDecimal( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -256,7 +274,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Object getObject(int parameterIndex, Map<String, Class<?>> map) throws SQLException {
         try {
             verifyEnlistment();
-            Object driverObject = wrappedStatement.getObject( parameterIndex, map );
+            Object driverObject = wrappedCallableStatement().getObject( parameterIndex, map );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
@@ -268,7 +286,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Ref getRef(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getRef( parameterIndex );
+            return wrappedCallableStatement().getRef( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -279,7 +297,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Blob getBlob(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBlob( parameterIndex );
+            return wrappedCallableStatement().getBlob( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -290,7 +308,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Clob getClob(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getClob( parameterIndex );
+            return wrappedCallableStatement().getClob( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -301,7 +319,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Array getArray(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getArray( parameterIndex );
+            return wrappedCallableStatement().getArray( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -312,7 +330,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Date getDate(int parameterIndex, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getDate( parameterIndex, cal );
+            return wrappedCallableStatement().getDate( parameterIndex, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -323,7 +341,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Time getTime(int parameterIndex, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTime( parameterIndex, cal );
+            return wrappedCallableStatement().getTime( parameterIndex, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -334,7 +352,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Timestamp getTimestamp(int parameterIndex, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTimestamp( parameterIndex, cal );
+            return wrappedCallableStatement().getTimestamp( parameterIndex, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -345,7 +363,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void registerOutParameter(int parameterIndex, int sqlType, String typeName) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.registerOutParameter( parameterIndex, sqlType, typeName );
+            wrappedCallableStatement().registerOutParameter( parameterIndex, sqlType, typeName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -356,7 +374,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void registerOutParameter(String parameterName, int sqlType) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.registerOutParameter( parameterName, sqlType );
+            wrappedCallableStatement().registerOutParameter( parameterName, sqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -367,7 +385,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void registerOutParameter(String parameterName, int sqlType, int scale) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.registerOutParameter( parameterName, sqlType, scale );
+            wrappedCallableStatement().registerOutParameter( parameterName, sqlType, scale );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -378,7 +396,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void registerOutParameter(String parameterName, int sqlType, String typeName) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.registerOutParameter( parameterName, sqlType, typeName );
+            wrappedCallableStatement().registerOutParameter( parameterName, sqlType, typeName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -389,7 +407,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public URL getURL(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getURL( parameterIndex );
+            return wrappedCallableStatement().getURL( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -400,7 +418,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setURL(String parameterName, URL val) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setURL( parameterName, val );
+            wrappedCallableStatement().setURL( parameterName, val );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -411,7 +429,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNull(String parameterName, int sqlType) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNull( parameterName, sqlType );
+            wrappedCallableStatement().setNull( parameterName, sqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -422,7 +440,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBoolean(String parameterName, boolean x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBoolean( parameterName, x );
+            wrappedCallableStatement().setBoolean( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -433,7 +451,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setByte(String parameterName, byte x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setByte( parameterName, x );
+            wrappedCallableStatement().setByte( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -444,7 +462,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setShort(String parameterName, short x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setShort( parameterName, x );
+            wrappedCallableStatement().setShort( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -455,7 +473,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setInt(String parameterName, int x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setInt( parameterName, x );
+            wrappedCallableStatement().setInt( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -466,7 +484,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setLong(String parameterName, long x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setLong( parameterName, x );
+            wrappedCallableStatement().setLong( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -477,7 +495,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setFloat(String parameterName, float x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setFloat( parameterName, x );
+            wrappedCallableStatement().setFloat( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -488,7 +506,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setDouble(String parameterName, double x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setDouble( parameterName, x );
+            wrappedCallableStatement().setDouble( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -499,7 +517,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBigDecimal(String parameterName, BigDecimal x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBigDecimal( parameterName, x );
+            wrappedCallableStatement().setBigDecimal( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -510,7 +528,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setString(String parameterName, String x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setString( parameterName, x );
+            wrappedCallableStatement().setString( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -521,7 +539,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBytes(String parameterName, byte[] x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBytes( parameterName, x );
+            wrappedCallableStatement().setBytes( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -532,7 +550,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setDate(String parameterName, Date x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setDate( parameterName, x );
+            wrappedCallableStatement().setDate( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -543,7 +561,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTime(String parameterName, Time x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTime( parameterName, x );
+            wrappedCallableStatement().setTime( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -554,7 +572,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTimestamp(String parameterName, Timestamp x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTimestamp( parameterName, x );
+            wrappedCallableStatement().setTimestamp( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -565,7 +583,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setAsciiStream(String parameterName, InputStream x, int length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setAsciiStream( parameterName, x, length );
+            wrappedCallableStatement().setAsciiStream( parameterName, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -576,7 +594,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBinaryStream(String parameterName, InputStream x, int length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBinaryStream( parameterName, x, length );
+            wrappedCallableStatement().setBinaryStream( parameterName, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -587,7 +605,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(String parameterName, Object x, int targetSqlType, int scale) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterName, x, targetSqlType, scale );
+            wrappedCallableStatement().setObject( parameterName, x, targetSqlType, scale );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -598,7 +616,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(String parameterName, Object x, int targetSqlType) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterName, x, targetSqlType );
+            wrappedCallableStatement().setObject( parameterName, x, targetSqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -609,7 +627,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(String parameterName, Object x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterName, x );
+            wrappedCallableStatement().setObject( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -620,7 +638,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setCharacterStream(String parameterName, Reader reader, int length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setCharacterStream( parameterName, reader, length );
+            wrappedCallableStatement().setCharacterStream( parameterName, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -631,7 +649,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setDate(String parameterName, Date x, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setDate( parameterName, x, cal );
+            wrappedCallableStatement().setDate( parameterName, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -642,7 +660,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTime(String parameterName, Time x, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTime( parameterName, x, cal );
+            wrappedCallableStatement().setTime( parameterName, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -653,7 +671,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTimestamp(String parameterName, Timestamp x, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTimestamp( parameterName, x, cal );
+            wrappedCallableStatement().setTimestamp( parameterName, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -664,7 +682,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNull(String parameterName, int sqlType, String typeName) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNull( parameterName, sqlType, typeName );
+            wrappedCallableStatement().setNull( parameterName, sqlType, typeName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -675,7 +693,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public String getString(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getString( parameterName );
+            return wrappedCallableStatement().getString( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -686,7 +704,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public boolean getBoolean(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBoolean( parameterName );
+            return wrappedCallableStatement().getBoolean( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -697,7 +715,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public byte getByte(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getByte( parameterName );
+            return wrappedCallableStatement().getByte( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -708,7 +726,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public short getShort(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getShort( parameterName );
+            return wrappedCallableStatement().getShort( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -719,7 +737,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public int getInt(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getInt( parameterName );
+            return wrappedCallableStatement().getInt( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -730,7 +748,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public long getLong(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getLong( parameterName );
+            return wrappedCallableStatement().getLong( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -741,7 +759,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public float getFloat(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getFloat( parameterName );
+            return wrappedCallableStatement().getFloat( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -752,7 +770,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public double getDouble(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getDouble( parameterName );
+            return wrappedCallableStatement().getDouble( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -763,7 +781,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public byte[] getBytes(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBytes( parameterName );
+            return wrappedCallableStatement().getBytes( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -774,7 +792,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Date getDate(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getDate( parameterName );
+            return wrappedCallableStatement().getDate( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -785,7 +803,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Time getTime(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTime( parameterName );
+            return wrappedCallableStatement().getTime( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -796,7 +814,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Timestamp getTimestamp(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTimestamp( parameterName );
+            return wrappedCallableStatement().getTimestamp( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -807,7 +825,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Object getObject(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            Object driverObject = wrappedStatement.getObject( parameterName );
+            Object driverObject = wrappedCallableStatement().getObject( parameterName );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
@@ -819,7 +837,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public BigDecimal getBigDecimal(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBigDecimal( parameterName );
+            return wrappedCallableStatement().getBigDecimal( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -830,7 +848,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Object getObject(String parameterName, Map<String, Class<?>> map) throws SQLException {
         try {
             verifyEnlistment();
-            Object driverObject = wrappedStatement.getObject( parameterName, map );
+            Object driverObject = wrappedCallableStatement().getObject( parameterName, map );
             return driverObject instanceof ResultSet rs ? trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
@@ -842,7 +860,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Ref getRef(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getRef( parameterName );
+            return wrappedCallableStatement().getRef( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -853,7 +871,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Blob getBlob(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getBlob( parameterName );
+            return wrappedCallableStatement().getBlob( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -864,7 +882,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Clob getClob(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getClob( parameterName );
+            return wrappedCallableStatement().getClob( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -875,7 +893,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Array getArray(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getArray( parameterName );
+            return wrappedCallableStatement().getArray( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -886,7 +904,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Date getDate(String parameterName, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getDate( parameterName, cal );
+            return wrappedCallableStatement().getDate( parameterName, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -897,7 +915,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Time getTime(String parameterName, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTime( parameterName, cal );
+            return wrappedCallableStatement().getTime( parameterName, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -908,7 +926,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Timestamp getTimestamp(String parameterName, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getTimestamp( parameterName, cal );
+            return wrappedCallableStatement().getTimestamp( parameterName, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -919,7 +937,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public URL getURL(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getURL( parameterName );
+            return wrappedCallableStatement().getURL( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -930,7 +948,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public RowId getRowId(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getRowId( parameterIndex );
+            return wrappedCallableStatement().getRowId( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -941,7 +959,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public RowId getRowId(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getRowId( parameterName );
+            return wrappedCallableStatement().getRowId( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -952,7 +970,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setRowId(String parameterName, RowId x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setRowId( parameterName, x );
+            wrappedCallableStatement().setRowId( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -963,7 +981,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNString(String parameterName, String value) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNString( parameterName, value );
+            wrappedCallableStatement().setNString( parameterName, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -974,7 +992,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNCharacterStream(String parameterName, Reader value, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNCharacterStream( parameterName, value, length );
+            wrappedCallableStatement().setNCharacterStream( parameterName, value, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -985,7 +1003,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNClob(String parameterName, NClob value) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNClob( parameterName, value );
+            wrappedCallableStatement().setNClob( parameterName, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -996,7 +1014,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setClob(String parameterName, Reader reader, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setClob( parameterName, reader, length );
+            wrappedCallableStatement().setClob( parameterName, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1007,7 +1025,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBlob(String parameterName, InputStream inputStream, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBlob( parameterName, inputStream, length );
+            wrappedCallableStatement().setBlob( parameterName, inputStream, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1018,7 +1036,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNClob(String parameterName, Reader reader, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNClob( parameterName, reader, length );
+            wrappedCallableStatement().setNClob( parameterName, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1029,7 +1047,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public NClob getNClob(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getNClob( parameterIndex );
+            return wrappedCallableStatement().getNClob( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1040,7 +1058,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public NClob getNClob(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getNClob( parameterName );
+            return wrappedCallableStatement().getNClob( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1051,7 +1069,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setSQLXML(String parameterName, SQLXML xmlObject) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setSQLXML( parameterName, xmlObject );
+            wrappedCallableStatement().setSQLXML( parameterName, xmlObject );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1062,7 +1080,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public SQLXML getSQLXML(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getSQLXML( parameterIndex );
+            return wrappedCallableStatement().getSQLXML( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1073,7 +1091,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public SQLXML getSQLXML(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getSQLXML( parameterName );
+            return wrappedCallableStatement().getSQLXML( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1084,7 +1102,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public String getNString(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getNString( parameterIndex );
+            return wrappedCallableStatement().getNString( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1095,7 +1113,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public String getNString(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getNString( parameterName );
+            return wrappedCallableStatement().getNString( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1106,7 +1124,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Reader getNCharacterStream(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getNCharacterStream( parameterIndex );
+            return wrappedCallableStatement().getNCharacterStream( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1117,7 +1135,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Reader getNCharacterStream(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getNCharacterStream( parameterName );
+            return wrappedCallableStatement().getNCharacterStream( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1128,7 +1146,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Reader getCharacterStream(int parameterIndex) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getCharacterStream( parameterIndex );
+            return wrappedCallableStatement().getCharacterStream( parameterIndex );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1139,7 +1157,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public Reader getCharacterStream(String parameterName) throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getCharacterStream( parameterName );
+            return wrappedCallableStatement().getCharacterStream( parameterName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1150,7 +1168,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBlob(String parameterName, Blob x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBlob( parameterName, x );
+            wrappedCallableStatement().setBlob( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1161,7 +1179,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setClob(String parameterName, Clob x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setClob( parameterName, x );
+            wrappedCallableStatement().setClob( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1172,7 +1190,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setAsciiStream(String parameterName, InputStream x, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setAsciiStream( parameterName, x, length );
+            wrappedCallableStatement().setAsciiStream( parameterName, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1183,7 +1201,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBinaryStream(String parameterName, InputStream x, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBinaryStream( parameterName, x, length );
+            wrappedCallableStatement().setBinaryStream( parameterName, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1194,7 +1212,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setCharacterStream(String parameterName, Reader reader, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setCharacterStream( parameterName, reader, length );
+            wrappedCallableStatement().setCharacterStream( parameterName, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1205,7 +1223,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setAsciiStream(String parameterName, InputStream x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setAsciiStream( parameterName, x );
+            wrappedCallableStatement().setAsciiStream( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1216,7 +1234,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBinaryStream(String parameterName, InputStream x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBinaryStream( parameterName, x );
+            wrappedCallableStatement().setBinaryStream( parameterName, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1227,7 +1245,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setCharacterStream(String parameterName, Reader reader) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setCharacterStream( parameterName, reader );
+            wrappedCallableStatement().setCharacterStream( parameterName, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1238,7 +1256,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNCharacterStream(String parameterName, Reader value) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNCharacterStream( parameterName, value );
+            wrappedCallableStatement().setNCharacterStream( parameterName, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1249,7 +1267,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setClob(String parameterName, Reader reader) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setClob( parameterName, reader );
+            wrappedCallableStatement().setClob( parameterName, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1260,7 +1278,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBlob(String parameterName, InputStream inputStream) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBlob( parameterName, inputStream );
+            wrappedCallableStatement().setBlob( parameterName, inputStream );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1271,7 +1289,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNClob(String parameterName, Reader reader) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setClob( parameterName, reader );
+            wrappedCallableStatement().setClob( parameterName, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1283,7 +1301,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public <T> T getObject(int parameterIndex, Class<T> type) throws SQLException {
         try {
             verifyEnlistment();
-            T driverObject = wrappedStatement.getObject( parameterIndex, type );
+            T driverObject = wrappedCallableStatement().getObject( parameterIndex, type );
             return driverObject instanceof ResultSet rs ? (T) trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
@@ -1296,7 +1314,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public <T> T getObject(String parameterName, Class<T> type) throws SQLException {
         try {
             verifyEnlistment();
-            T driverObject = wrappedStatement.getObject( parameterName, type );
+            T driverObject = wrappedCallableStatement().getObject( parameterName, type );
             return driverObject instanceof ResultSet rs ? (T) trackResultSet( rs ) : driverObject;
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
@@ -1308,7 +1326,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public ResultSet executeQuery() throws SQLException {
         try {
             verifyEnlistment();
-            return trackResultSet( wrappedStatement.executeQuery() );
+            return trackResultSet( wrappedCallableStatement().executeQuery() );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1319,7 +1337,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public int executeUpdate() throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.executeUpdate();
+            return wrappedCallableStatement().executeUpdate();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1330,7 +1348,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNull( parameterIndex, sqlType );
+            wrappedCallableStatement().setNull( parameterIndex, sqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1341,7 +1359,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBoolean(int parameterIndex, boolean x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBoolean( parameterIndex, x );
+            wrappedCallableStatement().setBoolean( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1352,7 +1370,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setByte(int parameterIndex, byte x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setByte( parameterIndex, x );
+            wrappedCallableStatement().setByte( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1363,7 +1381,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setShort(int parameterIndex, short x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setShort( parameterIndex, x );
+            wrappedCallableStatement().setShort( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1374,7 +1392,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setInt(int parameterIndex, int x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setInt( parameterIndex, x );
+            wrappedCallableStatement().setInt( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1385,7 +1403,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setLong(int parameterIndex, long x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setLong( parameterIndex, x );
+            wrappedCallableStatement().setLong( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1396,7 +1414,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setFloat(int parameterIndex, float x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setFloat( parameterIndex, x );
+            wrappedCallableStatement().setFloat( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1407,7 +1425,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setDouble(int parameterIndex, double x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setDouble( parameterIndex, x );
+            wrappedCallableStatement().setDouble( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1418,7 +1436,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBigDecimal( parameterIndex, x );
+            wrappedCallableStatement().setBigDecimal( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1429,7 +1447,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setString(int parameterIndex, String x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setString( parameterIndex, x );
+            wrappedCallableStatement().setString( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1440,7 +1458,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBytes(int parameterIndex, byte[] x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBytes( parameterIndex, x );
+            wrappedCallableStatement().setBytes( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1451,7 +1469,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setDate(int parameterIndex, Date x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setDate( parameterIndex, x );
+            wrappedCallableStatement().setDate( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1462,7 +1480,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTime(int parameterIndex, Time x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTime( parameterIndex, x );
+            wrappedCallableStatement().setTime( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1473,7 +1491,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTimestamp( parameterIndex, x );
+            wrappedCallableStatement().setTimestamp( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1484,7 +1502,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setAsciiStream( parameterIndex, x, length );
+            wrappedCallableStatement().setAsciiStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1496,7 +1514,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setUnicodeStream( parameterIndex, x, length );
+            wrappedCallableStatement().setUnicodeStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1507,7 +1525,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBinaryStream( parameterIndex, x, length );
+            wrappedCallableStatement().setBinaryStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1518,7 +1536,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void clearParameters() throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.clearParameters();
+            wrappedCallableStatement().clearParameters();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1529,7 +1547,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterIndex, x, targetSqlType );
+            wrappedCallableStatement().setObject( parameterIndex, x, targetSqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1540,7 +1558,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(int parameterIndex, Object x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterIndex, x );
+            wrappedCallableStatement().setObject( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1551,7 +1569,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public boolean execute() throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.execute();
+            return wrappedCallableStatement().execute();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1562,7 +1580,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void addBatch() throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.addBatch();
+            wrappedCallableStatement().addBatch();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1573,7 +1591,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setCharacterStream( parameterIndex, reader, length );
+            wrappedCallableStatement().setCharacterStream( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1584,7 +1602,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setRef(int parameterIndex, Ref x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setRef( parameterIndex, x );
+            wrappedCallableStatement().setRef( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1595,7 +1613,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBlob(int parameterIndex, Blob x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBlob( parameterIndex, x );
+            wrappedCallableStatement().setBlob( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1606,7 +1624,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setClob(int parameterIndex, Clob x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setClob( parameterIndex, x );
+            wrappedCallableStatement().setClob( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1617,7 +1635,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setArray(int parameterIndex, Array x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setArray( parameterIndex, x );
+            wrappedCallableStatement().setArray( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1628,7 +1646,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public ResultSetMetaData getMetaData() throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getMetaData();
+            return wrappedCallableStatement().getMetaData();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1639,7 +1657,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setDate( parameterIndex, x, cal );
+            wrappedCallableStatement().setDate( parameterIndex, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1650,7 +1668,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTime( parameterIndex, x, cal );
+            wrappedCallableStatement().setTime( parameterIndex, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1661,7 +1679,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setTimestamp( parameterIndex, x, cal );
+            wrappedCallableStatement().setTimestamp( parameterIndex, x, cal );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1672,7 +1690,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNull( parameterIndex, sqlType, typeName );
+            wrappedCallableStatement().setNull( parameterIndex, sqlType, typeName );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1683,7 +1701,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setURL(int parameterIndex, URL x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setURL( parameterIndex, x );
+            wrappedCallableStatement().setURL( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1694,7 +1712,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public ParameterMetaData getParameterMetaData() throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.getParameterMetaData();
+            return wrappedCallableStatement().getParameterMetaData();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1705,7 +1723,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setRowId(int parameterIndex, RowId x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setRowId( parameterIndex, x );
+            wrappedCallableStatement().setRowId( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1716,7 +1734,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNString(int parameterIndex, String value) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNString( parameterIndex, value );
+            wrappedCallableStatement().setNString( parameterIndex, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1727,7 +1745,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNCharacterStream( parameterIndex, value, length );
+            wrappedCallableStatement().setNCharacterStream( parameterIndex, value, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1738,7 +1756,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNClob(int parameterIndex, NClob value) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNClob( parameterIndex, value );
+            wrappedCallableStatement().setNClob( parameterIndex, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1749,7 +1767,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setClob( parameterIndex, reader, length );
+            wrappedCallableStatement().setClob( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1760,7 +1778,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBlob( parameterIndex, inputStream, length );
+            wrappedCallableStatement().setBlob( parameterIndex, inputStream, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1771,7 +1789,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNClob( parameterIndex, reader, length );
+            wrappedCallableStatement().setNClob( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1782,7 +1800,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setSQLXML( parameterIndex, xmlObject );
+            wrappedCallableStatement().setSQLXML( parameterIndex, xmlObject );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1793,7 +1811,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterIndex, x, targetSqlType, scaleOrLength );
+            wrappedCallableStatement().setObject( parameterIndex, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1804,7 +1822,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setAsciiStream( parameterIndex, x, length );
+            wrappedCallableStatement().setAsciiStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1815,7 +1833,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBinaryStream( parameterIndex, x, length );
+            wrappedCallableStatement().setBinaryStream( parameterIndex, x, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1826,7 +1844,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setCharacterStream( parameterIndex, reader, length );
+            wrappedCallableStatement().setCharacterStream( parameterIndex, reader, length );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1837,7 +1855,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setAsciiStream( parameterIndex, x );
+            wrappedCallableStatement().setAsciiStream( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1848,7 +1866,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBinaryStream( parameterIndex, x );
+            wrappedCallableStatement().setBinaryStream( parameterIndex, x );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1859,7 +1877,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setCharacterStream( parameterIndex, reader );
+            wrappedCallableStatement().setCharacterStream( parameterIndex, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1870,7 +1888,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNCharacterStream( parameterIndex, value );
+            wrappedCallableStatement().setNCharacterStream( parameterIndex, value );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1881,7 +1899,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setClob(int parameterIndex, Reader reader) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setClob( parameterIndex, reader );
+            wrappedCallableStatement().setClob( parameterIndex, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1892,7 +1910,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setBlob( parameterIndex, inputStream );
+            wrappedCallableStatement().setBlob( parameterIndex, inputStream );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1903,7 +1921,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setNClob(int parameterIndex, Reader reader) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setNClob( parameterIndex, reader );
+            wrappedCallableStatement().setNClob( parameterIndex, reader );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1916,7 +1934,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(int parameterIndex, Object x, SQLType targetSqlType, int scaleOrLength) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterIndex, x, targetSqlType, scaleOrLength );
+            wrappedCallableStatement().setObject( parameterIndex, x, targetSqlType, scaleOrLength );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1927,7 +1945,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public void setObject(int parameterIndex, Object x, SQLType targetSqlType) throws SQLException {
         try {
             verifyEnlistment();
-            wrappedStatement.setObject( parameterIndex, x, targetSqlType );
+            wrappedCallableStatement().setObject( parameterIndex, x, targetSqlType );
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;
@@ -1938,7 +1956,7 @@ public final class CallableStatementWrapper extends StatementWrapper implements 
     public long executeLargeUpdate() throws SQLException {
         try {
             verifyEnlistment();
-            return wrappedStatement.executeLargeUpdate();
+            return wrappedCallableStatement().executeLargeUpdate();
         } catch ( SQLException se ) {
             connection.getHandler().setFlushOnly( se );
             throw se;

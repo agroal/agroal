@@ -11,6 +11,8 @@ import javax.sql.ConnectionEventListener;
 import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -19,6 +21,20 @@ import java.sql.SQLException;
  */
 public final class XAConnectionWrapper extends AutoCloseableElement<XAConnectionWrapper> implements XAConnection {
 
+    private static final VarHandle WRAPPED;
+
+    static {
+        try {
+            WRAPPED = MethodHandles.lookup().findVarHandle( XAConnectionWrapper.class, "wrappedXAConnection", XAConnection.class );
+        } catch ( NoSuchFieldException | IllegalAccessException e ) {
+            throw new ExceptionInInitializerError( e );
+        }
+    }
+
+    private XAConnection wrappedXAConnection() {
+        return (XAConnection) WRAPPED.getAcquire( this );
+    }
+
     // --- //
 
     // Collection of XAResources to close them on close(). If null Statements are not tracked.
@@ -26,12 +42,13 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
 
     private final ConnectionHandler handler;
 
+    @SuppressWarnings( "unused" )
     private XAConnection wrappedXAConnection;
 
     public XAConnectionWrapper(ConnectionHandler connectionHandler, XAConnection xaConnection, boolean trackResources) {
         super( null );
         handler = connectionHandler;
-        wrappedXAConnection = xaConnection;
+        WRAPPED.setRelease( this, xaConnection );
         trackedXAResources = trackResources ? newHead() : null;
     }
 
@@ -44,7 +61,7 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     
     @Override
     protected boolean internalClosed() {
-        return wrappedXAConnection == ClosedXAConnection.INSTANCE;
+        return wrappedXAConnection() == ClosedXAConnection.INSTANCE;
     }
 
     // --- //
@@ -57,8 +74,8 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     @Override
     public void close() throws SQLException {
         handler.traceConnectionOperation( "close()" );
-        if ( wrappedXAConnection != ClosedXAConnection.INSTANCE ) {
-            wrappedXAConnection = ClosedXAConnection.INSTANCE;
+        if ( wrappedXAConnection() != ClosedXAConnection.INSTANCE ) {
+            WRAPPED.setRelease( this, ClosedXAConnection.INSTANCE );
 
             if ( trackedXAResources != null ) {
                 trackedXAResources.closeAllAutocloseableElements();
@@ -95,25 +112,25 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     @Override
     public void addConnectionEventListener(ConnectionEventListener listener) {
         handler.traceConnectionOperation( "addConnectionEventListener()" );
-        wrappedXAConnection.addConnectionEventListener( listener );
+        wrappedXAConnection().addConnectionEventListener( listener );
     }
 
     @Override
     public void removeConnectionEventListener(ConnectionEventListener listener) {
         handler.traceConnectionOperation( "removeConnectionEventListener()" );
-        wrappedXAConnection.removeConnectionEventListener( listener );
+        wrappedXAConnection().removeConnectionEventListener( listener );
     }
 
     @Override
     public void addStatementEventListener(StatementEventListener listener) {
         handler.traceConnectionOperation( "addStatementEventListener()" );
-        wrappedXAConnection.addStatementEventListener( listener );
+        wrappedXAConnection().addStatementEventListener( listener );
     }
 
     @Override
     public void removeStatementEventListener(StatementEventListener listener) {
         handler.traceConnectionOperation( "removeStatementEventListener()" );
-        wrappedXAConnection.removeStatementEventListener( listener );
+        wrappedXAConnection().removeStatementEventListener( listener );
     }
 
 }
