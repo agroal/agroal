@@ -25,6 +25,8 @@ import java.sql.Struct;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.concurrent.Executor;
 
 import static java.sql.ClientInfoStatus.REASON_UNKNOWN;
@@ -37,6 +39,20 @@ import static java.util.stream.Collectors.toMap;
  * @author <a href="jesper.pedersen@redhat.com">Jesper Pedersen</a>
  */
 public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrapper> implements Connection {
+
+    private static final VarHandle WRAPPED;
+
+    static {
+        try {
+            WRAPPED = MethodHandles.lookup().findVarHandle( ConnectionWrapper.class, "wrappedConnection", Connection.class );
+        } catch ( NoSuchFieldException | IllegalAccessException e ) {
+            throw new ExceptionInInitializerError( e );
+        }
+    }
+
+    private Connection wrappedConnection() {
+        return (Connection) WRAPPED.getAcquire( this );
+    }
 
     // --- //
 
@@ -69,7 +85,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     private ConnectionWrapper(ConnectionHandler connectionHandler, boolean trackResources, AutoCloseableElement<ConnectionWrapper> head, boolean detached, boolean defaultHold) {
         super( head );
         handler = connectionHandler;
-        wrappedConnection = connectionHandler.rawConnection();
+        WRAPPED.setRelease( this, connectionHandler.rawConnection() );
         trackedStatements = trackResources ? newHead() : null;
         detachedState = detached;
         holdState = defaultHold;
@@ -137,8 +153,8 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     @Override
     public void close() throws SQLException {
         handler.traceConnectionOperation( "close()" );
-        if ( wrappedConnection != ClosedConnection.INSTANCE ) {
-            wrappedConnection = ClosedConnection.INSTANCE;
+        if ( wrappedConnection() != ClosedConnection.INSTANCE ) {
+            WRAPPED.setRelease( this, ClosedConnection.INSTANCE );
             pruneClosed();
             if ( trackedStatements != null ) {
                 addLeakedStatements( trackedStatements.closeAllAutocloseableElements() );
@@ -151,8 +167,9 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     public void abort(Executor executor) throws SQLException {
         handler.traceConnectionOperation( "abort()" );
         try {
-            wrappedConnection = ClosedConnection.INSTANCE;
-            wrappedConnection.abort( executor );
+            Connection connection = wrappedConnection();
+            WRAPPED.setRelease( this, ClosedConnection.INSTANCE );
+            connection.abort( executor );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -168,9 +185,9 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         }
         try {
             verifyEnlistment();
-            if ( wrappedConnection.getAutoCommit() != autoCommit ) {
+            if ( wrappedConnection().getAutoCommit() != autoCommit ) {
                 handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.AUTOCOMMIT );
-                wrappedConnection.setAutoCommit( autoCommit );
+                wrappedConnection().setAutoCommit( autoCommit );
             }
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
@@ -183,7 +200,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getAutoCommit()" );
             verifyEnlistment();
-            return wrappedConnection.getAutoCommit();
+            return wrappedConnection().getAutoCommit();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -198,7 +215,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             throw new SQLException( "Attempting to commit while taking part in a transaction" );
         }
         try {
-            wrappedConnection.commit();
+            wrappedConnection().commit();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -214,7 +231,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         }
         try {
             verifyEnlistment();
-            wrappedConnection.rollback();
+            wrappedConnection().rollback();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -230,7 +247,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         }
         try {
             verifyEnlistment();
-            wrappedConnection.rollback( savepoint );
+            wrappedConnection().rollback( savepoint );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -244,7 +261,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "clearWarnings()" );
             verifyEnlistment();
-            wrappedConnection.clearWarnings();
+            wrappedConnection().clearWarnings();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -256,7 +273,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createClob()" );
             verifyEnlistment();
-            return wrappedConnection.createClob();
+            return wrappedConnection().createClob();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -268,7 +285,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createBlob()" );
             verifyEnlistment();
-            return wrappedConnection.createBlob();
+            return wrappedConnection().createBlob();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -280,7 +297,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createNClob()" );
             verifyEnlistment();
-            return wrappedConnection.createNClob();
+            return wrappedConnection().createNClob();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -292,7 +309,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createSQLXML()" );
             verifyEnlistment();
-            return wrappedConnection.createSQLXML();
+            return wrappedConnection().createSQLXML();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -304,7 +321,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createArrayOf(String, Object[])" );
             verifyEnlistment();
-            return wrappedConnection.createArrayOf( typeName, elements );
+            return wrappedConnection().createArrayOf( typeName, elements );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -316,7 +333,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createStatement()" );
             verifyEnlistment();
-            return trackStatement( wrappedConnection.createStatement() );
+            return trackStatement( wrappedConnection().createStatement() );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -328,7 +345,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createStatement(int, int)" );
             verifyEnlistment();
-            return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency ) );
+            return trackStatement( wrappedConnection().createStatement( resultSetType, resultSetConcurrency ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -340,7 +357,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createStatement(int, int, int)" );
             verifyEnlistment();
-            return trackStatement( wrappedConnection.createStatement( resultSetType, resultSetConcurrency, resultSetHoldability ), resultSetHoldability == HOLD_CURSORS_OVER_COMMIT );
+            return trackStatement( wrappedConnection().createStatement( resultSetType, resultSetConcurrency, resultSetHoldability ), resultSetHoldability == HOLD_CURSORS_OVER_COMMIT );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -352,7 +369,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "createStruct(String, Object[])" );
             verifyEnlistment();
-            return wrappedConnection.createStruct( typeName, attributes );
+            return wrappedConnection().createStruct( typeName, attributes );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -364,7 +381,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getCatalog()" );
             verifyEnlistment();
-            return wrappedConnection.getCatalog();
+            return wrappedConnection().getCatalog();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -377,7 +394,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.traceConnectionOperation( "setCatalog(String)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.CATALOG );
-            wrappedConnection.setCatalog( catalog );
+            wrappedConnection().setCatalog( catalog );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -389,7 +406,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getHoldability()" );
             verifyEnlistment();
-            return wrappedConnection.getHoldability();
+            return wrappedConnection().getHoldability();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -403,7 +420,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.HOLDABILITY );
             holdState = ( holdability == HOLD_CURSORS_OVER_COMMIT );
-            wrappedConnection.setHoldability( holdability );
+            wrappedConnection().setHoldability( holdability );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -415,7 +432,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getClientInfo()" );
             verifyEnlistment();
-            return wrappedConnection.getClientInfo();
+            return wrappedConnection().getClientInfo();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -427,7 +444,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "setClientInfo(Properties)" );
             verifyEnlistment();
-            wrappedConnection.setClientInfo( properties );
+            wrappedConnection().setClientInfo( properties );
         } catch ( SQLClientInfoException sce ) {
             handler.setFlushOnly( sce );
             throw sce;
@@ -442,7 +459,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getClientInfo(String)" );
             verifyEnlistment();
-            return wrappedConnection.getClientInfo( name );
+            return wrappedConnection().getClientInfo( name );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -454,7 +471,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getMetaData()" );
             verifyEnlistment();
-            return wrappedConnection.getMetaData();
+            return wrappedConnection().getMetaData();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -466,7 +483,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getNetworkTimeout()" );
             verifyEnlistment();
-            return wrappedConnection.getNetworkTimeout();
+            return wrappedConnection().getNetworkTimeout();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -478,7 +495,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getSchema()" );
             verifyEnlistment();
-            return wrappedConnection.getSchema();
+            return wrappedConnection().getSchema();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -491,7 +508,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.traceConnectionOperation( "setSchema(String)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.SCHEMA );
-            wrappedConnection.setSchema( schema );
+            wrappedConnection().setSchema( schema );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -503,7 +520,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getTypeMap()" );
             verifyEnlistment();
-            return wrappedConnection.getTypeMap();
+            return wrappedConnection().getTypeMap();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -515,7 +532,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "setTypeMap(Map<String, Class<?>>)" );
             verifyEnlistment();
-            wrappedConnection.setTypeMap( map );
+            wrappedConnection().setTypeMap( map );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -527,7 +544,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getTransactionIsolation()" );
             verifyEnlistment();
-            return wrappedConnection.getTransactionIsolation();
+            return wrappedConnection().getTransactionIsolation();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -540,7 +557,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.traceConnectionOperation( "setTransactionIsolation(int)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.TRANSACTION_ISOLATION );
-            wrappedConnection.setTransactionIsolation( level );
+            wrappedConnection().setTransactionIsolation( level );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -552,7 +569,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "getWarnings()" );
             verifyEnlistment();
-            return wrappedConnection.getWarnings();
+            return wrappedConnection().getWarnings();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -563,7 +580,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     public boolean isClosed() throws SQLException {
         try {
             handler.traceConnectionOperation( "isClosed()" );
-            return wrappedConnection.isClosed();
+            return wrappedConnection().isClosed();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -575,7 +592,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "isReadOnly()" );
             verifyEnlistment();
-            return wrappedConnection.isReadOnly();
+            return wrappedConnection().isReadOnly();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -589,7 +606,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.verifyReadOnly( readOnly );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.READ_ONLY );
-            wrappedConnection.setReadOnly( readOnly );
+            wrappedConnection().setReadOnly( readOnly );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -601,7 +618,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "isValid(int)" );
             verifyEnlistment();
-            return wrappedConnection.isValid( timeout );
+            return wrappedConnection().isValid( timeout );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -613,7 +630,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "nativeSQL(String)" );
             verifyEnlistment();
-            return wrappedConnection.nativeSQL( sql );
+            return wrappedConnection().nativeSQL( sql );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -625,7 +642,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareCall(String)" );
             verifyEnlistment();
-            return trackCallableStatement( wrappedConnection.prepareCall( sql ) );
+            return trackCallableStatement( wrappedConnection().prepareCall( sql ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -637,7 +654,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareCall(String, int, int)" );
             verifyEnlistment();
-            return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency ) );
+            return trackCallableStatement( wrappedConnection().prepareCall( sql, resultSetType, resultSetConcurrency ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -649,7 +666,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareCall(String, int, int, int)" );
             verifyEnlistment();
-            return trackCallableStatement( wrappedConnection.prepareCall( sql, resultSetType, resultSetConcurrency, resultSetHoldability ), resultSetHoldability == HOLD_CURSORS_OVER_COMMIT );
+            return trackCallableStatement( wrappedConnection().prepareCall( sql, resultSetType, resultSetConcurrency, resultSetHoldability ), resultSetHoldability == HOLD_CURSORS_OVER_COMMIT );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -661,7 +678,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareStatement(String)" );
             verifyEnlistment();
-            return trackPreparedStatement( wrappedConnection.prepareStatement( sql ) );
+            return trackPreparedStatement( wrappedConnection().prepareStatement( sql ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -673,7 +690,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int, int)" );
             verifyEnlistment();
-            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency ) );
+            return trackPreparedStatement( wrappedConnection().prepareStatement( sql, resultSetType, resultSetConcurrency ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -685,7 +702,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int, int, int)" );
             verifyEnlistment();
-            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, resultSetType, resultSetConcurrency, resultSetHoldability ), resultSetHoldability == HOLD_CURSORS_OVER_COMMIT );
+            return trackPreparedStatement( wrappedConnection().prepareStatement( sql, resultSetType, resultSetConcurrency, resultSetHoldability ), resultSetHoldability == HOLD_CURSORS_OVER_COMMIT );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -697,7 +714,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int)" );
             verifyEnlistment();
-            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, autoGeneratedKeys ) );
+            return trackPreparedStatement( wrappedConnection().prepareStatement( sql, autoGeneratedKeys ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -709,7 +726,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareStatement(String, int[])" );
             verifyEnlistment();
-            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnIndexes ) );
+            return trackPreparedStatement( wrappedConnection().prepareStatement( sql, columnIndexes ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -721,7 +738,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "prepareStatement(String, String[])" );
             verifyEnlistment();
-            return trackPreparedStatement( wrappedConnection.prepareStatement( sql, columnNames ) );
+            return trackPreparedStatement( wrappedConnection().prepareStatement( sql, columnNames ) );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -733,7 +750,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "releaseSavepoint(Savepoint)" );
             verifyEnlistment();
-            wrappedConnection.releaseSavepoint( savepoint );
+            wrappedConnection().releaseSavepoint( savepoint );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -745,7 +762,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "setClientInfo(String, String)" );
             verifyEnlistment();
-            wrappedConnection.setClientInfo( name, value );
+            wrappedConnection().setClientInfo( name, value );
         } catch ( SQLClientInfoException sce ) {
             handler.setFlushOnly( sce );
             throw sce;
@@ -760,7 +777,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "setSavepoint()" );
             verifyEnlistment();
-            return wrappedConnection.setSavepoint();
+            return wrappedConnection().setSavepoint();
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -772,7 +789,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         try {
             handler.traceConnectionOperation( "setSavepoint(String)" );
             verifyEnlistment();
-            return wrappedConnection.setSavepoint( name );
+            return wrappedConnection().setSavepoint( name );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -785,7 +802,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
             handler.traceConnectionOperation( "setNetworkTimeout(Executor, int)" );
             verifyEnlistment();
             handler.setDirtyAttribute( ConnectionHandler.DirtyAttribute.NETWORK_TIMEOUT );
-            wrappedConnection.setNetworkTimeout( executor, milliseconds );
+            wrappedConnection().setNetworkTimeout( executor, milliseconds );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -799,7 +816,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     public <T> T unwrap(Class<T> target) throws SQLException {
         try {
             handler.traceConnectionOperation( "unwrap(Class<T>)" );
-            return wrappedConnection.unwrap( target );
+            return wrappedConnection().unwrap( target );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -810,7 +827,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     public boolean isWrapperFor(Class<?> target) throws SQLException {
         try {
             handler.traceConnectionOperation( "isWrapperFor(Class<?>)" );
-            return wrappedConnection.isWrapperFor( target );
+            return wrappedConnection().isWrapperFor( target );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
@@ -819,7 +836,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     public String toString() {
-        return "wrapped[" + wrappedConnection + ( handler.isEnlisted() ? "]<<enrolled" : "]" );
+        return "wrapped[" + wrappedConnection() + ( handler.isEnlisted() ? "]<<enrolled" : "]" );
     }
 
     public void addLeakedStatements(int leaks) {
@@ -856,7 +873,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
 
     @Override
     protected boolean internalClosed() {
-        return wrappedConnection == ClosedConnection.INSTANCE;
+        return wrappedConnection() == ClosedConnection.INSTANCE;
     }
 
 }
