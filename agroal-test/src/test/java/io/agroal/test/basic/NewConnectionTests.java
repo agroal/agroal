@@ -91,6 +91,20 @@ public class NewConnectionTests {
     }
 
     @Test
+    @DisplayName( "Test connection isolation is applied to all connections" )
+    void isolationAppliedToAllConnectionsTest() throws SQLException {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 2 ).connectionFactoryConfiguration( cf -> cf.jdbcTransactionIsolation( SERIALIZABLE ) ) ) ) ) {
+            Connection connection1 = dataSource.getConnection();
+            assertEquals( Connection.TRANSACTION_SERIALIZABLE, connection1.getTransactionIsolation(), "First connection should have the configured isolation level" );
+            Connection connection2 = dataSource.getConnection();
+            assertEquals( Connection.TRANSACTION_SERIALIZABLE, connection2.getTransactionIsolation(), "Second connection should also have the configured isolation level" );
+            logger.info( format( "Got isolation \"{0}\" from {1} and \"{2}\" from {3}", connection1.getTransactionIsolation(), connection1, connection2.getTransactionIsolation(), connection2 ) );
+            connection1.close();
+            connection2.close();
+        }
+    }
+
+    @Test
     @DisplayName( "Test connection readOnly status" )
     void readOnlyConnectionTest() throws SQLException {
         try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ) ) ) {
