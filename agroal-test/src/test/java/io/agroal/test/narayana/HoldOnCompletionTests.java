@@ -11,6 +11,9 @@ import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockResultSet;
 import io.agroal.test.MockStatement;
+import io.agroal.test.MockXAConnection;
+import io.agroal.test.MockXADataSource;
+import io.agroal.test.MockXAResource;
 import jakarta.transaction.HeuristicMixedException;
 import jakarta.transaction.HeuristicRollbackException;
 import jakarta.transaction.NotSupportedException;
@@ -18,6 +21,8 @@ import jakarta.transaction.RollbackException;
 import jakarta.transaction.SystemException;
 import jakarta.transaction.TransactionManager;
 import jakarta.transaction.TransactionSynchronizationRegistry;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -352,6 +357,89 @@ public class HoldOnCompletionTests {
             assertTrue( statement.isClosed(), "Non-holdable Statement should be closed after commit" );
             assertTrue( resultSet.isClosed(), "Non-holdable ResultSet should be closed after commit" );
             assertEquals( 1, dataSource.getMetrics().availableCount(), "Connection should return to pool after commit" );
+        }
+    }
+
+    // AG-309 - When XA commit fails on a connection with HOLD_CURSORS_OVER_COMMIT holdability,
+    // transactionBeforeCompletion(true) sets isHeldOverCommit=true before the commit call.
+    // If setFlushOnly() does not clear isHeldOverCommit, transactionEnd() skips returning
+    // the connection to the pool, leaking it in active state permanently.
+    @Test
+    @DisplayName( "Held connection returned to pool on XA commit failure" )
+    void testCommitFailureWithHoldability() throws SQLException {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) )
+                        .connectionFactoryConfiguration( cf -> cf
+                                .connectionProviderClass( CommitFailingXADataSource.class ) ) );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            txManager.begin();
+
+            Connection connection = dataSource.getConnection();
+            logger.info( format( "Got connection {0}", connection ) );
+
+            txManager.getTransaction().enlistResource( new MockXAResource.Empty() );
+
+            try {
+                txManager.commit();
+            } catch ( HeuristicMixedException | HeuristicRollbackException | RollbackException e ) {
+                logger.info( "Expected commit failure: " + e.getClass().getSimpleName() );
+            }
+
+            assertEquals( 0, dataSource.getMetrics().activeCount(), "Connection should not be stuck in active state" );
+        } catch ( NotSupportedException | SystemException | RollbackException e ) {
+            fail( "Exception: " + e.getMessage() );
+        }
+    }
+
+    // --- //
+
+    public static class CommitFailingXADataSource implements MockXADataSource {
+
+        @Override
+        public javax.sql.XAConnection getXAConnection() throws SQLException {
+            return new MockXAConnection() {
+                @Override
+                public XAResource getXAResource() {
+                    return new MockXAResource() {
+                        @Override
+                        public void commit(javax.transaction.xa.Xid xid, boolean onePhase) throws XAException {
+                            throw new XAException( XAException.XAER_RMFAIL );
+                        }
+                    };
+                }
+
+                @Override
+                public Connection getConnection() {
+                    return new HoldableConnection();
+                }
+            };
+        }
+    }
+
+    private static class HoldableConnection implements MockConnection {
+
+        private boolean closed;
+
+        @Override
+        public int getHoldability() {
+            return ResultSet.HOLD_CURSORS_OVER_COMMIT;
+        }
+
+        @Override
+        public void close() throws SQLException {
+            closed = true;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return closed;
         }
     }
 
