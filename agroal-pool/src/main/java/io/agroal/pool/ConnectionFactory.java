@@ -235,12 +235,16 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         }
     }
 
+    @SuppressWarnings( "MagicConstant" )
     private Connection connectionSetup(Connection connection) throws SQLException {
         if ( connection == null ) {
             // AG-90: Driver can return null if the URL is not supported (see java.sql.Driver#connect() documentation)
             throw new SQLException( "Driver does not support the provided URL: " + configuration.jdbcUrl() );
         }
         loadDefaults( connection );
+        if ( configuration.jdbcTransactionIsolation().isDefined() ) {
+            connection.setTransactionIsolation( defaultIsolationLevel );
+        }
         connection.setAutoCommit( configuration.autoCommit() );
         if ( configuration.readOnly() ) {
             connection.setReadOnly( configuration.readOnly() );
@@ -256,13 +260,11 @@ public final class ConnectionFactory implements ResourceRecoveryFactory {
         return connection;
     }
 
-    @SuppressWarnings( "MagicConstant" )
     private void loadDefaults(Connection connection) throws SQLException {
         if ( defaultHoldability == null ) {
             synchronized ( jdbcProperties ) { // instead of "this", use a private final field for internal synchronization
                 if ( defaultHoldability == null ) {
                     if ( configuration.jdbcTransactionIsolation().isDefined() ) {
-                        connection.setTransactionIsolation( configuration.jdbcTransactionIsolation().level() );
                         defaultIsolationLevel = configuration.jdbcTransactionIsolation().level();
                     } else {
                         defaultIsolationLevel = connection.getTransactionIsolation();
