@@ -449,15 +449,21 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         }
     }
 
+    // AG-309 - enlisted must be set to false after closing wrappers, not before.
+    // Closing a wrapper calls onConnectionWrapperClose() which checks !enlisted: if enlisted is
+    // already false it re-enters transactionEnd(), calling returnConnectionHandler() a second time.
+    // The second return finds the connection already CHECKED_IN and destroys it.
     @Override
     public void transactionEnd() throws SQLException {
-        enlisted = false;
         if ( !isHeldOverCommit ) {
             if ( enlistedOpenWrappers.closeAllAutocloseableElements() != 0 ) {
                 // should never happen, but it's here as a safeguard to prevent double returns in all cases.
                 fireOnWarning( connectionPool.getListeners(), "Closing open connection(s) on after completion" );
             }
+            enlisted = false;
             connectionPool.returnConnectionHandler( this );
+        } else {
+            enlisted = false;
         }
     }
 
@@ -488,10 +494,14 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         }
     }
 
+    // AG-309 - clear isHeldOverCommit so that transactionEnd() returns the connection to the pool.
+    // Without this, an XA commit failure after transactionBeforeCompletion(true) leaves the
+    // connection with isHeldOverCommit=true and state=FLUSH, permanently leaking it.
     @Override
     public void setFlushOnly() {
         // Assumed currentState == State.CHECKED_OUT (or eventually in FLUSH already)
         stateUpdater.set( this, State.FLUSH );
+        isHeldOverCommit = false;
     }
 
     public void setFlushOnly(SQLException se) {
@@ -499,6 +509,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         AgroalConnectionPoolConfiguration.ExceptionSorter exceptionSorter = connectionPool.getConfiguration().exceptionSorter();
         if ( exceptionSorter != null && exceptionSorter.isFatal( se ) ) {
             stateUpdater.set( this, State.FLUSH );
+            isHeldOverCommit = false;
         }
     }
 

@@ -3,6 +3,7 @@
 
 package io.agroal.test.narayana;
 
+import com.arjuna.ats.arjuna.common.arjPropertyManager;
 import com.arjuna.ats.arjuna.recovery.RecoveryManager;
 import com.arjuna.ats.internal.jta.recovery.arjunacore.XARecoveryModule;
 import com.arjuna.ats.jbossatx.jta.RecoveryManagerService;
@@ -23,6 +24,7 @@ import jakarta.transaction.TransactionSynchronizationRegistry;
 import org.jboss.tm.XAResourceRecovery;
 import org.jboss.tm.XAResourceRecoveryRegistry;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -39,11 +41,15 @@ import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -84,6 +90,17 @@ public class RecoveryTests {
         registerMockDriver();
         if ( Utils.isWindowsOS() ) {
             Utils.windowsTimerHack();
+        }
+    }
+
+    @AfterEach
+    void cleanup() throws IOException {
+        RecoveryManager.manager( DIRECT_MANAGEMENT ).terminate( true );
+        Path objectStoreDir = Path.of( arjPropertyManager.getObjectStoreEnvironmentBean().getObjectStoreDir() );
+        if ( Files.exists( objectStoreDir ) ) {
+            try ( Stream<Path> walk = Files.walk( objectStoreDir ) ) {
+                walk.sorted( Comparator.reverseOrder() ).forEach( p -> p.toFile().delete() );
+            }
         }
     }
 
