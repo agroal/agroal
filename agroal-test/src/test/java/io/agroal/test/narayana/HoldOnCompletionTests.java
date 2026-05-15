@@ -8,6 +8,8 @@ import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
 import io.agroal.narayana.NarayanaTransactionIntegration;
+import com.arjuna.ats.arjuna.common.arjPropertyManager;
+import com.arjuna.ats.arjuna.recovery.RecoveryManager;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockResultSet;
 import io.agroal.test.MockStatement;
@@ -24,6 +26,7 @@ import jakarta.transaction.TransactionSynchronizationRegistry;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -32,10 +35,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -65,6 +72,17 @@ public class HoldOnCompletionTests {
     @BeforeAll
     static void setup() {
         registerMockDriver( ClosableConnection.class );
+    }
+
+    @AfterEach
+    void cleanup() throws IOException {
+        RecoveryManager.manager().terminate( true );
+        Path objectStoreDir = Path.of( arjPropertyManager.getObjectStoreEnvironmentBean().getObjectStoreDir() );
+        if ( Files.exists( objectStoreDir ) ) {
+            try ( Stream<Path> walk = Files.walk( objectStoreDir ) ) {
+                walk.sorted( Comparator.reverseOrder() ).forEach( p -> p.toFile().delete() );
+            }
+        }
     }
 
     @AfterAll
