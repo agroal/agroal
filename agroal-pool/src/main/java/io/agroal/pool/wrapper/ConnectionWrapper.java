@@ -145,7 +145,7 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     }
 
     public boolean hasTrackedStatements() throws SQLException {
-        return trackedStatements != null && trackedStatements.isElementListEmpty();
+        return trackedStatements != null && !trackedStatements.isElementListEmpty();
     }
 
     // --- //
