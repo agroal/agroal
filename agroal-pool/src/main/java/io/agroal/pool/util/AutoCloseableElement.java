@@ -166,7 +166,7 @@ public abstract class AutoCloseableElement<T extends AutoCloseableElement<T>> im
                     boolean holdElement = next.isHeld() && !next.internalClosed();
                     if ( !holdElement && next instanceof ConnectionWrapper connectionWrapper ) {
                         connectionWrapper.closeNotHeldTrackedStatements();
-                        holdElement = !connectionWrapper.hasTrackedStatements();
+                        holdElement = connectionWrapper.hasTrackedStatements();
                     }
 
                     if ( !holdElement && current.setNextElement( next, next.nextElement ) && !next.internalClosed() ) {
