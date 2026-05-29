@@ -169,10 +169,12 @@ public abstract class AutoCloseableElement<T extends AutoCloseableElement<T>> im
                         holdElement = connectionWrapper.hasTrackedStatements();
                     }
 
-                    if ( !holdElement && current.setNextElement( next, next.nextElement ) && !next.internalClosed() ) {
-                        next.beforeClose();
-                        next.close();
-                        count++;
+                    if ( !holdElement && current.setNextElement( next, next.nextElement ) ) {
+                        if ( !next.internalClosed() ) {
+                            next.beforeClose();
+                            next.close();
+                            count++;
+                        }
                     } else {
                         current = current.nextElement;
                     }

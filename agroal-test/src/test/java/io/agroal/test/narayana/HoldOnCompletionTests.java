@@ -378,6 +378,39 @@ public class HoldOnCompletionTests {
         }
     }
 
+    @Test
+    @DisplayName( "Nested wrappers closed before commit should not leak" )
+    void testNestedWrappersClosedBeforeCommit() throws Exception {
+        TransactionManager txManager = com.arjuna.ats.jta.TransactionManager.transactionManager();
+        TransactionSynchronizationRegistry txSyncRegistry = new com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .maxSize( 1 )
+                        .transactionIntegration( new NarayanaTransactionIntegration( txManager, txSyncRegistry ) ) );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            txManager.begin();
+
+            // Simulate nested getConnection() calls as done by @Transactional beans calling
+            // other @Transactional beans, each acquiring a connection via try-with-resources.
+            // The outer connection is still open when the inner one is acquired and closed,
+            // leaving both wrappers in the enlistedOpenWrappers list.
+            try ( Connection outer = dataSource.getConnection() ) {
+                logger.info( format( "Got outer connection {0}", outer ) );
+                try ( Connection inner = dataSource.getConnection() ) {
+                    logger.info( format( "Got inner connection {0}", inner ) );
+                }
+            }
+
+            txManager.commit();
+
+            assertEquals( 0, dataSource.getMetrics().activeCount(), "No connections should be active after commit" );
+            assertEquals( 1, dataSource.getMetrics().availableCount(), "Connection should be returned to pool after commit" );
+        }
+    }
+
     // AG-309 - When XA commit fails on a connection with HOLD_CURSORS_OVER_COMMIT holdability,
     // transactionBeforeCompletion(true) sets isHeldOverCommit=true before the commit call.
     // If setFlushOnly() does not clear isHeldOverCommit, transactionEnd() skips returning
