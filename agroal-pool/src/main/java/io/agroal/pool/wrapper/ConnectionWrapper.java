@@ -173,6 +173,8 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
             throw se;
+        } finally {
+            handler.onConnectionWrapperClose( this );
         }
     }
 
