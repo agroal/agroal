@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update Docker image versions in Maven POM properties",
+      "fileMatch": [
+        "(^|/)pom\\.xml$"
+      ],
+      "matchStrings": [
+        "<[a-z.]+testcontainer\\.image>(?<depName>[^:]+):(?<currentValue>[^<]+)</[a-z.]+testcontainer\\.image>"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
