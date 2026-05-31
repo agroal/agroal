@@ -5,6 +5,7 @@ package io.agroal.springframework.boot;
 
 import java.util.List;
 
+import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.security.AgroalSecurityProvider;
 import io.agroal.narayana.NarayanaTransactionIntegration;
@@ -51,18 +52,21 @@ public class AgroalDataSourceAutoConfiguration {
     private final ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder;
     private final ObjectProvider<AgroalSecurityProvider> securityProvider;
     private final ObjectProvider<AgroalPoolInterceptor> poolInterceptor;
+    private final ObjectProvider<AgroalDataSourceListener> dataSourceListener;
 
     public AgroalDataSourceAutoConfiguration(
             ObjectProvider<JtaTransactionManager> jtaPlatformProvider,
             ObjectProvider<XAResourceRecoveryRegistry> recoveryRegistryProvider,
             ObjectProvider<AgroalDataSourceJndiBinder> jndiBinder,
             ObjectProvider<AgroalSecurityProvider> securityProvider,
-            ObjectProvider<AgroalPoolInterceptor> poolInterceptor ) {
+            ObjectProvider<AgroalPoolInterceptor> poolInterceptor,
+            ObjectProvider<AgroalDataSourceListener> dataSourceListener) {
         this.jtaPlatformProvider = jtaPlatformProvider;
         this.recoveryRegistryProvider = recoveryRegistryProvider;
         this.jndiBinder = jndiBinder;
         this.securityProvider = securityProvider;
         this.poolInterceptor = poolInterceptor;
+        this.dataSourceListener = dataSourceListener;
     }
 
     @Bean
@@ -124,6 +128,11 @@ public class AgroalDataSourceAutoConfiguration {
         recoveryCredentials.forEach( dataSource::addRecoveryCredential );
 
         poolInterceptor.forEach( dataSource::addPoolInterceptor );
+
+        var listeners = dataSourceListener.stream().toList();
+        if ( !listeners.isEmpty() ) {
+            dataSource.setDataSourceListeners( listeners );
+        }
 
         return dataSource;
     }

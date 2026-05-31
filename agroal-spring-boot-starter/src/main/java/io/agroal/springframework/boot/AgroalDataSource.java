@@ -60,6 +60,7 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     private io.agroal.api.AgroalDataSource delegate;
     private String datasourceName = "<default>";
+    private List<AgroalDataSourceListener> dataSourceListeners;
 
     public AgroalDataSource() {
         datasourceConfiguration = new AgroalDataSourceConfigurationSupplier();
@@ -74,7 +75,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.connectionFactoryConfiguration( connectionFactoryConfiguration );
         datasourceConfiguration.connectionPoolConfiguration( connectionPoolConfiguration );
 
-        delegate = io.agroal.api.AgroalDataSource.from( datasourceConfiguration, new LoggingListener( datasourceName ) );
+        if ( dataSourceListeners == null || dataSourceListeners.isEmpty() ) {
+            dataSourceListeners = List.of( new LoggingListener(datasourceName) );
+        }
+        delegate = io.agroal.api.AgroalDataSource.from(datasourceConfiguration, dataSourceListeners.toArray(new AgroalDataSourceListener[0]));
         logger.info( "Started DataSource {} connected to {}", datasourceName, getConfiguration().connectionPoolConfiguration().connectionFactoryConfiguration().jdbcUrl() );
     }
 
@@ -82,6 +86,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setName(String name) {
         datasourceName = name;
+    }
+
+    public void setDataSourceListeners(List<AgroalDataSourceListener> dataSourceListeners) {
+        this.dataSourceListeners = dataSourceListeners;
     }
 
     public void setImplementation(String name) {
@@ -284,6 +292,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
     }
 
     // --- //
+
+    public List<AgroalDataSourceListener> getDataSourceListeners() {
+        return dataSourceListeners == null ? List.of() : List.copyOf(dataSourceListeners);
+    }
 
     @Override
     public AgroalDataSourceConfiguration getConfiguration() {

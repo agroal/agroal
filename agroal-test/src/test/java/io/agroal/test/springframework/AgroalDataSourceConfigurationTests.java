@@ -4,6 +4,7 @@
 package io.agroal.test.springframework;
 
 import dev.snowdrop.boot.narayana.autoconfigure.NarayanaAutoConfiguration;
+import io.agroal.api.AgroalDataSourceListener;
 import io.agroal.api.AgroalPoolInterceptor;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.security.AgroalSecurityProvider;
@@ -13,6 +14,7 @@ import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.agroal.springframework.boot.AgroalDataSource;
 import io.agroal.springframework.boot.AgroalDataSourceAutoConfiguration;
 import io.agroal.springframework.boot.metadata.AgroalDataSourcePoolMetadata;
+import io.agroal.test.ConnectionListener;
 import io.agroal.test.MockConnection;
 import io.agroal.test.MockDriver;
 import io.agroal.test.MockXAConnection;
@@ -291,6 +293,33 @@ class AgroalDataSourceConfigurationTests {
                 .run(context -> {
                     AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
                     assertThat(dataSource.getPoolInterceptors()).containsExactly(highPriorityInterceptor, mediumPriorityInterceptor, lowPriorityInterceptor);
+                });
+    }
+
+    @DisplayName("Default LoggingListener will be added to the DataSource when no beans of type AgroalDataSourceListener exist")
+    @Test
+    void testAgroalDefaultDataSourceListeners() {
+        runner
+                .run(context -> {
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+                    var listener = assertThat(dataSource.getDataSourceListeners()).singleElement().actual();
+                    assertThat(listener.getClass().getName()).isEqualTo("io.agroal.springframework.boot.AgroalDataSource$LoggingListener");
+                });
+    }
+
+    @DisplayName("Any beans of type AgroalDataSourceListener will be added to the DataSource in order")
+    @Test
+    void testAgroalExplicitDataSourceListeners() {
+        AgroalDataSourceListener firstListener = new ConnectionListener();
+        AgroalDataSourceListener secondListener = new ConnectionListener();
+        AgroalDataSourceListener thirdListener = new ConnectionListener();
+        runner
+                .withBean("firstListener", AgroalDataSourceListener.class, () -> firstListener)
+                .withBean("secondListener", AgroalDataSourceListener.class, () -> secondListener)
+                .withBean("thirdListener", AgroalDataSourceListener.class, () -> thirdListener)
+                .run(context -> {
+                    AgroalDataSource dataSource = context.getBean(AgroalDataSource.class);
+                    assertThat(dataSource.getDataSourceListeners()).containsExactly(firstListener, secondListener, thirdListener);
                 });
     }
 
