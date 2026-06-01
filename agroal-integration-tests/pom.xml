@@ -14,6 +14,9 @@
     <assertj.version>3.27.7</assertj.version>
     <byteman.version>4.0.26</byteman.version>
 
+    <maven.install.skip>true</maven.install.skip>
+    <maven.deploy.skip>true</maven.deploy.skip>
+
     <!-- Testcontainer Docker images -->
     <postgres.testcontainer.image>postgres:17-alpine</postgres.testcontainer.image>
     <mysql.testcontainer.image>mysql:8.0</mysql.testcontainer.image>
