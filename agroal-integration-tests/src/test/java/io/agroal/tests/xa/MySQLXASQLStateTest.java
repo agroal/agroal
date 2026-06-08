@@ -67,18 +67,19 @@ class MySQLXASQLStateTest {
 
             // Create table and insert the row we'll lock
             try ( Connection setup = dataSource.getConnection() ) {
-                setup.createStatement().execute(
-                        "CREATE TABLE IF NOT EXISTS sqlstate_test ( id INT PRIMARY KEY ) ENGINE=InnoDB" );
-                setup.createStatement().execute(
-                        "INSERT IGNORE INTO sqlstate_test VALUES (1)" );
+                try ( Statement s = setup.createStatement() ) {
+                    s.execute( "CREATE TABLE IF NOT EXISTS sqlstate_test ( id INT PRIMARY KEY ) ENGINE=InnoDB" );
+                    s.execute( "INSERT IGNORE INTO sqlstate_test VALUES (1)" );
+                }
             }
 
             // Hold an exclusive lock on row id=1 from a raw JDBC connection
             try ( Connection lockHolder = DriverManager.getConnection(
                     mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword() ) ) {
                 lockHolder.setAutoCommit( false );
-                lockHolder.createStatement().executeQuery(
-                        "SELECT * FROM sqlstate_test WHERE id = 1 FOR UPDATE" );
+                try ( Statement lockStmt = lockHolder.createStatement() ) {
+                    lockStmt.executeQuery( "SELECT * FROM sqlstate_test WHERE id = 1 FOR UPDATE" );
+                }
 
                 // Start XA transaction with short timeout
                 txManager.setTransactionTimeout( 2 );
