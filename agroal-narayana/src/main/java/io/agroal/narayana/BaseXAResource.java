@@ -64,12 +64,15 @@ public class BaseXAResource implements XAResourceWrapper {
 
     @Override
     public void end(Xid xid, int flags) throws XAException {
-        if ( ( flags & XAResource.TMFAIL ) != 0 ) {
-            transactionAware.transactionBeforeCompletion( false );
-        }
         try {
             xaResource.end( xid, flags );
+            if ( ( flags & XAResource.TMFAIL ) != 0 ) {
+                transactionAware.transactionBeforeCompletion( false );
+            }
         } catch ( XAException xe ) {
+            if ( ( flags & XAResource.TMFAIL ) != 0 ) {
+                transactionAware.transactionBeforeCompletion( false );
+            }
             if ( !XAExceptionUtils.isUnilateralRollbackOnAbort( xe.errorCode, flags ) ) {
                 transactionAware.setFlushOnly();
             }
