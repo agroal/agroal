@@ -28,6 +28,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * on a row, and the XA connection tries to acquire the same lock. When the
  * Narayana reaper fires TMFAIL, the blocked query must be interrupted with an
  * exception that carries a non-null SQLState.
+ *
+ * NOTE: This test currently fails because MySQL Connector/J 9.x creates
+ * {@code MySQLStatementCancelledException} without setting the SQLState
+ * (it was "70100" in 8.x). This is a driver bug, not an Agroal bug.
+ * The test is kept as a regression marker — it should pass once the
+ * driver is fixed upstream.
  */
 @Tag( "testcontainers" )
 @Testcontainers
