@@ -21,6 +21,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -82,6 +86,7 @@ public final class ConnectionPool implements Pool {
     }
 
     private static final AtomicInteger HOUSEKEEP_COUNT = new AtomicInteger();
+    private static final AtomicInteger CONNECTION_CREATION_COUNT = new AtomicInteger();
     private static final ConnectionHandler TRANSFER_POISON; // Dummy object to unblock waiting threads, for example on close()
     private static final long ONE_SECOND = SECONDS.toNanos( 1 );
 
@@ -94,6 +99,7 @@ public final class ConnectionPool implements Pool {
 
     private final ConnectionFactory connectionFactory;
     private final PriorityScheduledExecutor housekeepingExecutor;
+    private final ExecutorService connectionCreationExecutor;
     private final TransactionIntegration transactionIntegration;
 
     private final boolean borrowValidationEnabled;
@@ -121,6 +127,11 @@ public final class ConnectionPool implements Pool {
 
         connectionFactory = new ConnectionFactory( configuration.connectionFactoryConfiguration(), listeners );
         housekeepingExecutor = new PriorityScheduledExecutor( 1, "agroal-" + HOUSEKEEP_COUNT.incrementAndGet(), listeners );
+        connectionCreationExecutor = Executors.newCachedThreadPool( r -> {
+            Thread t = new Thread( r, "agroal-" + CONNECTION_CREATION_COUNT.incrementAndGet() + " connection creation" );
+            t.setDaemon( true );
+            return t;
+        } );
         transactionIntegration = configuration.transactionIntegration();
 
         borrowValidationEnabled = configuration.validateOnBorrow();
@@ -205,6 +216,7 @@ public final class ConnectionPool implements Pool {
             transactionIntegration.removeResourceRecoveryFactory( getResourceRecoveryFactory() );
         }
 
+        connectionCreationExecutor.shutdownNow();
         for ( Runnable task : housekeepingExecutor.shutdownNow() ) {
             if ( task instanceof DestroyConnectionTask ) {
                 task.run();
@@ -659,7 +671,7 @@ public final class ConnectionPool implements Pool {
             fireBeforeConnectionCreation( listeners );
             long metricsStamp = metricsRepository.beforeConnectionCreation();
 
-            XAConnection xaConnection = connectionFactory.createConnection();
+            XAConnection xaConnection = createConnectionOnPlatformThread();
             ConnectionHandler handler = new ConnectionHandler( xaConnection, this, connectionFactory.defaultJdbcIsolationLevel(), connectionFactory.defaultHoldability() );
             metricsRepository.afterConnectionCreation( metricsStamp );
 
@@ -692,6 +704,38 @@ public final class ConnectionPool implements Pool {
         } finally {
             if ( decrementPermits ) {
                 createConnectionPermits.decrementAndGet();
+            }
+        }
+    }
+
+    /**
+     * Runs {@code connectionFactory.createConnection()} on a platform thread to avoid pinning virtual threads
+     * on {@code synchronized} blocks inside JDBC drivers. Required for Java 21-23; JEP 491 in Java 24+
+     * eliminates {@code synchronized} pinning.
+     */
+    private XAConnection createConnectionOnPlatformThread() throws SQLException {
+        Future<XAConnection> future = connectionCreationExecutor.submit( connectionFactory::createConnection );
+        boolean interrupted = false;
+        try {
+            while ( true ) {
+                try {
+                    return future.get();
+                } catch ( InterruptedException e ) {
+                    interrupted = true;
+                } catch ( ExecutionException e ) {
+                    if ( e.getCause() instanceof SQLException se ) {
+                        throw se;
+                    } else if ( e.getCause() instanceof RuntimeException re ) {
+                        throw re;
+                    } else if ( e.getCause() instanceof Error er ) {
+                        throw er;
+                    }
+                    throw new SQLException( "Exception while creating new connection", e.getCause() );
+                }
+            }
+        } finally {
+            if ( interrupted ) {
+                currentThread().interrupt();
             }
         }
     }
