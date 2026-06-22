@@ -195,33 +195,22 @@ public class NewConnectionTimeoutTests {
                 connectionListener.assertConnectionCreationStarted();
                 assertTrue( e.getMessage().contains( "execution timed out after" ) );
 
-                // even if we give some time to interrupt, cancel will not take effect in the connection creation thread...
+                // Give time for the interrupted thread to complete cleanup
                 Thread.sleep( 2000 );
 
-                // Single thread for creating the db connection is still running and hangs - can't be canceled
-                // Which will block the pool, and new connections couldn't be created
+                // Connection creation was interrupted and properly cancelled, releasing the pool permit
                 connectionListener.assertNoConnectionCreated();
-                warningsListener.assertNoConnectionFailures();
+                assertEquals( 1, warningsListener.failuresCount() );
             }
 
             warningsListener.reset();
             connectionListener.reset();
 
-            // Proof that NO new db connection can be created
-            try {
-                assertTimeoutPreemptively( Duration.ofSeconds( 2 ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting getConnection to hang" );
-                fail( "Not supposed to create a connection" ); // Supposed to fail
-            } catch ( Error e ) {
-                // Thread is still blocked with previous connection creation therefore connection creation was NOT started
-                connectionListener.assertNoConnectionCreationStarted();
-
-                // Second attempt also timed out
-                assertTrue( e.getMessage().contains( "execution timed out after" ) );
-
-                // Single thread for creating the db connection is still running and hangs - can't be canceled
-                // Which will block the pool, and new connections couldn't be created
-                connectionListener.assertNoConnectionCreated();
-                warningsListener.assertNoConnectionFailures();
+            // Pool recovered: permit was released after the interrupted creation failed.
+            // Second driver (MockDriver.Empty) succeeds, proving the pool is not stuck.
+            try ( Connection c = dataSource.getConnection() ) {
+                connectionListener.assertConnectionCreationStarted();
+                connectionListener.assertConnectionCreated();
             }
         }
     }

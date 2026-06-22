@@ -715,28 +715,21 @@ public final class ConnectionPool implements Pool {
      */
     private XAConnection createConnectionOnPlatformThread() throws SQLException {
         Future<XAConnection> future = connectionCreationExecutor.submit( connectionFactory::createConnection );
-        boolean interrupted = false;
         try {
-            while ( true ) {
-                try {
-                    return future.get();
-                } catch ( InterruptedException e ) {
-                    interrupted = true;
-                } catch ( ExecutionException e ) {
-                    if ( e.getCause() instanceof SQLException se ) {
-                        throw se;
-                    } else if ( e.getCause() instanceof RuntimeException re ) {
-                        throw re;
-                    } else if ( e.getCause() instanceof Error er ) {
-                        throw er;
-                    }
-                    throw new SQLException( "Exception while creating new connection", e.getCause() );
-                }
+            return future.get();
+        } catch ( InterruptedException e ) {
+            future.cancel( true );
+            currentThread().interrupt();
+            throw new SQLException( "Connection creation interrupted", e );
+        } catch ( ExecutionException e ) {
+            if ( e.getCause() instanceof SQLException se ) {
+                throw se;
+            } else if ( e.getCause() instanceof RuntimeException re ) {
+                throw re;
+            } else if ( e.getCause() instanceof Error er ) {
+                throw er;
             }
-        } finally {
-            if ( interrupted ) {
-                currentThread().interrupt();
-            }
+            throw new SQLException( "Exception while creating new connection", e.getCause() );
         }
     }
 
