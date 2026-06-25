@@ -3,6 +3,9 @@
 
 package io.agroal.pool.util;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
  * JDK 21+ override — uses Thread.isVirtual() directly.
  */
@@ -13,5 +16,9 @@ public final class VirtualThreadUtil {
 
     public static boolean isVirtualThread() {
         return Thread.currentThread().isVirtual();
+    }
+
+    public static ExecutorService newVirtualThreadPerTaskExecutor() {
+        return Executors.newVirtualThreadPerTaskExecutor();
     }
 }
