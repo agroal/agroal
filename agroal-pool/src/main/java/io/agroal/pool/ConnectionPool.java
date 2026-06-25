@@ -12,6 +12,7 @@ import io.agroal.api.transaction.TransactionIntegration;
 import io.agroal.pool.MetricsRepository.EmptyMetricsRepository;
 import io.agroal.pool.util.PriorityScheduledExecutor;
 import io.agroal.pool.util.StampedCopyOnWriteArrayList;
+import io.agroal.pool.util.VirtualThreadUtil;
 import io.agroal.pool.util.XAConnectionAdaptor;
 
 import javax.sql.XAConnection;
@@ -347,7 +348,7 @@ public final class ConnectionPool implements Pool {
     private ConnectionHandler handlerFromSharedCache() throws SQLException {
         long acquisitionTimeout = configuration.acquisitionTimeout().isZero() ? MAX_VALUE : configuration.acquisitionTimeout().toNanos();
         long deadline = acquisitionTimeout == MAX_VALUE ? MAX_VALUE : nanoTime() + acquisitionTimeout;
-        boolean collaborate = true;
+        boolean collaborate = !VirtualThreadUtil.isVirtualThread();
         int retries = configuration.establishmentRetryAttempts();
         try {
             for ( int i = 0; ; i++ ) {
@@ -376,7 +377,7 @@ public final class ConnectionPool implements Pool {
                             if ( collaborate ) {
                                 handler = createAndPoolConnection();
                             } else {
-                                // Connction created in the background thread (only wait until acquisitionTimout)
+                                // Connection created in the background thread (only wait until acquisitionTimout)
                                 handler = housekeepingExecutor.executeNow( () -> createAndPoolConnection() ).get( deadline - nanoTime(), NANOSECONDS );
                             }
                             if ( handler != null && handler.acquire() ) {
