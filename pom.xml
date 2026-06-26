@@ -37,13 +37,17 @@
         <connection>scm:git:git://github.com/agroal/agroal.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/agroal/agroal.git</developerConnection>
         <url>https://github.com/agroal/agroal</url>
-        <tag>3.2.1</tag>
     </scm>
     <developers>
         <developer>
             <id>lbarreiro</id>
             <name>Luis Barreiro</name>
             <organization>Red Hat</organization>
+        </developer>
+        <developer>
+            <id>gastaldi</id>
+            <name>George Gastaldi</name>
+            <organization>IBM</organization>
         </developer>
     </developers>
     <properties>
@@ -77,6 +81,7 @@
         <version.de.thetaphi.forbiddenapis>3.10</version.de.thetaphi.forbiddenapis>
         <version.eu.somatik.serviceloader-maven-plugin>1.4.0</version.eu.somatik.serviceloader-maven-plugin>
         <version.org.apache.maven.plugins.maven-surefire-plugin>3.5.5</version.org.apache.maven.plugins.maven-surefire-plugin>
+        <version.sundrio>0.300.0</version.sundrio>
     </properties>
     <build>
         <plugins>
@@ -129,6 +134,36 @@
                         <goals>
                             <goal>check</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.sundr</groupId>
+                <artifactId>sundr-maven-plugin</artifactId>
+                <version>${version.sundrio}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate-bom</goal>
+                        </goals>
+                        <configuration>
+                            <boms>
+                                <bom>
+                                    <artifactId>agroal-bom</artifactId>
+                                    <name>Agroal BOM</name>
+                                    <description>Centralized dependencyManagement for the Agroal Project</description>
+                                    <properties>
+                                        <skipStagingRepositoryClose>true</skipStagingRepositoryClose>
+                                        <sonar.skip>true</sonar.skip>
+                                    </properties>
+                                    <modules>
+                                        <excludes>
+                                            <exclude>*:*test*</exclude>
+                                        </excludes>
+                                    </modules>
+                                </bom>
+                            </boms>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
