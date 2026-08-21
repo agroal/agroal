@@ -142,6 +142,29 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         return xaResource;
     }
 
+    // --- Request Boundaries (JDBC 4.3) --- //
+
+    // Called by the pool when the connection is handed out, marking the start of a request.
+    // Per the JDBC contract a duplicate beginRequest() without an intervening endRequest() is ignored by the driver.
+    public void beginRequest() throws SQLException {
+        try {
+            connection.beginRequest();
+        } catch ( SQLException se ) {
+            setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    // Called by the pool when the connection is returned, marking the end of a request.
+    public void endRequest() throws SQLException {
+        try {
+            connection.endRequest();
+        } catch ( SQLException se ) {
+            setFlushOnly( se );
+            throw se;
+        }
+    }
+
     @SuppressWarnings( "MagicConstant" )
     public void resetConnection() throws SQLException {
         transactionActiveCheck = NO_ACTIVE_TRANSACTION;
