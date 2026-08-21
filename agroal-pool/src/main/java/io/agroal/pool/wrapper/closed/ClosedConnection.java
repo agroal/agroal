@@ -304,6 +304,16 @@ public final class ClosedConnection implements Connection {
     }
 
     @Override
+    public void beginRequest() throws SQLException {
+        throw closed();
+    }
+
+    @Override
+    public void endRequest() throws SQLException {
+        throw closed();
+    }
+
+    @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
         throw closed();
     }
