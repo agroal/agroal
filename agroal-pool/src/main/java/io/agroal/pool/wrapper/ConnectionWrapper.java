@@ -837,6 +837,28 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     }
 
     @Override
+    public void beginRequest() throws SQLException {
+        try {
+            handler.traceConnectionOperation( "beginRequest()" );
+            wrappedConnection().beginRequest();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
+    public void endRequest() throws SQLException {
+        try {
+            handler.traceConnectionOperation( "endRequest()" );
+            wrappedConnection().endRequest();
+        } catch ( SQLException se ) {
+            handler.setFlushOnly( se );
+            throw se;
+        }
+    }
+
+    @Override
     public String toString() {
         return "wrapped[" + wrappedConnection() + ( handler.isEnlisted() ? "]<<enrolled" : "]" );
     }

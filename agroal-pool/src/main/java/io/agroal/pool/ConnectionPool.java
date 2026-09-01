@@ -476,6 +476,9 @@ public final class ConnectionPool implements Pool {
         metricsRepository.afterConnectionAcquire( metricsStamp );
         fireOnConnectionAcquired( listeners, checkedOutHandler );
 
+        // JDBC 4.3 Request Boundaries: signal the driver that a request begins as the connection leaves the pool
+        checkedOutHandler.beginRequest();
+
         if ( verifyEnlistment && !checkedOutHandler.isEnlisted() ) {
             switch ( configuration.transactionRequirement() ) {
                 case STRICT:
@@ -538,6 +541,8 @@ public final class ConnectionPool implements Pool {
         }
 
         try {
+            // JDBC 4.3 Request Boundaries: signal the driver that the request ended before the connection is reset for reuse
+            handler.endRequest();
             handler.resetConnection();
         } catch ( SQLException sqlException ) {
             fireOnWarning( listeners, sqlException );
