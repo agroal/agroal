@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright © 2017 Red Hat, Inc. and individual contributors as indicated by the @author tags -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.agroal</groupId>
+        <artifactId>agroal-parent</artifactId>
+        <version>3.3-SNAPSHOT</version>
+    </parent>
+    <artifactId>agroal-bom</artifactId>
+    <packaging>pom</packaging>
+    <name>Agroal BOM</name>
+    <description>Centralized dependencyManagement for the Agroal Project</description>
+    <properties>
+        <skipStagingRepositoryClose>true</skipStagingRepositoryClose>
+        <sonar.skip>true</sonar.skip>
+    </properties>
+    <build>
+        <plugins>
+            <!--
+              The bom-builder3 plugin generates the dependencyManagement of this BOM from the reactor modules
+              and replaces this module's pom.xml with the generated BOM upon execution.
+            -->
+            <plugin>
+                <groupId>eu.maveniverse.maven.plugins</groupId>
+                <artifactId>bom-builder3</artifactId>
+                <version>${version.eu.maveniverse.bom-builder3}</version>
+                <executions>
+                    <execution>
+                        <id>build-bom</id>
+                        <goals>
+                            <goal>build-bom</goal>
+                        </goals>
+                        <configuration>
+                            <attach>true</attach>
+                            <bomArtifactId>agroal-bom</bomArtifactId>
+                            <bomName>Agroal BOM</bomName>
+                            <bomDescription>Centralized dependencyManagement for the Agroal Project</bomDescription>
+                            <!-- Skinny BOM: only the reactor modules, no direct/transitive dependencies -->
+                            <reactorDependencies>REACTOR</reactorDependencies>
+                            <directDependencies>NONE</directDependencies>
+                            <transitiveDependencies>NONE</transitiveDependencies>
+                            <!-- Exclude the test modules (equivalent to the previous sundrio "*:*test*" exclude) -->
+                            <dependencyExclusions>
+                                <dependencyExclusion>
+                                    <groupId>io.agroal</groupId>
+                                    <artifactId>agroal-test</artifactId>
+                                </dependencyExclusion>
+                                <dependencyExclusion>
+                                    <groupId>io.agroal</groupId>
+                                    <artifactId>agroal-integration-tests</artifactId>
+                                </dependencyExclusion>
+                            </dependencyExclusions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
