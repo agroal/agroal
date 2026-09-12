@@ -208,21 +208,20 @@ public class NewConnectionTimeoutTests {
             connectionListener.reset();
 
             // Proof that NO new db connection can be created
-            try {
-                assertTimeoutPreemptively( Duration.ofSeconds( 2 ), () -> assertThrows( SQLException.class, dataSource::getConnection ), "Expecting getConnection to hang" );
-                fail( "Not supposed to create a connection" ); // Supposed to fail
-            } catch ( Error e ) {
-                // Thread is still blocked with previous connection creation therefore connection creation was NOT started
-                connectionListener.assertNoConnectionCreationStarted();
+            // AG-320: the hanging creation still holds the only permit, but instead of blocking indefinitely
+            // the caller now gives up once the acquisition timeout expires
+            assertTimeoutPreemptively( Duration.ofSeconds( 2 ), () -> {
+                SQLException e = assertThrows( SQLException.class, dataSource::getConnection );
+                assertTrue( e.getMessage().contains( "acquisition timeout" ), "Expecting acquisition timeout, got: " + e.getMessage() );
+            }, "Expecting getConnection to honour the acquisition timeout" );
 
-                // Second attempt also timed out
-                assertTrue( e.getMessage().contains( "execution timed out after" ) );
+            // Thread is still blocked with previous connection creation therefore connection creation was NOT started
+            connectionListener.assertNoConnectionCreationStarted();
 
-                // Single thread for creating the db connection is still running and hangs - can't be canceled
-                // Which will block the pool, and new connections couldn't be created
-                connectionListener.assertNoConnectionCreated();
-                warningsListener.assertNoConnectionFailures();
-            }
+            // Single thread for creating the db connection is still running and hangs - can't be canceled
+            // Which will block the pool, and new connections couldn't be created
+            connectionListener.assertNoConnectionCreated();
+            warningsListener.assertNoConnectionFailures();
         }
     }
 
