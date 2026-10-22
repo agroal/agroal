@@ -77,6 +77,7 @@ public final class ConnectionPool implements Pool {
     static {
         try {
             TRANSFER_POISON = new ConnectionHandler( new XAConnectionAdaptor( null ), null, 0 , 0 );
+            TRANSFER_RETRY = new ConnectionHandler( new XAConnectionAdaptor( null ), null, 0 , 0 );
         } catch ( SQLException e ) {
             throw new RuntimeException( e );
         }
@@ -84,6 +85,7 @@ public final class ConnectionPool implements Pool {
 
     private static final AtomicInteger HOUSEKEEP_COUNT = new AtomicInteger();
     private static final ConnectionHandler TRANSFER_POISON; // Dummy object to unblock waiting threads, for example on close()
+    private static final ConnectionHandler TRANSFER_RETRY; // Dummy object to unblock waiting threads so that they re-attempt to create a connection
     private static final long ONE_SECOND = SECONDS.toNanos( 1 );
 
     private final AgroalConnectionPoolConfiguration configuration;
@@ -370,9 +372,8 @@ public final class ConnectionPool implements Pool {
                 }
                 if ( allConnections.size() < configuration.maxSize() ) { // If no connection is available and there is room, create one
                     try {
-                        long timeout = deadline - nanoTime();
-                        fireBeforePoolBlock( listeners, timeout );
                         if ( acquireCreateConnectionPermit( configuration.maxSize() ) ) {
+                            fireBeforePoolBlock( listeners, deadline - nanoTime() );
                             ConnectionHandler handler = null;
                             if ( collaborate ) {
                                 handler = createAndPoolConnection();
@@ -380,6 +381,17 @@ public final class ConnectionPool implements Pool {
                                 // Connection created in the background thread (only wait until acquisitionTimout)
                                 handler = housekeepingExecutor.executeNow( () -> createAndPoolConnection() ).get( deadline - nanoTime(), NANOSECONDS );
                             }
+                            if ( handler != null && handler.acquire() ) {
+                                return handler;
+                            }
+                        } else {
+                            // AG-320 - There is room in the pool but no permit to create a connection, meaning other threads are creating connections already.
+                            // Wait for one of those to complete instead of spinning. Creation may fail, so do not wait for the whole remaining duration.
+                            long remaining = deadline == MAX_VALUE ? MAX_VALUE : deadline - nanoTime();
+                            if ( remaining <= 0 ) {
+                                throw new TimeoutException( "Acquisition timeout while waiting for connection being created" );
+                            }
+                            ConnectionHandler handler = waitAvailableHandler( Long.min( ONE_SECOND, remaining ), false );
                             if ( handler != null && handler.acquire() ) {
                                 return handler;
                             }
@@ -403,7 +415,7 @@ public final class ConnectionPool implements Pool {
                     }
                 } else { // Wait until a connection is released
                     ConnectionHandler handler = waitAvailableHandler( deadline - nanoTime(), true );
-                    if ( handler.acquire() ) {
+                    if ( handler != null && handler.acquire() ) {
                         return handler;
                     }
                 }
@@ -427,10 +439,12 @@ public final class ConnectionPool implements Pool {
     private ConnectionHandler waitAvailableHandler(long timeout, boolean strict) throws InterruptedException, TimeoutException {
         fireBeforePoolBlock( listeners, timeout );
         ConnectionHandler handler = handlerTransferQueue.poll( timeout, NANOSECONDS );
-        if ( strict && handler == null ) {
-            throw new TimeoutException( "Acquisition timeout while waiting for connection" );
-        } else if ( handler == TRANSFER_POISON ) {
+        if ( handler == TRANSFER_POISON ) {
             throw new CancellationException();
+        } else if ( handler == TRANSFER_RETRY ) {
+            return null; // AG-320 - a permit to create a connection became available, caller should re-attempt
+        } else if ( strict && handler == null ) {
+            throw new TimeoutException( "Acquisition timeout while waiting for connection" );
         }
         return handler;
     }
@@ -698,6 +712,7 @@ public final class ConnectionPool implements Pool {
         } finally {
             if ( decrementPermits ) {
                 createConnectionPermits.decrementAndGet();
+                handlerTransferQueue.tryTransfer( TRANSFER_RETRY ); // AG-320 - the permit is available again, wake up a thread waiting to create a connection
             }
         }
     }
