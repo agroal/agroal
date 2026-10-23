@@ -20,6 +20,8 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.time.Duration;
 import java.time.LocalTime;
+import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
@@ -69,6 +71,34 @@ class PropertiesReaderTests {
         Assertions.assertEquals( "io.agroal.api.configuration.AgroalConnectionPoolConfiguration$ConnectionValidator$4", validator.getClass().getName() );
         Assertions.assertEquals( "select 1", getDeclaredField( validator, "val$sql" ) );
         Assertions.assertEquals( Duration.ofSeconds( 5000 ), getDeclaredField( validator, "val$queryTimeout" ) );
+    }
+
+    @Test
+    @DisplayName( "JDBC and XA property values containing equals signs" )
+    void propertyValuesWithEqualsTest() {
+        AgroalConnectionFactoryConfiguration configuration = new AgroalPropertiesReader().readProperties( Map.of(
+                "maxSize", "1",
+                "jdbcProperties", "options=-c application_name=agroal;token=abc==",
+                "xaProperties", "options=-c application_name=agroal;token=abc=="
+        ) ).get().connectionPoolConfiguration().connectionFactoryConfiguration();
+
+        for ( Properties properties : new Properties[] { configuration.jdbcProperties(), configuration.xaProperties() } ) {
+            Assertions.assertEquals( "-c application_name=agroal", properties.getProperty( "options" ) );
+            Assertions.assertEquals( "abc==", properties.getProperty( "token" ) );
+        }
+    }
+
+    @Test
+    @DisplayName( "Empty JDBC and XA property values" )
+    void emptyPropertyValuesTest() {
+        for ( String property : new String[] { "jdbcProperties", "xaProperties" } ) {
+            AgroalConnectionFactoryConfiguration configuration = new AgroalPropertiesReader().readProperties( Map.of(
+                    "maxSize", "1", property, "ApplicationName=;options=agroal"
+            ) ).get().connectionPoolConfiguration().connectionFactoryConfiguration();
+            Properties properties = "jdbcProperties".equals( property ) ? configuration.jdbcProperties() : configuration.xaProperties();
+            Assertions.assertEquals( "", properties.getProperty( "ApplicationName" ) );
+            Assertions.assertEquals( "agroal", properties.getProperty( "options" ) );
+        }
     }
 
     // --- //
