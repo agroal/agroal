@@ -891,8 +891,9 @@ public final class ConnectionPool implements Pool {
         public void run() {
             housekeepingExecutor.schedule( this, configuration.validationTimeout().toNanos(), NANOSECONDS );
 
+            AtomicInteger failures = new AtomicInteger(); // failed validations in this run
             for ( ConnectionHandler handler : allConnections ) {
-                housekeepingExecutor.execute( new ValidateConnectionTask( handler ) );
+                housekeepingExecutor.execute( new ValidateConnectionTask( handler, failures ) );
             }
         }
 
@@ -906,9 +907,11 @@ public final class ConnectionPool implements Pool {
         private class ValidateConnectionTask implements Runnable {
 
             private final ConnectionHandler handler;
+            private final AtomicInteger failures;
 
-            ValidateConnectionTask(ConnectionHandler handler) {
+            ValidateConnectionTask(ConnectionHandler handler, AtomicInteger failures) {
                 this.handler = handler;
+                this.failures = failures;
             }
 
             @Override
@@ -921,7 +924,19 @@ public final class ConnectionPool implements Pool {
                 }
                 if ( handler.tryValidationFromIdle() && !performValidation( handler, true ) ) {
                     // the failed connection was removed from the pool by performValidation()
-                    flushStalePool( generation );
+                    switch ( configuration.validationFailureAction() ) {
+                        case FLUSH_POOL:
+                            flushStalePool( generation );
+                            break;
+                        case FLUSH_POOL_ON_REPEATED_FAILURE:
+                            if ( failures.incrementAndGet() > 1 ) {
+                                flushStalePool( generation );
+                            }
+                            break;
+                        case REMOVE_CONNECTION:
+                        default:
+                            break;
+                    }
                 }
             }
         }

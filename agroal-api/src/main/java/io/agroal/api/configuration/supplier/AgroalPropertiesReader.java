@@ -8,6 +8,7 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionV
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ValidationFailureAction;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration.DataSourceImplementation;
 import io.agroal.api.exceptionsorter.DB2ExceptionSorter;
@@ -69,6 +70,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String EXCEPTION_SORTER = "exceptionSorter";
     public static final String MULTIPLE_ACQUISITION = "multipleAcquisition";
     public static final String TRANSACTION_REQUIREMENT = "transactionRequirement";
+    public static final String VALIDATION_FAILURE_ACTION = "validationFailureAction";
     public static final String VALIDATE_ON_BORROW = "validateOnBorrow";
     public static final String ESTABLISHMENT_RETRY_ATTEMPTS = "establishmentRetryAttempts";
 
@@ -194,6 +196,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::enhancedLeakReport, Boolean::parseBoolean, properties, ENHANCED_LEAK_REPORT );
         apply( connectionPoolSupplier::multipleAcquisition, MultipleAcquisitionAction::valueOf, properties, MULTIPLE_ACQUISITION );
         apply( connectionPoolSupplier::transactionRequirement, TransactionRequirement::valueOf, properties, TRANSACTION_REQUIREMENT );
+        apply( connectionPoolSupplier::validationFailureAction, ValidationFailureAction::valueOf, properties, VALIDATION_FAILURE_ACTION );
         apply( connectionPoolSupplier::validateOnBorrow, Boolean::parseBoolean, properties, VALIDATE_ON_BORROW );
         apply( connectionPoolSupplier::establishmentRetryAttempts, Integer::parseInt, properties, ESTABLISHMENT_RETRY_ATTEMPTS );
 

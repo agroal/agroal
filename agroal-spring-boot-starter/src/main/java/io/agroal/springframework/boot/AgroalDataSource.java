@@ -10,6 +10,7 @@ import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ConnectionV
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ExceptionSorter;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ValidationFailureAction;
 import io.agroal.api.configuration.AgroalDataSourceConfiguration;
 import io.agroal.api.configuration.supplier.AgroalConnectionFactoryConfigurationSupplier;
 import io.agroal.api.configuration.supplier.AgroalConnectionPoolConfigurationSupplier;
@@ -169,6 +170,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
 
     public void setTransactionRequirement( TransactionRequirement requirement ) {
         connectionPoolConfiguration.transactionRequirement( requirement );
+    }
+
+    public void setValidationFailureAction( ValidationFailureAction action ) {
+        connectionPoolConfiguration.validationFailureAction( action );
     }
 
     public void setEnhancedLeakReport(boolean enhanced) {

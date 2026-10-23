@@ -10,6 +10,7 @@ import io.agroal.api.configuration.AgroalConnectionFactoryConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.MultipleAcquisitionAction;
 import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.TransactionRequirement;
+import io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ValidationFailureAction;
 import io.agroal.api.transaction.TransactionIntegration;
 
 import java.time.Duration;
@@ -38,6 +39,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     ConnectionCache connectionCache = LocalConnectionCache.single();
     TransactionIntegration transactionIntegration = none();
     TransactionRequirement transactionRequirement = TransactionRequirement.OFF;
+    ValidationFailureAction validationFailureAction = ValidationFailureAction.FLUSH_POOL;
     MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.LENIENT;
     boolean enhancedLeakReport;
     boolean flushOnClose;
@@ -75,6 +77,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         connectionCache = existingConfiguration.connectionCache();
         transactionIntegration = existingConfiguration.transactionIntegration();
         transactionRequirement = existingConfiguration.transactionRequirement();
+        validationFailureAction = existingConfiguration.validationFailureAction();
         multipleAcquisitionAction = existingConfiguration.multipleAcquisition();
         flushOnClose = existingConfiguration.flushOnClose();
         recoveryEnable = existingConfiguration.recoveryEnable();
@@ -158,6 +161,15 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier transactionRequirement(TransactionRequirement requirement) {
         checkLock();
         transactionRequirement = requirement;
+        return this;
+    }
+
+    /**
+     * Sets the action to perform when a connection fails background validation. Default is {@link ValidationFailureAction#FLUSH_POOL}.
+     */
+    public AgroalConnectionPoolConfigurationSupplier validationFailureAction(ValidationFailureAction action) {
+        checkLock();
+        validationFailureAction = action;
         return this;
     }
 
@@ -421,6 +433,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public TransactionRequirement transactionRequirement() {
                 return transactionRequirement;
+            }
+
+            @Override
+            public ValidationFailureAction validationFailureAction() {
+                return validationFailureAction;
             }
 
             @Override

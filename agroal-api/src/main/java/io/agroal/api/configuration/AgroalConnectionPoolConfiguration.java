@@ -51,6 +51,14 @@ public interface AgroalConnectionPoolConfiguration {
     TransactionRequirement transactionRequirement();
 
     /**
+     * Action to perform when a connection fails background validation (see {@link #validationTimeout()}).
+     * Defaults to {@link ValidationFailureAction#FLUSH_POOL}.
+     */
+    default ValidationFailureAction validationFailureAction() {
+        return ValidationFailureAction.FLUSH_POOL;
+    }
+
+    /**
      * Validates connections before being acquired (foreground validation) overriding any idle timeout.
      * Because of the overhead of performing validation on every call, it's recommended to rely on idle valdation instead.
      */
@@ -185,6 +193,28 @@ public interface AgroalConnectionPoolConfiguration {
          * Throw exception if not enlisted.
          */
         STRICT
+    }
+
+    /**
+     * Action to perform when a connection fails background validation.
+     * Flushing the pool is graceful: connections in use are flushed when returned. When validation on borrow is enabled,
+     * stale connections are also discarded on acquisition without being validated.
+     */
+    enum ValidationFailureAction {
+        /**
+         * Remove only the connection that failed validation.
+         */
+        REMOVE_CONNECTION,
+        /**
+         * Flush the whole pool on the first failed validation, assuming all the connections are stale (e.g. after a database failover).
+         * Only connections whose establishment started after the failure are kept.
+         */
+        FLUSH_POOL,
+        /**
+         * Remove the connection that failed validation, and flush the whole pool if another connection fails validation in the same
+         * validation run (failures are counted per run of the background validation, not across runs).
+         */
+        FLUSH_POOL_ON_REPEATED_FAILURE
     }
 
     /**
