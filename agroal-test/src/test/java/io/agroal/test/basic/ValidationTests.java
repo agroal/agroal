@@ -26,6 +26,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ValidationFailureAction.FLUSH_POOL_ON_REPEATED_FAILURE;
+import static io.agroal.api.configuration.AgroalConnectionPoolConfiguration.ValidationFailureAction.REMOVE_CONNECTION;
 import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
@@ -448,6 +450,102 @@ public class ValidationTests {
         }
     }
 
+    @Test
+    @DisplayName( "remove only the connection that failed validation" )
+    void removeOnlyFailedConnectionTest() throws Exception {
+        int POOL_SIZE = 5, VALIDATION_MS = 100;
+
+        IndexedConnection.reset();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( POOL_SIZE )
+                        .maxSize( POOL_SIZE )
+                        .minSize( 0 )
+                        .validationTimeout( ofMillis( VALIDATION_MS ) )
+                        .validationFailureAction( REMOVE_CONNECTION )
+                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( IndexedDataSource.class ) )
+                );
+
+        AtomicInteger invalid = new AtomicInteger(), flushed = new AtomicInteger();
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void onConnectionInvalid(Connection connection) {
+                invalid.incrementAndGet();
+            }
+
+            @Override
+            public void onConnectionFlush(Connection connection) {
+                flushed.incrementAndGet();
+            }
+        };
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            Thread.sleep( 100 );
+            assertEquals( POOL_SIZE, dataSource.getMetrics().creationCount(), "All connections should be created" );
+
+            IndexedConnection.failBelow.set( POOL_SIZE ); // every connection fails validation
+            assertTrue( waitFor( () -> invalid.get() == POOL_SIZE, 5 * VALIDATION_MS ), "All connections should fail validation individually" );
+            assertEquals( 0, flushed.get(), "No connection should be flushed without validation" );
+            assertTrue( IndexedConnection.validations.get() >= POOL_SIZE, "Every connection should be validated" );
+            assertEquals( 0, dataSource.getMetrics().availableCount() );
+        }
+    }
+
+    @Test
+    @DisplayName( "flush the pool on repeated validation failure" )
+    void flushOnRepeatedValidationFailureTest() throws Exception {
+        int POOL_SIZE = 5, VALIDATION_MS = 100;
+
+        IndexedConnection.reset();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( POOL_SIZE )
+                        .maxSize( POOL_SIZE )
+                        .minSize( 0 )
+                        .validationTimeout( ofMillis( VALIDATION_MS ) )
+                        .validationFailureAction( FLUSH_POOL_ON_REPEATED_FAILURE )
+                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( IndexedDataSource.class ) )
+                );
+
+        AtomicInteger invalid = new AtomicInteger(), flushed = new AtomicInteger();
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void onConnectionInvalid(Connection connection) {
+                invalid.incrementAndGet();
+            }
+
+            @Override
+            public void onConnectionFlush(Connection connection) {
+                flushed.incrementAndGet();
+            }
+        };
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier, listener ) ) {
+            Thread.sleep( 100 );
+            assertEquals( POOL_SIZE, dataSource.getMetrics().creationCount(), "All connections should be created" );
+
+            // a single bad connection: it is removed, the rest of the pool is kept
+            IndexedConnection.failBelow.set( 1 );
+            assertTrue( waitFor( () -> invalid.get() == 1, 5 * VALIDATION_MS ), "The bad connection should fail validation" );
+            Thread.sleep( 3 * VALIDATION_MS );
+            assertEquals( 1, invalid.get(), "Only the bad connection should be invalidated" );
+            assertEquals( 0, flushed.get(), "A single failure should not flush the pool" );
+            assertEquals( POOL_SIZE - 1, dataSource.getMetrics().availableCount(), "The other connections should still be in the pool" );
+
+            // all connections bad: two of them fail validation, the rest is flushed without validation
+            IndexedConnection.failBelow.set( POOL_SIZE );
+            assertTrue( waitFor( () -> invalid.get() + flushed.get() == POOL_SIZE, 5 * VALIDATION_MS ), "All connections should be removed" );
+            assertEquals( 3, invalid.get(), "Two more connections should fail validation" );
+            assertEquals( POOL_SIZE - 3, flushed.get(), "The remaining connections should be flushed" );
+        }
+    }
+
     private static boolean waitFor(java.util.function.BooleanSupplier condition, long timeoutMs) throws InterruptedException {
         long deadline = System.nanoTime() + timeoutMs * 1_000_000;
         while ( !condition.getAsBoolean() ) {
@@ -457,6 +555,35 @@ public class ValidationTests {
             Thread.sleep( 10 );
         }
         return true;
+    }
+
+    // --- //
+
+    public static class IndexedDataSource implements MockDataSource {
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return new IndexedConnection();
+        }
+    }
+
+    public static class IndexedConnection implements MockConnection {
+
+        static final AtomicInteger created = new AtomicInteger(), validations = new AtomicInteger(), failBelow = new AtomicInteger();
+
+        private final int index = created.getAndIncrement();
+
+        static void reset() {
+            created.set( 0 );
+            validations.set( 0 );
+            failBelow.set( 0 );
+        }
+
+        @Override
+        public boolean isValid(int timeout) throws SQLException {
+            validations.incrementAndGet();
+            return index >= failBelow.get(); // connections with an index below failBelow are bad
+        }
     }
 
     // --- //
