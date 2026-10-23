@@ -266,7 +266,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         String propertiesArray = properties.get( prefix + key );
         if ( propertiesArray != null && !propertiesArray.isEmpty() ) {
             for ( String property : propertiesArray.split( ";" ) ) {
-                String[] keyValue = property.split( "=" );
+                String[] keyValue = property.split( "=", 2 );
                 consumer.accept( keyValue[0], keyValue[1] );
             }
         }
