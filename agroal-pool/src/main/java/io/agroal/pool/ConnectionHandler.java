@@ -86,6 +86,9 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     private final int defaultIsolationLevel;
     private final int defaultHoldability;
 
+    // Generation of the pool when this connection was created. See stale pool handling in ConnectionPool
+    private final long generation;
+
     // flag to indicate the connection is held
     private boolean isHeldOverCommit;
 
@@ -98,6 +101,10 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
     private SQLCallable<Boolean> transactionActiveCheck = NO_ACTIVE_TRANSACTION;
 
     public ConnectionHandler(XAConnection xa, Pool pool, int isolationLevel, int holdability) throws SQLException {
+        this( xa, pool, isolationLevel, holdability, 0 );
+    }
+
+    public ConnectionHandler(XAConnection xa, Pool pool, int isolationLevel, int holdability, long generation) throws SQLException {
         xaConnection = xa;
         connection = xaConnection.getConnection();
         xaResource = xaConnection.getXAResource();
@@ -105,6 +112,7 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
         connectionPool = pool;
         defaultIsolationLevel = isolationLevel;
         defaultHoldability = holdability;
+        this.generation = generation;
         touch();
     }
 
@@ -307,6 +315,10 @@ public final class ConnectionHandler implements TransactionAware, Acquirable {
 
     public void touch() {
         lastAccess = nanoTime();
+    }
+
+    public long getGeneration() {
+        return generation;
     }
 
     public boolean isLeak(Duration timeout) {
