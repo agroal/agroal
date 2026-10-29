@@ -817,6 +817,9 @@ public final class ConnectionPool implements Pool {
                 if ( ch.getGeneration() >= generation ) {
                     continue; // created after the pool turned stale
                 }
+                if ( mode != AgroalDataSource.FlushMode.ALL && !ch.isAcquirable() ) {
+                    continue; // already flushed (listeners were notified then) or destroyed
+                }
                 fireBeforeConnectionFlush( listeners, ch );
                 flush( mode, ch );
             }

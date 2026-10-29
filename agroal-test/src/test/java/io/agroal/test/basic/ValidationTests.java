@@ -422,29 +422,33 @@ public class ValidationTests {
                 }
             }, "borrower" );
             borrower.start();
-            Thread.sleep( 300 );
+            try {                Thread.sleep( 300 );
 
-            // a single idle validation fails: the pool is stale and all its connections are to be replaced
-            CountingConnection.failNextIdleValidation.set( true );
-            assertTrue( waitFor( () -> !CountingConnection.failNextIdleValidation.get(), 20 * VALIDATION_MS ), "Idle validation should have failed once" );
-            Thread.sleep( RUN_MS ); // keep borrowing while the stale pool is being replaced
-            running.set( false );
-            borrower.join();
-            // let the housekeeping thread destroy the discarded connections
-            waitFor( () -> dataSource.getMetrics().availableCount() == CountingConnection.opened.get() - CountingConnection.closed.get(), 2000 );
+                // a single idle validation fails: the pool is stale and all its connections are to be replaced
+                CountingConnection.failNextIdleValidation.set( true );
+                assertTrue( waitFor( () -> !CountingConnection.failNextIdleValidation.get(), 20 * VALIDATION_MS ), "Idle validation should have failed once" );
+                Thread.sleep( RUN_MS ); // keep borrowing while the stale pool is being replaced
+                running.set( false );
+                borrower.join();
+                // let the housekeeping thread destroy the discarded connections
+                waitFor( () -> dataSource.getMetrics().availableCount() == CountingConnection.opened.get() - CountingConnection.closed.get(), 2000 );
 
-            logger.info( format( "Acquisitions: {0}, failures: {1}, created: {2}, destroyed: {3}, max open: {4}, open: {5}",
-                    acquisitions.get(), failures.get(), dataSource.getMetrics().creationCount(), dataSource.getMetrics().destroyCount(),
-                    CountingConnection.maxOpen.get(), CountingConnection.opened.get() - CountingConnection.closed.get() ) );
+                logger.info( format( "Acquisitions: {0}, failures: {1}, created: {2}, destroyed: {3}, max open: {4}, open: {5}",
+                        acquisitions.get(), failures.get(), dataSource.getMetrics().creationCount(), dataSource.getMetrics().destroyCount(),
+                        CountingConnection.maxOpen.get(), CountingConnection.opened.get() - CountingConnection.closed.get() ) );
 
-            assertEquals( 0, failures.get(), "Acquisitions should not fail" );
-            assertTrue( acquisitions.get() > 0, "Connections should have been acquired" );
-            assertTrue( dataSource.getMetrics().creationCount() <= MAX_SIZE,
-                    format( "Replacing a stale pool should not create more than max size connections. Created: {0}", dataSource.getMetrics().creationCount() ) );
-            assertTrue( CountingConnection.maxOpen.get() <= MAX_SIZE,
-                    format( "Physical connections should never exceed max size. Max open: {0}", CountingConnection.maxOpen.get() ) );
-            assertEquals( dataSource.getMetrics().availableCount(), CountingConnection.opened.get() - CountingConnection.closed.get(),
-                    "Every open physical connection should be in the pool" );
+                assertEquals( 0, failures.get(), "Acquisitions should not fail" );
+                assertTrue( acquisitions.get() > 0, "Connections should have been acquired" );
+                assertTrue( dataSource.getMetrics().creationCount() <= MAX_SIZE,
+                        format( "Replacing a stale pool should not create more than max size connections. Created: {0}", dataSource.getMetrics().creationCount() ) );
+                assertTrue( CountingConnection.maxOpen.get() <= MAX_SIZE,
+                        format( "Physical connections should never exceed max size. Max open: {0}", CountingConnection.maxOpen.get() ) );
+                assertEquals( dataSource.getMetrics().availableCount(), CountingConnection.opened.get() - CountingConnection.closed.get(),
+                        "Every open physical connection should be in the pool" );
+            } finally {
+                running.set( false );
+                borrower.join();
+            }
         }
     }
 
@@ -487,53 +491,59 @@ public class ValidationTests {
                 }, "borrower-" + i );
                 borrowers[i].start();
             }
-            Thread.sleep( 200 );
+            try {                Thread.sleep( 200 );
 
-            int rounds = 0;
-            while ( rounds < ROUNDS ) {
-                CountingConnection.failNextIdleValidation.set( true );
-                if ( !waitFor( () -> !CountingConnection.failNextIdleValidation.get(), 100 * VALIDATION_MS ) ) {
-                    break; // no idle connection left to validate: the pool has lost its connections (asserted below)
+                int rounds = 0;
+                while ( rounds < ROUNDS ) {
+                    CountingConnection.failNextIdleValidation.set( true );
+                    if ( !waitFor( () -> !CountingConnection.failNextIdleValidation.get(), 100 * VALIDATION_MS ) ) {
+                        break; // no idle connection left to validate: the pool has lost its connections (asserted below)
+                    }
+                    rounds++;
+                    Thread.sleep( 2 * VALIDATION_MS );
                 }
-                rounds++;
-                Thread.sleep( 2 * VALIDATION_MS );
-            }
-            CountingConnection.failNextIdleValidation.set( false );
-            running.set( false );
-            for ( Thread borrower : borrowers ) {
-                borrower.join();
-            }
-            // let the housekeeping thread destroy the discarded connections and refill the pool
-            waitFor( () -> dataSource.getMetrics().availableCount() == POOL_SIZE && dataSource.getMetrics().availableCount() == CountingConnection.opened.get() - CountingConnection.closed.get(), 2000 );
+                CountingConnection.failNextIdleValidation.set( false );
+                running.set( false );
+                for ( Thread borrower : borrowers ) {
+                    borrower.join();
+                }
+                // let the housekeeping thread destroy the discarded connections and refill the pool
+                waitFor( () -> dataSource.getMetrics().availableCount() == POOL_SIZE && dataSource.getMetrics().availableCount() == CountingConnection.opened.get() - CountingConnection.closed.get(), 2000 );
 
-            logger.info( format( "Rounds: {0}, failures: {1}, created: {2}, destroyed: {3}, max open: {4}, open: {5}, available: {6}",
-                    rounds, failures.get(), dataSource.getMetrics().creationCount(), dataSource.getMetrics().destroyCount(),
-                    CountingConnection.maxOpen.get(), CountingConnection.opened.get() - CountingConnection.closed.get(), dataSource.getMetrics().availableCount() ) );
+                logger.info( format( "Rounds: {0}, failures: {1}, created: {2}, destroyed: {3}, max open: {4}, open: {5}, available: {6}",
+                        rounds, failures.get(), dataSource.getMetrics().creationCount(), dataSource.getMetrics().destroyCount(),
+                        CountingConnection.maxOpen.get(), CountingConnection.opened.get() - CountingConnection.closed.get(), dataSource.getMetrics().availableCount() ) );
 
-            // a connection left behind in FLUSH state is counted by the pool but can never be acquired again: the pool has lost capacity
-            Connection[] held = new Connection[POOL_SIZE];
-            try {
-                for ( int i = 0; i < POOL_SIZE; i++ ) {
-                    try {
-                        held[i] = dataSource.getConnection();
-                    } catch ( SQLException e ) {
-                        fail( format( "Pool of size {0} should hand out {0} connections after {1} rounds, failed on {2}: {3} {4}",
-                                POOL_SIZE, rounds, i + 1, e.getMessage(), dataSource.getMetrics() ) );
+                // a connection left behind in FLUSH state is counted by the pool but can never be acquired again: the pool has lost capacity
+                Connection[] held = new Connection[POOL_SIZE];
+                try {
+                    for ( int i = 0; i < POOL_SIZE; i++ ) {
+                        try {
+                            held[i] = dataSource.getConnection();
+                        } catch ( SQLException e ) {
+                            fail( format( "Pool of size {0} should hand out {0} connections after {1} rounds, failed on {2}: {3} {4}",
+                                    POOL_SIZE, rounds, i + 1, e.getMessage(), dataSource.getMetrics() ) );
+                        }
+                    }
+                } finally {
+                    for ( Connection connection : held ) {
+                        if ( connection != null ) {
+                            connection.close();
+                        }
                     }
                 }
+                assertEquals( ROUNDS, rounds, "Idle validation should have failed in every round" );
+                assertEquals( 0, failures.get(), "Acquisitions should not fail" );
+                assertTrue( dataSource.getMetrics().creationCount() <= POOL_SIZE * ( ROUNDS + 1 ),
+                        format( "Each failure should replace the stale pool at most once. Created: {0}", dataSource.getMetrics().creationCount() ) );
+                assertEquals( CountingConnection.opened.get() - CountingConnection.closed.get(), dataSource.getMetrics().availableCount(),
+                        "Every open physical connection should be in the pool" );
             } finally {
-                for ( Connection connection : held ) {
-                    if ( connection != null ) {
-                        connection.close();
-                    }
+                running.set( false );
+                for ( Thread borrower : borrowers ) {
+                    borrower.join();
                 }
             }
-            assertEquals( ROUNDS, rounds, "Idle validation should have failed in every round" );
-            assertEquals( 0, failures.get(), "Acquisitions should not fail" );
-            assertTrue( dataSource.getMetrics().creationCount() <= POOL_SIZE * ( ROUNDS + 1 ),
-                    format( "Each failure should replace the stale pool at most once. Created: {0}", dataSource.getMetrics().creationCount() ) );
-            assertEquals( CountingConnection.opened.get() - CountingConnection.closed.get(), dataSource.getMetrics().availableCount(),
-                    "Every open physical connection should be in the pool" );
         }
     }
 
@@ -566,7 +576,7 @@ public class ValidationTests {
     public static class CountingConnection implements MockConnection {
 
         static final AtomicBoolean failNextIdleValidation = new AtomicBoolean( false );
-        static final AtomicInteger opened = new AtomicInteger(), closed = new AtomicInteger(), maxOpen = new AtomicInteger();
+        static final AtomicInteger opened = new AtomicInteger(), closed = new AtomicInteger(), open = new AtomicInteger(), maxOpen = new AtomicInteger();
 
         private boolean closed_;
 
@@ -574,12 +584,13 @@ public class ValidationTests {
             failNextIdleValidation.set( false );
             opened.set( 0 );
             closed.set( 0 );
+            open.set( 0 );
             maxOpen.set( 0 );
         }
 
         CountingConnection() {
-            int open = opened.incrementAndGet() - closed.get();
-            maxOpen.accumulateAndGet( open, Math::max );
+            opened.incrementAndGet();
+            maxOpen.accumulateAndGet( open.incrementAndGet(), Math::max );
         }
 
         @Override
@@ -587,6 +598,7 @@ public class ValidationTests {
             if ( !closed_ ) {
                 closed_ = true;
                 closed.incrementAndGet();
+                open.decrementAndGet();
             }
         }
 
