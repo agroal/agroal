@@ -384,6 +384,241 @@ public class ValidationTests {
 
     // --- //
 
+    @Test
+    @DisplayName( "stale pool detection does not create connections beyond max size" )
+    void stalePoolBoundedRecreationTest() throws Exception {
+        int MAX_SIZE = 10, MIN_SIZE = 2, VALIDATION_MS = 100, RUN_MS = 1500;
+
+        CountingConnection.reset();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( MIN_SIZE )
+                        .minSize( MIN_SIZE )
+                        .maxSize( MAX_SIZE )
+                        .validateOnBorrow( true )
+                        .validationTimeout( ofMillis( VALIDATION_MS ) )
+                        .acquisitionTimeout( ofMillis( 1000 ) )
+                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( CountingDataSource.class ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            AtomicBoolean running = new AtomicBoolean( true );
+            AtomicInteger acquisitions = new AtomicInteger();
+            AtomicInteger failures = new AtomicInteger();
+
+            // A single thread that borrows and returns connections without pause (think of a monitoring poller).
+            // Together with a pool at minSize this is the worst case for the stale pool handling: every borrowed
+            // connection is discarded and immediately recreated.
+            Thread borrower = new Thread( () -> {
+                while ( running.get() ) {
+                    try ( Connection connection = dataSource.getConnection() ) {
+                        acquisitions.incrementAndGet();
+                    } catch ( SQLException e ) {
+                        failures.incrementAndGet();
+                    }
+                }
+            }, "borrower" );
+            borrower.start();
+            try {                Thread.sleep( 300 );
+
+                // a single idle validation fails: the pool is stale and all its connections are to be replaced
+                CountingConnection.failNextIdleValidation.set( true );
+                assertTrue( waitFor( () -> !CountingConnection.failNextIdleValidation.get(), 20 * VALIDATION_MS ), "Idle validation should have failed once" );
+                Thread.sleep( RUN_MS ); // keep borrowing while the stale pool is being replaced
+                running.set( false );
+                borrower.join();
+                // let the housekeeping thread destroy the discarded connections
+                waitFor( () -> dataSource.getMetrics().availableCount() == CountingConnection.opened.get() - CountingConnection.closed.get(), 2000 );
+
+                logger.info( format( "Acquisitions: {0}, failures: {1}, created: {2}, destroyed: {3}, max open: {4}, open: {5}",
+                        acquisitions.get(), failures.get(), dataSource.getMetrics().creationCount(), dataSource.getMetrics().destroyCount(),
+                        CountingConnection.maxOpen.get(), CountingConnection.opened.get() - CountingConnection.closed.get() ) );
+
+                assertEquals( 0, failures.get(), "Acquisitions should not fail" );
+                assertTrue( acquisitions.get() > 0, "Connections should have been acquired" );
+                assertTrue( dataSource.getMetrics().creationCount() <= MAX_SIZE,
+                        format( "Replacing a stale pool should not create more than max size connections. Created: {0}", dataSource.getMetrics().creationCount() ) );
+                assertTrue( CountingConnection.maxOpen.get() <= MAX_SIZE,
+                        format( "Physical connections should never exceed max size. Max open: {0}", CountingConnection.maxOpen.get() ) );
+                assertEquals( dataSource.getMetrics().availableCount(), CountingConnection.opened.get() - CountingConnection.closed.get(),
+                        "Every open physical connection should be in the pool" );
+            } finally {
+                running.set( false );
+                borrower.join();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName( "stale connections discarded on acquisition while the pool is being flushed are not left behind" )
+    void stalePoolDiscardRaceTest() throws Exception {
+        int POOL_SIZE = 10, VALIDATION_MS = 10, BORROWERS = 6, ROUNDS = 50;
+
+        CountingConnection.reset();
+
+        AgroalDataSourceConfigurationSupplier configurationSupplier = new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( POOL_SIZE )
+                        .minSize( POOL_SIZE )
+                        .maxSize( POOL_SIZE )
+                        .validateOnBorrow( true )
+                        .validationTimeout( ofMillis( VALIDATION_MS ) )
+                        .acquisitionTimeout( ofMillis( 1000 ) )
+                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( CountingDataSource.class ) )
+                );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+            AtomicBoolean running = new AtomicBoolean( true );
+            AtomicInteger failures = new AtomicInteger();
+
+            // Several threads borrowing without pause while the pool is flushed many times: the discard of a stale
+            // connection on acquisition races the graceful flush of the same connection on the housekeeping thread.
+            Thread[] borrowers = new Thread[BORROWERS];
+            for ( int i = 0; i < BORROWERS; i++ ) {
+                borrowers[i] = new Thread( () -> {
+                    while ( running.get() ) {
+                        try ( Connection connection = dataSource.getConnection() ) {
+                            connection.getSchema();
+                        } catch ( Exception e ) {
+                            failures.incrementAndGet();
+                        }
+                    }
+                }, "borrower-" + i );
+                borrowers[i].start();
+            }
+            try {                Thread.sleep( 200 );
+
+                int rounds = 0;
+                while ( rounds < ROUNDS ) {
+                    CountingConnection.failNextIdleValidation.set( true );
+                    if ( !waitFor( () -> !CountingConnection.failNextIdleValidation.get(), 100 * VALIDATION_MS ) ) {
+                        break; // no idle connection left to validate: the pool has lost its connections (asserted below)
+                    }
+                    rounds++;
+                    Thread.sleep( 2 * VALIDATION_MS );
+                }
+                CountingConnection.failNextIdleValidation.set( false );
+                running.set( false );
+                for ( Thread borrower : borrowers ) {
+                    borrower.join();
+                }
+                // let the housekeeping thread destroy the discarded connections and refill the pool
+                waitFor( () -> dataSource.getMetrics().availableCount() == POOL_SIZE && dataSource.getMetrics().availableCount() == CountingConnection.opened.get() - CountingConnection.closed.get(), 2000 );
+
+                logger.info( format( "Rounds: {0}, failures: {1}, created: {2}, destroyed: {3}, max open: {4}, open: {5}, available: {6}",
+                        rounds, failures.get(), dataSource.getMetrics().creationCount(), dataSource.getMetrics().destroyCount(),
+                        CountingConnection.maxOpen.get(), CountingConnection.opened.get() - CountingConnection.closed.get(), dataSource.getMetrics().availableCount() ) );
+
+                // a connection left behind in FLUSH state is counted by the pool but can never be acquired again: the pool has lost capacity
+                Connection[] held = new Connection[POOL_SIZE];
+                try {
+                    for ( int i = 0; i < POOL_SIZE; i++ ) {
+                        try {
+                            held[i] = dataSource.getConnection();
+                        } catch ( SQLException e ) {
+                            fail( format( "Pool of size {0} should hand out {0} connections after {1} rounds, failed on {2}: {3} {4}",
+                                    POOL_SIZE, rounds, i + 1, e.getMessage(), dataSource.getMetrics() ) );
+                        }
+                    }
+                } finally {
+                    for ( Connection connection : held ) {
+                        if ( connection != null ) {
+                            connection.close();
+                        }
+                    }
+                }
+                assertEquals( ROUNDS, rounds, "Idle validation should have failed in every round" );
+                assertEquals( 0, failures.get(), "Acquisitions should not fail" );
+                assertTrue( dataSource.getMetrics().creationCount() <= POOL_SIZE * ( ROUNDS + 1 ),
+                        format( "Each failure should replace the stale pool at most once. Created: {0}", dataSource.getMetrics().creationCount() ) );
+                assertEquals( CountingConnection.opened.get() - CountingConnection.closed.get(), dataSource.getMetrics().availableCount(),
+                        "Every open physical connection should be in the pool" );
+            } finally {
+                running.set( false );
+                for ( Thread borrower : borrowers ) {
+                    borrower.join();
+                }
+            }
+        }
+    }
+
+    private static boolean waitFor(java.util.function.BooleanSupplier condition, long timeoutMs) throws InterruptedException {
+        long deadline = System.nanoTime() + timeoutMs * 1_000_000;
+        while ( !condition.getAsBoolean() ) {
+            if ( System.nanoTime() > deadline ) {
+                return false;
+            }
+            Thread.sleep( 10 );
+        }
+        return true;
+    }
+
+    // --- //
+
+    public static class CountingDataSource implements MockDataSource {
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            try {
+                Thread.sleep( 5 ); // establishing a connection takes time
+            } catch ( InterruptedException e ) {
+                Thread.currentThread().interrupt();
+            }
+            return new CountingConnection();
+        }
+    }
+
+    public static class CountingConnection implements MockConnection {
+
+        static final AtomicBoolean failNextIdleValidation = new AtomicBoolean( false );
+        static final AtomicInteger opened = new AtomicInteger(), closed = new AtomicInteger(), open = new AtomicInteger(), maxOpen = new AtomicInteger();
+
+        private boolean closed_;
+
+        static void reset() {
+            failNextIdleValidation.set( false );
+            opened.set( 0 );
+            closed.set( 0 );
+            open.set( 0 );
+            maxOpen.set( 0 );
+        }
+
+        CountingConnection() {
+            opened.incrementAndGet();
+            maxOpen.accumulateAndGet( open.incrementAndGet(), Math::max );
+        }
+
+        @Override
+        public void close() throws SQLException {
+            if ( !closed_ ) {
+                closed_ = true;
+                closed.incrementAndGet();
+                open.decrementAndGet();
+            }
+        }
+
+        @Override
+        public boolean isClosed() throws SQLException {
+            return closed_;
+        }
+
+        @Override
+        public boolean isValid(int timeout) throws SQLException {
+            // idle validation runs on the housekeeping thread, borrow validation on the borrowing thread
+            if ( Thread.currentThread().getName().startsWith( "agroal-" ) && failNextIdleValidation.compareAndSet( true, false ) ) {
+                return false;
+            }
+            return !closed_;
+        }
+    }
+
+    // --- //
+
     public static class ValidationThrowsConnection implements MockConnection {
 
         private boolean closed;

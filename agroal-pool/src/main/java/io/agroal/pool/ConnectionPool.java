@@ -109,7 +109,11 @@ public final class ConnectionPool implements Pool {
     private final LongAccumulator maxUsed = new LongAccumulator( Math::max, Long.MIN_VALUE );
     private final LongAdder activeCount = new LongAdder();
 
-    private volatile boolean stalePoolDetected;
+    // AG-302: incremented when an idle validation fails, as that usually means that every connection in the pool is
+    // stale (e.g. the database failed over without closing the TCP connections). Connections created in a previous
+    // generation are discarded on borrow instead of validated one by one; connections created afterwards are trusted.
+    // That bounds the amount of connections discarded and recreated to the size of the stale pool.
+    private final AtomicLong poolGeneration = new AtomicLong();
 
     private MetricsRepository metricsRepository;
     private ConnectionCache localCache;
@@ -254,7 +258,7 @@ public final class ConnectionPool implements Pool {
             return checkedOutHandler.xaConnectionWrapper();
         } catch ( Throwable t ) {
             if ( checkedOutHandler != null ) {
-                checkedOutHandler.release();
+                releaseAcquired( checkedOutHandler );
             }
             throw t;
         }
@@ -337,7 +341,7 @@ public final class ConnectionPool implements Pool {
         } catch ( Throwable t ) {
             if ( checkedOutHandler != null ) {
                 // AG-140 - Return the connection to the pool to prevent leak
-                checkedOutHandler.release();
+                releaseAcquired( checkedOutHandler );
             }
             throw t;
         }
@@ -450,23 +454,45 @@ public final class ConnectionPool implements Pool {
     }
 
     private boolean idleValidation(ConnectionHandler handler) {
-        if ( !handler.isIdle( configuration.idleValidationTimeout() ) ) {
+        if ( handler.getGeneration() >= poolGeneration.get() && !handler.isIdle( configuration.idleValidationTimeout() ) ) {
             return true;
         }
         return borrowValidation( handler );
     }
 
     private boolean borrowValidation(ConnectionHandler handler) {
-        if ( stalePoolDetected ) {
-            removeFromPool( handler );
-            metricsRepository.afterConnectionInvalid();
-            fireOnConnectionInvalid( listeners, handler );
-            return false;
-        }
-        if ( handler.tryValidationFromActive() ) {
+        if ( handler.getGeneration() < poolGeneration.get() ) {
+            // connection from a stale pool: discard it without validation (a FlushTask that got to it first fired the event already)
+            if ( handler.tryFlushFromActive() ) {
+                fireBeforeConnectionFlush( listeners, handler );
+            }
+        } else if ( handler.tryValidationFromActive() ) {
             return performValidation( handler, false );
         }
+        // the handler is on FLUSH state: discarded above, or flushed by a concurrent FlushTask between acquisition and validation
+        // (ALL and LEAK also remove it, hence the idempotent removal). It is not handed to the application and therefore never
+        // returned, so it is removed here
+        if ( !handler.isAcquirable() ) {
+            removeFlushed( handler );
+        }
         return false;
+    }
+
+    // Gives back a handler that was acquired but is not handed to the application
+    private void releaseAcquired(ConnectionHandler handler) {
+        if ( !handler.release() && !handler.isAcquirable() ) {
+            // flushed in the meantime: it would never be returned, so it is removed here
+            removeFlushed( handler );
+        }
+    }
+
+    // Removes a handler on FLUSH state that is not going to be returned, reporting it as flushed
+    // No-op if a FlushTask (ALL / LEAK) already removed it, in which case it was reported there
+    private void removeFlushed(ConnectionHandler handler) {
+        if ( removeFromPool( handler ) ) {
+            metricsRepository.afterConnectionFlush();
+            fireOnConnectionFlush( listeners, handler );
+        }
     }
 
     // handler must be in VALIDATION state
@@ -479,9 +505,11 @@ public final class ConnectionPool implements Pool {
             }
             return true;
         } else {
-            removeFromPool( handler );
-            metricsRepository.afterConnectionInvalid();
-            fireOnConnectionInvalid( listeners, handler );
+            handler.failValidation();
+            if ( removeFromPool( handler ) ) {
+                metricsRepository.afterConnectionInvalid();
+                fireOnConnectionInvalid( listeners, handler );
+            }
             return false;
         }
     }
@@ -548,9 +576,10 @@ public final class ConnectionPool implements Pool {
         int currentSize = allConnections.size();
         if ( ( currentSize > configuration.maxSize() && currentSize > configuration.minSize() ) || configuration.flushOnClose() ) {
             handler.setFlushOnly();
-            removeFromPool( handler );
-            metricsRepository.afterConnectionReap();
-            fireOnConnectionReap( listeners, handler );
+            if ( removeFromPool( handler ) ) {
+                metricsRepository.afterConnectionReap();
+                fireOnConnectionReap( listeners, handler );
+            }
             return;
         }
 
@@ -571,14 +600,16 @@ public final class ConnectionPool implements Pool {
             fireOnConnectionReturn( listeners, handler );
         } else {
             // handler failed to release implies that it is on FLUSH state
-            removeFromPool( handler );
-            metricsRepository.afterConnectionFlush();
-            fireOnConnectionFlush( listeners, handler );
+            removeFlushed( handler );
         }
     }
 
-    private void removeFromPool(ConnectionHandler handler) {
-        allConnections.remove( handler );
+    // Idempotent: only the caller that actually removes the handler from the pool does the bookkeeping (permits, destroy)
+    // Returns false if the handler was already removed by a concurrent caller
+    private boolean removeFromPool(ConnectionHandler handler) {
+        if ( !allConnections.remove( handler ) ) {
+            return false;
+        }
         if ( configuration.flushOnClose() ) {
             // AG-276 - Avoid connection overwhelming because destruction remain due to priority reason compared to creation
             housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
@@ -587,6 +618,7 @@ public final class ConnectionPool implements Pool {
         if ( !configuration.flushOnClose() ) {
             housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
         }
+        return true;
     }
 
     // --- Exposed statistics //
@@ -679,8 +711,10 @@ public final class ConnectionPool implements Pool {
             fireBeforeConnectionCreation( listeners );
             long metricsStamp = metricsRepository.beforeConnectionCreation();
 
+            // generation is read before connecting, so that a connection established while the pool turns stale is also discarded
+            long generation = poolGeneration.get();
             XAConnection xaConnection = connectionFactory.createConnection();
-            ConnectionHandler handler = new ConnectionHandler( xaConnection, this, connectionFactory.defaultJdbcIsolationLevel(), connectionFactory.defaultHoldability() );
+            ConnectionHandler handler = new ConnectionHandler( xaConnection, this, connectionFactory.defaultJdbcIsolationLevel(), connectionFactory.defaultHoldability(), generation );
             metricsRepository.afterConnectionCreation( metricsStamp );
 
             if ( !configuration.maxLifetime().isZero() ) {
@@ -753,22 +787,39 @@ public final class ConnectionPool implements Pool {
 
         private final AgroalDataSource.FlushMode mode;
         private final ConnectionHandler handler;
+        private final long generation; // only connections of an older generation are flushed
 
         @SuppressWarnings( "WeakerAccess" )
         FlushTask(AgroalDataSource.FlushMode mode) {
-            this.mode = mode;
-            this.handler = null;
+            this( mode, null, MAX_VALUE );
         }
 
         @SuppressWarnings( {"WeakerAccess", "SameParameterValue"} )
         FlushTask(AgroalDataSource.FlushMode mode, ConnectionHandler handler) {
+            this( mode, handler, MAX_VALUE );
+        }
+
+        // flush the connections created before the pool turned stale, not their replacements
+        @SuppressWarnings( {"WeakerAccess", "SameParameterValue"} )
+        FlushTask(AgroalDataSource.FlushMode mode, long generation) {
+            this( mode, null, generation );
+        }
+
+        private FlushTask(AgroalDataSource.FlushMode mode, ConnectionHandler handler, long generation) {
             this.mode = mode;
             this.handler = handler;
+            this.generation = generation;
         }
 
         @Override
         public void run() {
             for ( ConnectionHandler ch : handler != null ? Collections.singleton( handler ) : allConnections ) {
+                if ( ch.getGeneration() >= generation ) {
+                    continue; // created after the pool turned stale
+                }
+                if ( mode != AgroalDataSource.FlushMode.ALL && !ch.isAcquirable() ) {
+                    continue; // already flushed (listeners were notified then) or destroyed
+                }
                 fireBeforeConnectionFlush( listeners, ch );
                 flush( mode, ch );
             }
@@ -816,7 +867,9 @@ public final class ConnectionPool implements Pool {
         }
 
         private void flushHandler(ConnectionHandler handler) {
-            allConnections.remove( handler );
+            if ( !allConnections.remove( handler ) ) {
+                return; // already removed by a concurrent caller (e.g. discarded on acquisition), that did the bookkeeping
+            }
             createConnectionPermits.addAndGet( -( 1L << Integer.SIZE ) ); // removes 1 from the high bits
             metricsRepository.afterConnectionFlush();
             fireOnConnectionFlush( listeners, handler );
@@ -885,6 +938,14 @@ public final class ConnectionPool implements Pool {
             }
         }
 
+        // stale pool: replace all the connections of the current generation instead of validating each of them
+        private void flushStalePool(long generation) {
+            long next = generation + 1;
+            if ( poolGeneration.compareAndSet( generation, next ) ) {
+                housekeepingExecutor.execute( new FlushTask( GRACEFUL, next ) );
+            }
+        }
+
         private class ValidateConnectionTask implements Runnable {
 
             private final ConnectionHandler handler;
@@ -895,15 +956,17 @@ public final class ConnectionPool implements Pool {
 
             @Override
             public void run() {
-                if ( stalePoolDetected ) {
+                long generation = poolGeneration.get();
+                if ( handler.getGeneration() < generation ) {
+                    // stale pool already detected: the connection missed the flush (it was being established while the pool turned stale)
+                    if ( handler.isAcquirable() ) {
+                        housekeepingExecutor.execute( new FlushTask( GRACEFUL, handler ) );
+                    }
                     return;
                 }
-                if ( handler.tryValidationFromIdle() ) {
-                    if ( !performValidation( handler, true ) ) {
-                        stalePoolDetected = true;
-                        flushPool( GRACEFUL );
-                        housekeepingExecutor.execute( () -> stalePoolDetected = false );
-                    }
+                if ( handler.tryValidationFromIdle() && !performValidation( handler, true ) ) {
+                    // the failed connection was removed from the pool by performValidation()
+                    flushStalePool( generation );
                 }
             }
         }
