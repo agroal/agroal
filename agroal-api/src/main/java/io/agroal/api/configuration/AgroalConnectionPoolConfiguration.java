@@ -75,6 +75,16 @@ public interface AgroalConnectionPoolConfiguration {
     Duration validationTimeout();
 
     /**
+     * Number of connections that must fail background validation in the same validation run for the pool to be considered stale
+     * (e.g. after a database failover). The pool is then flushed gracefully instead of having each of its connections validated:
+     * idle connections are flushed, connections in use are flushed when returned and connections not validated yet are discarded
+     * on acquisition. Below this number only the connections that failed validation are removed.
+     * A value of 1 flushes the pool on the first failed validation, a value of 0 never flushes the pool.
+     * Failed validations on acquisition (validation on borrow, idle validation) remove the connection and do not count.
+     */
+    int validationFailureFlushThreshold();
+
+    /**
      * Connections idle for longer than this time period are flushed from the pool.
      * A duration of {@link Duration#ZERO} means that this feature is disabled.
      */
