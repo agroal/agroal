@@ -53,6 +53,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     Duration idleValidationTimeout = ZERO;
     Duration leakTimeout = ZERO;
     Duration validationTimeout = ZERO;
+    int validationFailureFlushThreshold = 3;
     Duration reapTimeout = ZERO;
     Duration maxLifetime = ZERO;
     volatile Duration acquisitionTimeout = ZERO;
@@ -90,6 +91,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         idleValidationTimeout = existingConfiguration.idleValidationTimeout();
         leakTimeout = existingConfiguration.leakTimeout();
         validationTimeout = existingConfiguration.validationTimeout();
+        validationFailureFlushThreshold = existingConfiguration.validationFailureFlushThreshold();
         reapTimeout = existingConfiguration.reapTimeout();
         maxLifetime = existingConfiguration.maxLifetime();
         acquisitionTimeout = existingConfiguration.acquisitionTimeout();
@@ -321,6 +323,16 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     }
 
     /**
+     * Sets the number of connections that must fail background validation in the same validation run for the whole pool to be flushed.
+     * Default is 3. See {@link AgroalConnectionPoolConfiguration#validationFailureFlushThreshold()}.
+     */
+    public AgroalConnectionPoolConfigurationSupplier validationFailureFlushThreshold(int threshold) {
+        checkLock();
+        validationFailureFlushThreshold = threshold;
+        return this;
+    }
+
+    /**
      * Sets the duration for eviction of idle connections. Default is {@link Duration#ZERO} meaning that this feature is disabled.
      */
     public AgroalConnectionPoolConfigurationSupplier reapTimeout(Duration timeout) {
@@ -388,6 +400,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         }
         if ( validationTimeout.isNegative() ) {
             throw new IllegalArgumentException( "Validation timeout must not be negative" );
+        }
+        if ( validationFailureFlushThreshold < 0 ) {
+            throw new IllegalArgumentException( "Validation failure flush threshold must not be negative" );
         }
         if ( connectionFactoryConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );
@@ -531,6 +546,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public Duration validationTimeout() {
                 return validationTimeout;
+            }
+
+            @Override
+            public int validationFailureFlushThreshold() {
+                return validationFailureFlushThreshold;
             }
 
             @Override
