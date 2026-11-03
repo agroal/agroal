@@ -53,7 +53,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     Duration idleValidationTimeout = ZERO;
     Duration leakTimeout = ZERO;
     Duration validationTimeout = ZERO;
-    int validationFailureFlushThreshold = 3;
+    int validationFailureFlushThreshold = 1;
     Duration reapTimeout = ZERO;
     Duration maxLifetime = ZERO;
     volatile Duration acquisitionTimeout = ZERO;
@@ -324,7 +324,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
 
     /**
      * Sets the number of connections that must fail background validation in the same validation run for the whole pool to be flushed.
-     * Default is 3. See {@link AgroalConnectionPoolConfiguration#validationFailureFlushThreshold()}.
+     * Default is 1, i.e. the pool is flushed on the first failed validation. Connections commonly become invalid a few at a time
+     * (idle sessions dropped by a firewall or killed by the database, a validation timed out under load), a larger value avoids
+     * replacing the whole pool in these cases. See {@link AgroalConnectionPoolConfiguration#validationFailureFlushThreshold()}.
      */
     public AgroalConnectionPoolConfigurationSupplier validationFailureFlushThreshold(int threshold) {
         checkLock();

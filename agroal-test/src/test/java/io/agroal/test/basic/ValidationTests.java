@@ -69,7 +69,6 @@ public class ValidationTests {
                         .initialSize( MAX_POOL_SIZE )
                         .maxSize( MAX_POOL_SIZE )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
-                        .validationFailureFlushThreshold( 1 ) // flush on the first failure
                         .idleValidationTimeout( ofMillis( IDLE_VALIDATION_MS ) )
                         .acquisitionTimeout( ofMillis( 2 * VALIDATION_MS ) )
                         .connectionValidator( connection -> {
@@ -302,7 +301,6 @@ public class ValidationTests {
                         .maxSize( POOL_SIZE )
                         .minSize( 0 )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
-                        .validationFailureFlushThreshold( 1 ) // flush on the first failure
                         .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
                         .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( SlowStaleDataSource.class ) )
                 );
@@ -401,7 +399,6 @@ public class ValidationTests {
                         .maxSize( MAX_SIZE )
                         .validateOnBorrow( true )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
-                        .validationFailureFlushThreshold( 1 ) // flush on the first failure
                         .acquisitionTimeout( ofMillis( 1000 ) )
                         .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
                         .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( CountingDataSource.class ) )
@@ -470,7 +467,6 @@ public class ValidationTests {
                         .maxSize( POOL_SIZE )
                         .validateOnBorrow( true )
                         .validationTimeout( ofMillis( VALIDATION_MS ) )
-                        .validationFailureFlushThreshold( 1 ) // flush on the first failure
                         .acquisitionTimeout( ofMillis( 1000 ) )
                         .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
                         .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( CountingDataSource.class ) )
@@ -556,9 +552,10 @@ public class ValidationTests {
     void validationFailureFlushThresholdTest() throws Exception {
         int POOL_SIZE = 6, VALIDATION_MS = 300;
 
-        // default threshold: a single bad connection is removed, the rest of the pool is kept
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS ) ) ) {
-            assertEquals( 3, dataSource.getConfiguration().connectionPoolConfiguration().validationFailureFlushThreshold(), "Default threshold" );
+        assertEquals( 1, indexedConfiguration( POOL_SIZE, VALIDATION_MS ).get().connectionPoolConfiguration().validationFailureFlushThreshold(), "Default threshold" );
+
+        // threshold 3: a single bad connection is removed, the rest of the pool is kept
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 3 ) ) ) {
             assertTrue( waitFor( () -> dataSource.getMetrics().creationCount() == POOL_SIZE, VALIDATION_MS ), "All connections should be created" );
             IndexedConnection.failBelow.set( 1 ); // set before the first validation run
 
@@ -569,8 +566,8 @@ public class ValidationTests {
             assertEquals( POOL_SIZE - 1, dataSource.getMetrics().availableCount(), "The other connections should still be in the pool" );
         }
 
-        // default threshold: all connections bad, three of them fail validation in the same run and the rest is flushed without validation
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS ) ) ) {
+        // threshold 3: all connections bad, three of them fail validation in the same run and the rest is flushed without validation
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 3 ) ) ) {
             assertTrue( waitFor( () -> dataSource.getMetrics().creationCount() == POOL_SIZE, VALIDATION_MS ), "All connections should be created" );
             IndexedConnection.failBelow.set( POOL_SIZE ); // set before the first validation run
 
@@ -586,10 +583,7 @@ public class ValidationTests {
     void noFlushOnValidationFailureTest() throws Exception {
         int POOL_SIZE = 5, VALIDATION_MS = 300;
 
-        AgroalDataSourceConfigurationSupplier configurationSupplier = indexedConfiguration( POOL_SIZE, VALIDATION_MS )
-                .connectionPoolConfiguration( cp -> cp.validationFailureFlushThreshold( 0 ) );
-
-        try ( AgroalDataSource dataSource = AgroalDataSource.from( configurationSupplier ) ) {
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 0 ) ) ) {
             assertTrue( waitFor( () -> dataSource.getMetrics().creationCount() == POOL_SIZE, VALIDATION_MS ), "All connections should be created" );
             IndexedConnection.failBelow.set( POOL_SIZE ); // every connection is bad
 
@@ -600,6 +594,10 @@ public class ValidationTests {
     }
 
     // a pool of IndexedConnection that is not refilled, so the connections removed by validation can be counted
+    private static AgroalDataSourceConfigurationSupplier indexedConfiguration(int poolSize, int validationMs, int threshold) {
+        return indexedConfiguration( poolSize, validationMs ).connectionPoolConfiguration( cp -> cp.validationFailureFlushThreshold( threshold ) );
+    }
+
     private static AgroalDataSourceConfigurationSupplier indexedConfiguration(int poolSize, int validationMs) {
         IndexedConnection.reset();
         return new AgroalDataSourceConfigurationSupplier()

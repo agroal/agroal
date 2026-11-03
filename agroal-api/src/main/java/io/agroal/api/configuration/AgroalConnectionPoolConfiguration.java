@@ -81,6 +81,11 @@ public interface AgroalConnectionPoolConfiguration {
      * on acquisition. Below this number only the connections that failed validation are removed.
      * A value of 1 flushes the pool on the first failed validation, a value of 0 never flushes the pool.
      * Failed validations on acquisition (validation on borrow, idle validation) remove the connection and do not count.
+     * <p>
+     * Connections commonly become invalid for reasons that affect only some of them: idle sessions dropped by a firewall
+     * or killed by the database after an idle timeout, sessions killed by an administrator, a validation that timed out
+     * under load. A value greater than 1 keeps the rest of the pool in these cases, while a database failover, where all
+     * idle connections fail in the same run, still flushes the pool.
      */
     int validationFailureFlushThreshold();
 
