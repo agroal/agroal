@@ -929,9 +929,21 @@ public final class ConnectionPool implements Pool {
 
     private final class ValidationTask implements Runnable {
 
+        private boolean thresholdWarning; // accessed by the housekeeping thread only
+
         @Override
         public void run() {
             housekeepingExecutor.schedule( this, configuration.validationTimeout().toNanos(), NANOSECONDS );
+
+            // the threshold is checked against max size on configuration, but max size can be lowered at runtime
+            if ( configuration.validationFailureFlushThreshold() > configuration.maxSize() ) {
+                if ( !thresholdWarning ) {
+                    thresholdWarning = true;
+                    fireOnWarning( listeners, "Validation failure flush threshold is greater than max size, the pool is never flushed on failed validation" );
+                }
+            } else {
+                thresholdWarning = false;
+            }
 
             AtomicInteger failures = new AtomicInteger(); // failed validations in this run
             for ( ConnectionHandler handler : allConnections ) {

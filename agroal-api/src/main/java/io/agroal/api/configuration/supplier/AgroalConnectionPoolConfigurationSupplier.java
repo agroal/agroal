@@ -406,6 +406,9 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         if ( validationFailureFlushThreshold < 0 ) {
             throw new IllegalArgumentException( "Validation failure flush threshold must not be negative" );
         }
+        if ( validationFailureFlushThreshold > maxSize ) {
+            throw new IllegalArgumentException( "Validation failure flush threshold must not be greater than max size" );
+        }
         if ( connectionFactoryConfigurationSupplier == null ) {
             throw new IllegalArgumentException( "Connection factory configuration not defined" );
         }

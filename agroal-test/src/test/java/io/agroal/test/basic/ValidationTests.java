@@ -35,6 +35,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -590,6 +591,36 @@ public class ValidationTests {
             assertTrue( waitFor( () -> dataSource.getMetrics().invalidCount() == POOL_SIZE, 5 * VALIDATION_MS ), "All connections should fail validation individually" );
             assertEquals( 0, dataSource.getMetrics().flushCount(), "No connection should be flushed without validation" );
             assertEquals( 0, dataSource.getMetrics().availableCount(), "No connection should be left in the pool" );
+        }
+    }
+
+    @Test
+    @DisplayName( "validation failure threshold greater than max size" )
+    void validationFailureFlushThresholdAboveMaxSizeTest() throws Exception {
+        int POOL_SIZE = 5, VALIDATION_MS = 100;
+
+        // rejected on configuration
+        IllegalArgumentException e = assertThrows( IllegalArgumentException.class, () -> indexedConfiguration( POOL_SIZE, VALIDATION_MS, POOL_SIZE + 1 ).get() );
+        assertEquals( "Validation failure flush threshold must not be greater than max size", e.getMessage() );
+
+        // max size lowered at runtime: a warning is issued once
+        AtomicInteger warnings = new AtomicInteger();
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void onWarning(String message) {
+                if ( message.contains( "flush threshold" ) ) {
+                    warnings.incrementAndGet();
+                }
+            }
+        };
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 3 ), listener ) ) {
+            Thread.sleep( 3 * VALIDATION_MS );
+            assertEquals( 0, warnings.get(), "No warning while the threshold can be reached" );
+
+            dataSource.getConfiguration().connectionPoolConfiguration().setMaxSize( 2 );
+            assertTrue( waitFor( () -> warnings.get() == 1, 5 * VALIDATION_MS ), "A warning should be issued when the threshold can no longer be reached" );
+            Thread.sleep( 3 * VALIDATION_MS );
+            assertEquals( 1, warnings.get(), "The warning should be issued once" );
         }
     }
 
