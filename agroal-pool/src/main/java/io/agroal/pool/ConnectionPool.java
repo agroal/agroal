@@ -929,12 +929,25 @@ public final class ConnectionPool implements Pool {
 
     private final class ValidationTask implements Runnable {
 
+        private boolean thresholdWarning; // accessed by the housekeeping thread only
+
         @Override
         public void run() {
             housekeepingExecutor.schedule( this, configuration.validationTimeout().toNanos(), NANOSECONDS );
 
+            // the threshold is checked against max size on configuration, but max size can be lowered at runtime
+            if ( configuration.validationFailureFlushThreshold() > configuration.maxSize() ) {
+                if ( !thresholdWarning ) {
+                    thresholdWarning = true;
+                    fireOnWarning( listeners, "Validation failure flush threshold is greater than max size, the pool is never flushed on failed validation" );
+                }
+            } else {
+                thresholdWarning = false;
+            }
+
+            AtomicInteger failures = new AtomicInteger(); // failed validations in this run
             for ( ConnectionHandler handler : allConnections ) {
-                housekeepingExecutor.execute( new ValidateConnectionTask( handler ) );
+                housekeepingExecutor.execute( new ValidateConnectionTask( handler, failures ) );
             }
         }
 
@@ -949,9 +962,11 @@ public final class ConnectionPool implements Pool {
         private class ValidateConnectionTask implements Runnable {
 
             private final ConnectionHandler handler;
+            private final AtomicInteger failures;
 
-            ValidateConnectionTask(ConnectionHandler handler) {
+            ValidateConnectionTask(ConnectionHandler handler, AtomicInteger failures) {
                 this.handler = handler;
+                this.failures = failures;
             }
 
             @Override
@@ -966,7 +981,11 @@ public final class ConnectionPool implements Pool {
                 }
                 if ( handler.tryValidationFromIdle() && !performValidation( handler, true ) ) {
                     // the failed connection was removed from the pool by performValidation()
-                    flushStalePool( generation );
+                    int threshold = configuration.validationFailureFlushThreshold();
+                    if ( threshold > 0 && failures.incrementAndGet() >= threshold ) {
+                        // too many failures in this run: the pool is stale (e.g. database failover), replace it as a whole
+                        flushStalePool( generation );
+                    }
                 }
             }
         }

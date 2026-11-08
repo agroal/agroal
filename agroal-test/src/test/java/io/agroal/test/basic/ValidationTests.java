@@ -35,6 +35,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -547,6 +548,101 @@ public class ValidationTests {
         }
     }
 
+    @Test
+    @DisplayName( "flush the pool when the validation failure threshold is reached" )
+    void validationFailureFlushThresholdTest() throws Exception {
+        int POOL_SIZE = 6, VALIDATION_MS = 300;
+
+        assertEquals( 1, indexedConfiguration( POOL_SIZE, VALIDATION_MS ).get().connectionPoolConfiguration().validationFailureFlushThreshold(), "Default threshold" );
+
+        // threshold 3: a single bad connection is removed, the rest of the pool is kept
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 3 ) ) ) {
+            assertTrue( waitFor( () -> dataSource.getMetrics().creationCount() == POOL_SIZE, VALIDATION_MS ), "All connections should be created" );
+            IndexedConnection.failBelow.set( 1 ); // set before the first validation run
+
+            assertTrue( waitFor( () -> dataSource.getMetrics().invalidCount() == 1, 5 * VALIDATION_MS ), "The bad connection should fail validation" );
+            Thread.sleep( 3 * VALIDATION_MS ); // a few more validation runs
+            assertEquals( 1, dataSource.getMetrics().invalidCount(), "Only the bad connection should be invalidated" );
+            assertEquals( 0, dataSource.getMetrics().flushCount(), "A single failure should not flush the pool" );
+            assertEquals( POOL_SIZE - 1, dataSource.getMetrics().availableCount(), "The other connections should still be in the pool" );
+        }
+
+        // threshold 3: all connections bad, three of them fail validation in the same run and the rest is flushed without validation
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 3 ) ) ) {
+            assertTrue( waitFor( () -> dataSource.getMetrics().creationCount() == POOL_SIZE, VALIDATION_MS ), "All connections should be created" );
+            IndexedConnection.failBelow.set( POOL_SIZE ); // set before the first validation run
+
+            assertTrue( waitFor( () -> dataSource.getMetrics().invalidCount() + dataSource.getMetrics().flushCount() == POOL_SIZE, 5 * VALIDATION_MS ), "All connections should be removed" );
+            assertEquals( 3, dataSource.getMetrics().invalidCount(), "Three connections should fail validation" );
+            assertEquals( POOL_SIZE - 3, dataSource.getMetrics().flushCount(), "The remaining connections should be flushed" );
+            assertEquals( 0, dataSource.getMetrics().availableCount(), "No connection should be left in the pool" );
+        }
+    }
+
+    @Test
+    @DisplayName( "never flush the pool on failed validation when the threshold is 0" )
+    void noFlushOnValidationFailureTest() throws Exception {
+        int POOL_SIZE = 5, VALIDATION_MS = 300;
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 0 ) ) ) {
+            assertTrue( waitFor( () -> dataSource.getMetrics().creationCount() == POOL_SIZE, VALIDATION_MS ), "All connections should be created" );
+            IndexedConnection.failBelow.set( POOL_SIZE ); // every connection is bad
+
+            assertTrue( waitFor( () -> dataSource.getMetrics().invalidCount() == POOL_SIZE, 5 * VALIDATION_MS ), "All connections should fail validation individually" );
+            assertEquals( 0, dataSource.getMetrics().flushCount(), "No connection should be flushed without validation" );
+            assertEquals( 0, dataSource.getMetrics().availableCount(), "No connection should be left in the pool" );
+        }
+    }
+
+    @Test
+    @DisplayName( "validation failure threshold greater than max size" )
+    void validationFailureFlushThresholdAboveMaxSizeTest() throws Exception {
+        int POOL_SIZE = 5, VALIDATION_MS = 100;
+
+        // rejected on configuration
+        IllegalArgumentException e = assertThrows( IllegalArgumentException.class, () -> indexedConfiguration( POOL_SIZE, VALIDATION_MS, POOL_SIZE + 1 ).get() );
+        assertEquals( "Validation failure flush threshold must not be greater than max size", e.getMessage() );
+
+        // max size lowered at runtime: a warning is issued once
+        AtomicInteger warnings = new AtomicInteger();
+        AgroalDataSourceListener listener = new AgroalDataSourceListener() {
+            @Override
+            public void onWarning(String message) {
+                if ( message.contains( "flush threshold" ) ) {
+                    warnings.incrementAndGet();
+                }
+            }
+        };
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( indexedConfiguration( POOL_SIZE, VALIDATION_MS, 3 ), listener ) ) {
+            Thread.sleep( 3 * VALIDATION_MS );
+            assertEquals( 0, warnings.get(), "No warning while the threshold can be reached" );
+
+            dataSource.getConfiguration().connectionPoolConfiguration().setMaxSize( 2 );
+            assertTrue( waitFor( () -> warnings.get() == 1, 5 * VALIDATION_MS ), "A warning should be issued when the threshold can no longer be reached" );
+            Thread.sleep( 3 * VALIDATION_MS );
+            assertEquals( 1, warnings.get(), "The warning should be issued once" );
+        }
+    }
+
+    // a pool of IndexedConnection that is not refilled, so the connections removed by validation can be counted
+    private static AgroalDataSourceConfigurationSupplier indexedConfiguration(int poolSize, int validationMs, int threshold) {
+        return indexedConfiguration( poolSize, validationMs ).connectionPoolConfiguration( cp -> cp.validationFailureFlushThreshold( threshold ) );
+    }
+
+    private static AgroalDataSourceConfigurationSupplier indexedConfiguration(int poolSize, int validationMs) {
+        IndexedConnection.reset();
+        return new AgroalDataSourceConfigurationSupplier()
+                .metricsEnabled()
+                .connectionPoolConfiguration( cp -> cp
+                        .initialSize( poolSize )
+                        .maxSize( poolSize )
+                        .minSize( 0 )
+                        .validationTimeout( ofMillis( validationMs ) )
+                        .connectionValidator( AgroalConnectionPoolConfiguration.ConnectionValidator.defaultValidator() )
+                        .connectionFactoryConfiguration( cf -> cf.connectionProviderClass( IndexedDataSource.class ) )
+                );
+    }
+
     private static boolean waitFor(java.util.function.BooleanSupplier condition, long timeoutMs) throws InterruptedException {
         long deadline = System.nanoTime() + timeoutMs * 1_000_000;
         while ( !condition.getAsBoolean() ) {
@@ -559,6 +655,31 @@ public class ValidationTests {
     }
 
     // --- //
+
+    public static class IndexedDataSource implements MockDataSource {
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return new IndexedConnection();
+        }
+    }
+
+    public static class IndexedConnection implements MockConnection {
+
+        static final AtomicInteger created = new AtomicInteger(), failBelow = new AtomicInteger();
+
+        private final int index = created.getAndIncrement();
+
+        static void reset() {
+            created.set( 0 );
+            failBelow.set( 0 );
+        }
+
+        @Override
+        public boolean isValid(int timeout) throws SQLException {
+            return index >= failBelow.get(); // connections with an index below failBelow are bad
+        }
+    }
 
     public static class CountingDataSource implements MockDataSource {
 

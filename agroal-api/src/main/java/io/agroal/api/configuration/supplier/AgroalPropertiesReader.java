@@ -86,6 +86,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String VALIDATION_TIMEOUT_MS = "validationTimeout_ms";
     public static final String VALIDATION_TIMEOUT_S = "validationTimeout_s";
     public static final String VALIDATION_TIMEOUT_M = "validationTimeout_m";
+    public static final String VALIDATION_FAILURE_FLUSH_THRESHOLD = "validationFailureFlushThreshold";
 
     public static final String LEAK_TIMEOUT = "leakTimeout";
     public static final String LEAK_TIMEOUT_MS = "leakTimeout_ms";
@@ -210,6 +211,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::validationTimeout, Duration::parse, properties, VALIDATION_TIMEOUT );
         apply( connectionPoolSupplier::validationTimeout, AgroalPropertiesReader::parseDurationMs, properties, VALIDATION_TIMEOUT_MS );
         apply( connectionPoolSupplier::validationTimeout, AgroalPropertiesReader::parseDurationS, properties, VALIDATION_TIMEOUT_S );
+        apply( connectionPoolSupplier::validationFailureFlushThreshold, Integer::parseInt, properties, VALIDATION_FAILURE_FLUSH_THRESHOLD );
         apply( connectionPoolSupplier::validationTimeout, AgroalPropertiesReader::parseDurationM, properties, VALIDATION_TIMEOUT_M );
 
         apply( connectionPoolSupplier::leakTimeout, Duration::parse, properties, LEAK_TIMEOUT );

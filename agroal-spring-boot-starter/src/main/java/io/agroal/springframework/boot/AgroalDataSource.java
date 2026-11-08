@@ -154,6 +154,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.validationTimeout( Duration.ofSeconds( timeout ) );
     }
 
+    public void setValidationFailureFlushThreshold(int threshold) {
+        connectionPoolConfiguration.validationFailureFlushThreshold( threshold );
+    }
+
     public void setJtaTransactionIntegration(TransactionIntegration transactionIntegration) {
         connectionPoolConfiguration.transactionIntegration( transactionIntegration );
     }
