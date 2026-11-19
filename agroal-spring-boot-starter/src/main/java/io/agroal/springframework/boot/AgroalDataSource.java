@@ -183,6 +183,10 @@ public class AgroalDataSource implements io.agroal.api.AgroalDataSource, Initial
         connectionPoolConfiguration.flushOnClose( flush );
     }
 
+    public void setUseConnectionRequestBoundaries(boolean useRequestBoundaries) {
+        connectionPoolConfiguration.useConnectionRequestBoundaries( useRequestBoundaries );
+    }
+
     public void setRecoveryEnable(boolean recovery) {
         connectionPoolConfiguration.recoveryEnable( recovery );
     }

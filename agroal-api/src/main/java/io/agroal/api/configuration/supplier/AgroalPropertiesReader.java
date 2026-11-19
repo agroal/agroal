@@ -64,6 +64,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
     public static final String MAX_SIZE = "maxSize";
     public static final String INITIAL_SIZE = "initialSize";
     public static final String FLUSH_ON_CLOSE = "flushOnClose";
+    public static final String USE_CONNECTION_REQUEST_BOUNDARIES = "useConnectionRequestBoundaries";
     public static final String CONNECTION_VALIDATOR = "connectionValidator";
     public static final String ENHANCED_LEAK_REPORT = "enhancedLeakReport";
     public static final String EXCEPTION_SORTER = "exceptionSorter";
@@ -189,6 +190,7 @@ public class AgroalPropertiesReader implements Supplier<AgroalDataSourceConfigur
         apply( connectionPoolSupplier::minSize, Integer::parseInt, properties, MIN_SIZE );
         apply( connectionPoolSupplier::maxSize, Integer::parseInt, properties, MAX_SIZE );
         apply( connectionPoolSupplier::flushOnClose, Boolean::parseBoolean, properties, FLUSH_ON_CLOSE );
+        apply( connectionPoolSupplier::useConnectionRequestBoundaries, Boolean::parseBoolean, properties, USE_CONNECTION_REQUEST_BOUNDARIES );
         apply( connectionPoolSupplier::initialSize, Integer::parseInt, properties, INITIAL_SIZE );
         apply( connectionPoolSupplier::connectionValidator, AgroalPropertiesReader::parseConnectionValidator, properties, CONNECTION_VALIDATOR );
         apply( connectionPoolSupplier::exceptionSorter, AgroalPropertiesReader::parseExceptionSorter, properties, EXCEPTION_SORTER );

@@ -50,6 +50,7 @@ class PropertiesReaderTests {
         Assertions.assertEquals( 1, configuration.connectionPoolConfiguration().acquisitionTimeout().getSeconds() );
         Assertions.assertEquals( 60, configuration.connectionPoolConfiguration().validationTimeout().getSeconds() );
         Assertions.assertEquals( 0, configuration.connectionPoolConfiguration().validationFailureFlushThreshold() );
+        Assertions.assertFalse( configuration.connectionPoolConfiguration().useConnectionRequestBoundaries() );
         Assertions.assertEquals( AgroalConnectionFactoryConfiguration.TransactionIsolation.SERIALIZABLE, configuration.connectionPoolConfiguration().connectionFactoryConfiguration().jdbcTransactionIsolation() );
         Assertions.assertInstanceOf( OddHoursConnectionValidator.class, configuration.connectionPoolConfiguration().connectionValidator() );
         Assertions.assertInstanceOf( PostgreSQLExceptionSorter.class, configuration.connectionPoolConfiguration().exceptionSorter() );
