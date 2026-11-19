@@ -112,6 +112,22 @@ public interface AgroalConnectionPoolConfiguration {
     boolean flushOnClose();
 
     /**
+     * If the pool drives the JDBC 4.3 Request Boundaries API, calling {@link java.sql.Connection#beginRequest()} when a
+     * connection is handed out and {@link java.sql.Connection#endRequest()} when it is returned, as recommended by the
+     * JDBC specification for connection pooling managers. Default is true.
+     * <p>
+     * Both methods have a no-op default implementation in {@link java.sql.Connection}, so for the majority of drivers
+     * these calls do nothing. A driver that does implement them may also throw from them, and in that case the exception
+     * fails the acquisition of the connection (for {@code beginRequest()}) or is reported to the listeners as a warning
+     * (for {@code endRequest()}). Setting this to false stops the pool from making these calls, which restores the
+     * behaviour of pools prior to the introduction of this feature.
+     * <p>
+     * This setting only applies to the calls made by the pool. An explicit {@code beginRequest()} or {@code endRequest()}
+     * on a connection obtained from this pool is always delegated to the driver, as required by the JDBC contract.
+     */
+    boolean useConnectionRequestBoundaries();
+
+    /**
      * If connections from this pool should be used during recovery. For XA pools it is vital that recovery is enabled
      * on at least one connection pool to the same database and therefore the default is true.
      * <p>

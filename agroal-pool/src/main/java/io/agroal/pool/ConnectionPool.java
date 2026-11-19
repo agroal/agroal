@@ -105,6 +105,7 @@ public final class ConnectionPool implements Pool {
     private final boolean validationEnabled;
     private final boolean reapEnabled;
     private final boolean recoveryEnabled;
+    private final boolean requestBoundariesEnabled;
 
     private final LongAccumulator maxUsed = new LongAccumulator( Math::max, Long.MIN_VALUE );
     private final LongAdder activeCount = new LongAdder();
@@ -136,6 +137,7 @@ public final class ConnectionPool implements Pool {
         validationEnabled = !configuration.validationTimeout().isZero();
         reapEnabled = !configuration.reapTimeout().isZero();
         recoveryEnabled = configuration.recoveryEnable();
+        requestBoundariesEnabled = configuration.useConnectionRequestBoundaries();
 
         setPoolInterceptors(configuration.interceptors());
     }
@@ -519,7 +521,9 @@ public final class ConnectionPool implements Pool {
         fireOnConnectionAcquired( listeners, checkedOutHandler );
 
         // JDBC 4.3 Request Boundaries: signal the driver that a request begins as the connection leaves the pool
-        checkedOutHandler.beginRequest();
+        if ( requestBoundariesEnabled ) {
+            checkedOutHandler.beginRequest();
+        }
 
         if ( verifyEnlistment && !checkedOutHandler.isEnlisted() ) {
             switch ( configuration.transactionRequirement() ) {
@@ -585,7 +589,9 @@ public final class ConnectionPool implements Pool {
 
         try {
             // JDBC 4.3 Request Boundaries: signal the driver that the request ended before the connection is reset for reuse
-            handler.endRequest();
+            if ( requestBoundariesEnabled ) {
+                handler.endRequest();
+            }
             handler.resetConnection();
         } catch ( SQLException sqlException ) {
             fireOnWarning( listeners, sqlException );

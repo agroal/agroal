@@ -41,6 +41,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     MultipleAcquisitionAction multipleAcquisitionAction = MultipleAcquisitionAction.LENIENT;
     boolean enhancedLeakReport;
     boolean flushOnClose;
+    boolean useConnectionRequestBoundaries = true;
     boolean recoveryEnable = true;
     int initialSize;
     volatile int minSize;
@@ -78,6 +79,7 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
         transactionRequirement = existingConfiguration.transactionRequirement();
         multipleAcquisitionAction = existingConfiguration.multipleAcquisition();
         flushOnClose = existingConfiguration.flushOnClose();
+        useConnectionRequestBoundaries = existingConfiguration.useConnectionRequestBoundaries();
         recoveryEnable = existingConfiguration.recoveryEnable();
         enhancedLeakReport = existingConfiguration.enhancedLeakReport();
         initialSize = existingConfiguration.initialSize();
@@ -202,6 +204,25 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
     public AgroalConnectionPoolConfigurationSupplier flushOnClose(boolean flush) {
         checkLock();
         flushOnClose = flush;
+        return this;
+    }
+
+    /**
+     * Enables the pool to drive the JDBC 4.3 Request Boundaries API.
+     */
+    public AgroalConnectionPoolConfigurationSupplier useConnectionRequestBoundaries() {
+        return useConnectionRequestBoundaries( true );
+    }
+
+    /**
+     * Enables or disables the pool calling {@link java.sql.Connection#beginRequest()} on checkout and
+     * {@link java.sql.Connection#endRequest()} on return. Default is true. Set to false to stop the pool from making
+     * these calls, for instance when a driver that implements them throws from them.
+     * See {@link AgroalConnectionPoolConfiguration#useConnectionRequestBoundaries()}.
+     */
+    public AgroalConnectionPoolConfigurationSupplier useConnectionRequestBoundaries(boolean useRequestBoundaries) {
+        checkLock();
+        useConnectionRequestBoundaries = useRequestBoundaries;
         return this;
     }
 
@@ -451,6 +472,11 @@ public class AgroalConnectionPoolConfigurationSupplier implements Supplier<Agroa
             @Override
             public boolean flushOnClose() {
                 return flushOnClose;
+            }
+
+            @Override
+            public boolean useConnectionRequestBoundaries() {
+                return useConnectionRequestBoundaries;
             }
 
             @Override
