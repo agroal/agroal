@@ -19,7 +19,11 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
@@ -29,6 +33,9 @@ import static io.agroal.test.AgroalTestGroup.FUNCTIONAL;
 import static io.agroal.test.MockDriver.deregisterMockDriver;
 import static io.agroal.test.MockDriver.registerMockDriver;
 import static java.text.MessageFormat.format;
+import static java.time.Duration.ofSeconds;
+import static java.util.concurrent.Executors.newFixedThreadPool;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.logging.Logger.getLogger;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -130,6 +137,92 @@ public class ConnectionCloseTests {
                 assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
             } );
         }
+    }
+
+    @Test
+    @DisplayName( "AG-326 - abort() on an already closed Connection does not return it to the pool again" )
+    void abortAfterCloseTest() throws SQLException {
+        ReturnListener returnListener = new ReturnListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), returnListener ) ) {
+            Connection connection = dataSource.getConnection();
+            connection.close();
+
+            // The JDBC contract makes abort() a no-op on a closed Connection: it must not return the handler again
+            connection.abort( Runnable::run );
+
+            assertAll( () -> {
+                assertEquals( 1, returnListener.getReturnCount().longValue(), "Expecting connection to be returned once to the pool" );
+                assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
+                assertEquals( 1, dataSource.getMetrics().availableCount(), "Expecting 1 available connection" );
+            } );
+
+            // The only connection in the pool must still be exclusively acquirable
+            try ( Connection acquired = dataSource.getConnection() ) {
+                assertEquals( 1, dataSource.getMetrics().activeCount(), "Expecting 1 active connection" );
+                assertEquals( 0, dataSource.getMetrics().availableCount(), "Expecting 0 available connections while the connection is in use" );
+                assertNotNull( acquired.getSchema(), "Expected an usable connection" );
+            }
+        }
+    }
+
+    @Test
+    @DisplayName( "AG-326 - abort() on an open Connection returns it to the pool exactly once" )
+    void abortReturnsConnectionOnceTest() throws SQLException {
+        ReturnListener returnListener = new ReturnListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), returnListener ) ) {
+            Connection connection = dataSource.getConnection();
+            connection.abort( Runnable::run );
+
+            assertAll( () -> {
+                assertTrue( connection.isClosed(), "Expected closed connection, but it's open" );
+                assertEquals( 1, returnListener.getReturnCount().longValue(), "Expecting connection to be returned once to the pool" );
+                assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
+            } );
+
+            // A subsequent close() or abort() on the same wrapper is a no-op
+            connection.close();
+            connection.abort( Runnable::run );
+
+            assertEquals( 1, returnListener.getReturnCount().longValue(), "Expecting connection to be returned once to the pool" );
+        }
+    }
+
+    @Test
+    @DisplayName( "AG-326 - concurrent close() calls return the Connection to the pool only once" )
+    void concurrentCloseTest() throws Exception {
+        int rounds = 2000;
+        ReturnListener returnListener = new ReturnListener();
+        ExecutorService executor = newFixedThreadPool( 2 );
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().metricsEnabled().connectionPoolConfiguration( cp -> cp.maxSize( 1 ).minSize( 1 ).initialSize( 1 ).acquisitionTimeout( ofSeconds( 2 ) ) ), returnListener ) ) {
+            for ( int i = 0; i < rounds; i++ ) {
+                Connection connection = dataSource.getConnection();
+                CyclicBarrier barrier = new CyclicBarrier( 2 );
+                Future<?> one = executor.submit( closeTask( barrier, connection ) );
+                Future<?> two = executor.submit( closeTask( barrier, connection ) );
+                one.get( 10, SECONDS );
+                two.get( 10, SECONDS );
+            }
+
+            assertAll( () -> {
+                assertEquals( rounds, returnListener.getReturnCount().longValue(), "Expecting each connection to be returned once to the pool" );
+                assertEquals( 0, dataSource.getMetrics().activeCount(), "Expecting 0 active connections" );
+                assertEquals( 1, dataSource.getMetrics().availableCount(), "Expecting 1 available connection" );
+                assertEquals( 1, dataSource.getMetrics().creationCount(), "Expecting a single physical connection to have been created" );
+            } );
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private static Callable<Void> closeTask(CyclicBarrier barrier, Connection connection) {
+        return () -> {
+            barrier.await();
+            connection.close();
+            return null;
+        };
     }
 
     @Test
