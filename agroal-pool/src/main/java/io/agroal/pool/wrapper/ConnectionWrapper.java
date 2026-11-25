@@ -174,6 +174,10 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
         if ( connection == ClosedConnection.INSTANCE || !WRAPPED.compareAndSet( this, connection, ClosedConnection.INSTANCE ) ) {
             return;
         }
+        pruneClosed();
+        if ( trackedStatements != null ) {
+            addLeakedStatements( trackedStatements.closeAllAutocloseableElements() );
+        }
         try {
             connection.abort( executor );
         } catch ( SQLException se ) {

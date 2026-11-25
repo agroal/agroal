@@ -190,6 +190,25 @@ public class ConnectionCloseTests {
     }
 
     @Test
+    @DisplayName( "AG-326 - abort() releases the JDBC resources tracked by the wrapper" )
+    void abortClosesTrackedStatementsTest() throws SQLException {
+        OnWarningListener warningListener = new OnWarningListener();
+
+        try ( AgroalDataSource dataSource = AgroalDataSource.from( new AgroalDataSourceConfigurationSupplier().connectionPoolConfiguration( cp -> cp.maxSize( 1 ) ), warningListener ) ) {
+            Connection connection = dataSource.getConnection();
+            Statement underlyingStatement = connection.createStatement().unwrap( ClosableStatement.class );
+
+            // abort() marks the connection closed and releases any resources, as close() does
+            connection.abort( Runnable::run );
+
+            assertAll( () -> {
+                assertTrue( underlyingStatement.isClosed(), "Expecting the tracked Statement to be closed by abort()" );
+                assertTrue( warningListener.getWarning().get(), "Expecting a warning for the leaked Statement" );
+            } );
+        }
+    }
+
+    @Test
     @DisplayName( "AG-326 - concurrent close() calls return the Connection to the pool only once" )
     void concurrentCloseTest() throws Exception {
         int rounds = 2000;
