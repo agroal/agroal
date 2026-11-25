@@ -74,9 +74,10 @@ public final class XAConnectionWrapper extends AutoCloseableElement<XAConnection
     @Override
     public void close() throws SQLException {
         handler.traceConnectionOperation( "close()" );
-        if ( wrappedXAConnection() != ClosedXAConnection.INSTANCE ) {
-            WRAPPED.setRelease( this, ClosedXAConnection.INSTANCE );
-
+        // AG-326 - same check-then-act as ConnectionWrapper.close(): only the caller that actually
+        // closes the wrapper may call transactionEnd(), which returns the handler to the pool.
+        XAConnection current = wrappedXAConnection();
+        if ( current != ClosedXAConnection.INSTANCE && WRAPPED.compareAndSet( this, current, ClosedXAConnection.INSTANCE ) ) {
             if ( trackedXAResources != null ) {
                 trackedXAResources.closeAllAutocloseableElements();
             }
