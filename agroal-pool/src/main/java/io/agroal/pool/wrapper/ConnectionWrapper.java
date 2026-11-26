@@ -153,8 +153,10 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     @Override
     public void close() throws SQLException {
         handler.traceConnectionOperation( "close()" );
-        if ( wrappedConnection() != ClosedConnection.INSTANCE ) {
-            WRAPPED.setRelease( this, ClosedConnection.INSTANCE );
+        // AG-326 - only the caller that actually closes the wrapper returns the handler to the pool.
+        // A plain check-then-act lets two concurrent close() calls both pass and return it twice.
+        Connection current = wrappedConnection();
+        if ( current != ClosedConnection.INSTANCE && WRAPPED.compareAndSet( this, current, ClosedConnection.INSTANCE ) ) {
             pruneClosed();
             if ( trackedStatements != null ) {
                 addLeakedStatements( trackedStatements.closeAllAutocloseableElements() );
@@ -166,9 +168,17 @@ public final class ConnectionWrapper extends AutoCloseableElement<ConnectionWrap
     @Override
     public void abort(Executor executor) throws SQLException {
         handler.traceConnectionOperation( "abort()" );
+        // AG-326 - abort() on a closed connection is a no-op per the JDBC contract, and the handler
+        // must not be returned to the pool a second time by the finally block below.
+        Connection connection = wrappedConnection();
+        if ( connection == ClosedConnection.INSTANCE || !WRAPPED.compareAndSet( this, connection, ClosedConnection.INSTANCE ) ) {
+            return;
+        }
+        pruneClosed();
+        if ( trackedStatements != null ) {
+            addLeakedStatements( trackedStatements.closeAllAutocloseableElements() );
+        }
         try {
-            Connection connection = wrappedConnection();
-            WRAPPED.setRelease( this, ClosedConnection.INSTANCE );
             connection.abort( executor );
         } catch ( SQLException se ) {
             handler.setFlushOnly( se );
