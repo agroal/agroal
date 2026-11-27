@@ -420,7 +420,14 @@ public final class ConnectionPool implements Pool {
                         }
                     }
                 } else { // Wait until a connection is released
-                    ConnectionHandler handler = waitAvailableHandler( deadline - nanoTime(), true );
+                    // AG-328 - tryTransfer() only hands a handler to a consumer already blocked in poll(), so a
+                    // connection returned between the scan above and the poll below is not signalled to this thread.
+                    // Do not block for the whole remaining duration: wait for at most a second and scan again.
+                    long remaining = deadline == MAX_VALUE ? MAX_VALUE : deadline - nanoTime();
+                    if ( remaining <= 0 ) {
+                        throw new TimeoutException( "Acquisition timeout while waiting for connection" );
+                    }
+                    ConnectionHandler handler = waitAvailableHandler( Long.min( ONE_SECOND, remaining ), false );
                     if ( handler != null && handler.acquire() ) {
                         return handler;
                     }
