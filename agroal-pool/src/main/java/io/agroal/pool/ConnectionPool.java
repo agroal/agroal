@@ -616,15 +616,21 @@ public final class ConnectionPool implements Pool {
         if ( !allConnections.remove( handler ) ) {
             return false;
         }
-        if ( configuration.flushOnClose() ) {
-            // AG-276 - Avoid connection overwhelming because destruction remain due to priority reason compared to creation
-            housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
-        }
+        destroy( handler ); // before the refill, so that the connection is closed before its (slower) replacement is established
         releaseAndFill( configuration.minSize() );
-        if ( !configuration.flushOnClose() ) {
-            housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
-        }
         return true;
+    }
+
+    // AG-276 / AG-329 - Destruction is dispatched with the same priority as creation. Otherwise the single housekeeping
+    // thread drains every pending (higher priority) connection creation first, and the connections pile up open on the
+    // database side while the pool, on the application side, is already back within max-size.
+    private void destroy(ConnectionHandler handler) {
+        try {
+            housekeepingExecutor.executeNow( new DestroyConnectionTask( handler ) );
+        } catch ( RejectedExecutionException e ) {
+            // the pool is shutting down: close the connection on this thread rather than leaking it
+            new DestroyConnectionTask( handler ).run();
+        }
     }
 
     // --- Exposed statistics //
@@ -879,7 +885,7 @@ public final class ConnectionPool implements Pool {
             createConnectionPermits.addAndGet( -( 1L << Integer.SIZE ) ); // removes 1 from the high bits
             metricsRepository.afterConnectionFlush();
             fireOnConnectionFlush( listeners, handler );
-            housekeepingExecutor.execute( new DestroyConnectionTask( handler ) );
+            destroy( handler );
         }
 
         private void afterFlush(AgroalDataSource.FlushMode mode) {

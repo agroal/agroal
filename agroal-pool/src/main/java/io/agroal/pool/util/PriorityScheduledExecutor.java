@@ -43,7 +43,7 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
 
     @SuppressWarnings( "WeakerAccess" )
     public void executeNow(Runnable priorityTask) {
-        executeNow( new FutureTask<>( priorityTask, null ) );
+        executeNow( new PriorityTask( priorityTask ) );
     }
 
     @SuppressWarnings( "WeakerAccess" )
@@ -101,17 +101,34 @@ public final class PriorityScheduledExecutor extends ScheduledThreadPoolExecutor
 
     @Override
     public List<Runnable> shutdownNow() {
-        for ( RunnableFuture<?> runnableFuture : priorityTasks ) {
-            runnableFuture.cancel( true );
+        List<Runnable> allTasks = new ArrayList<>();
+        for ( RunnableFuture<?> priorityTask; ( priorityTask = priorityTasks.poll() ) != null; ) {
+            priorityTask.cancel( true );
+            // AG-329 - hand back the task as it was submitted: a caller that inspects the returned tasks (as
+            // ConnectionPool.close() does, to recover pending connection destruction) never matches the wrapper
+            allTasks.add( priorityTask instanceof PriorityTask wrapper ? wrapper.unwrap() : priorityTask );
         }
-        List<Runnable> allTasks = new ArrayList<>( priorityTasks );
-        priorityTasks.clear();
 
         allTasks.addAll( super.shutdownNow() );
         return allTasks;
     }
 
     // -- //
+
+    // Keeps a reference to the submitted task, so that it can be handed back by shutdownNow()
+    private static final class PriorityTask extends FutureTask<Void> {
+
+        private final Runnable task;
+
+        PriorityTask(Runnable task) {
+            super( task, null );
+            this.task = task;
+        }
+
+        Runnable unwrap() {
+            return task;
+        }
+    }
 
     private static class PriorityExecutorThreadFactory implements ThreadFactory {
 
